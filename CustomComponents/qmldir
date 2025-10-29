@@ -1,0 +1,14 @@
+module CustomComponents
+CustomButton 1.0 CustomButton.qml
+CustomButtonWithIcon 1.0 CustomButtonWithIcon.qml
+CustomCombobox 1.0 CustomCombobox.qml
+CustomComboboxWithIcon 1.0 CustomComboboxWithIcon.qml
+CustomPopupMessage 1.0 CustomPopupMessage.qml
+CustomProccessBar 1.0 CustomProccessBar.qml
+CustomSwitch 1.0 CustomSwitch.qml
+CustomSwitchText 1.0 CustomSwitchText.qml
+CustomTextInput 1.0 CustomTextInput.qml 
+CustomTimer 1.0 CustomTimer.qml
+CustomPopupMenu 1.0 CustomPopupMenu.qml
+CustomCollapsiblePanel 1.0 CustomCollapsiblePanel.qml
+CustomCheckBox 1.0 CustomCheckBox.qml

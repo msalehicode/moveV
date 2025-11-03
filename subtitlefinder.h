@@ -5,6 +5,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QFile>
 
 struct SubtitleMatch {
     QString path;
@@ -23,6 +24,8 @@ private:
     QString detectQualityTag(const QString &fileName);
     int computeMatchScore(const QString &subtitleName, const QString &videoName,
                           const QString &videoQuality);
+
+    bool isFileExist(QString fpath);
 };
 
 

@@ -76,8 +76,21 @@ int SubtitleFinder::computeMatchScore(const QString &subtitleName, const QString
     return score;
 }
 
+bool SubtitleFinder::isFileExist(QString fpath)
+{
+    QFile file(fpath);
+    if (file.exists())
+        return true;
+
+    return false;
+}
+
 QStringList SubtitleFinder::findMatchingSubtitles(const QString &videoPath)
 {
+    QStringList result;
+    QList<SubtitleMatch> foundSubs;
+
+
     QString filePath = videoPath;
     if (filePath.startsWith("file://"))
         filePath = filePath.mid(7);
@@ -85,13 +98,60 @@ QStringList SubtitleFinder::findMatchingSubtitles(const QString &videoPath)
     QFileInfo info(filePath);
     QString dirPath = info.absolutePath();
     QString fileName = info.fileName();
+    QString fileBaseName = info.completeBaseName();
 
+    //check for samename with subtitle extension
+    QString samenameSub = dirPath+"/"+fileBaseName+".srt";
+    if(isFileExist(samenameSub))
+    {
+        foundSubs.append({samenameSub, 100});
+        result.append(samenameSub);
+        qInfo() << "subtitle with same name found."<<samenameSub;
+    }
+    else
+        qInfo() << "subtitle with same name not found." << samenameSub;
+
+
+    // Check for subtitles that contain the movie/show name (fuzzy match)
+    {
+        QDir dir(dirPath);
+        QStringList filters = {"*.srt", "*.sub"};
+        QFileInfoList list = dir.entryInfoList(filters, QDir::Files);
+
+        QString baseNameLower = fileBaseName.toLower();
+
+        // Clean up base name (remove resolution, codec, group, etc.)
+        QString cleanedName = baseNameLower;
+        cleanedName.remove(QRegularExpression("(\\b(480p|720p|1080p|2160p|hdr|x264|x265|h\\.?264|h\\.?265|webrip|bluray|bdrip|dvdrip|hdrip|web-?dl|hevc|repack|proper|xvid|yts|rarbg)\\b)", QRegularExpression::CaseInsensitiveOption));
+        cleanedName.remove(QRegularExpression("[._\\-]+")); // simplify delimiters
+
+        for (const QFileInfo &f : list) {
+            QString subLower = f.fileName().toLower();
+            QString subName = subLower;
+            subName.remove(QRegularExpression("[._\\-]+"));
+
+            // Check if cleaned video name appears in subtitle name (partial match)
+            if (subName.contains(cleanedName.left(10))) { // using a substring of first 10 chars for loose match
+                int score = computeMatchScore(f.fileName(), fileName, QString());
+                foundSubs.append({f.absoluteFilePath(), score});
+                result.append(f.absoluteFilePath());
+                qDebug() << "Subtitle name-based match:" << f.absoluteFilePath() << "score=" << score;
+            }
+        }
+    }
+
+
+
+
+
+    //check for code and episod and sort it by quiality the best matches
     QString episodeCode = extractSeasonEpisode(fileName);
     QString videoQuality = detectQualityTag(fileName);
 
     if (episodeCode.isEmpty()) {
         qDebug() << "No season/episode info found in:" << fileName;
-        return {};
+        // return {};
+        return result;
     }
 
     // qDebug() << "Looking for exact patterns around:" << episodeCode
@@ -114,7 +174,6 @@ QStringList SubtitleFinder::findMatchingSubtitles(const QString &videoPath)
     QStringList filters = {"*.srt", "*.sub"};
     QFileInfoList list = dir.entryInfoList(filters, QDir::Files);
 
-    QList<SubtitleMatch> foundSubs;
 
     for (const QFileInfo &f : list) {
         QString lower = f.fileName().toLower();
@@ -127,20 +186,22 @@ QStringList SubtitleFinder::findMatchingSubtitles(const QString &videoPath)
             if (re.match(lower).hasMatch()) {
                 int score = computeMatchScore(f.fileName(), fileName, videoQuality);
                 foundSubs.append({f.absoluteFilePath(), score});
-                // qDebug() << "Subtitle match:" << f.absoluteFilePath() << "score=" << score;
+                qDebug() << "Subtitle match:" << f.absoluteFilePath() << "score=" << score;
                 break;
             }
         }
     }
 
-    // Sort best → worst
-    std::sort(foundSubs.begin(), foundSubs.end(), [](const SubtitleMatch &a, const SubtitleMatch &b) {
-        return a.score > b.score;
-    });
-
-    QStringList result;
     for (const auto &m : foundSubs)
         result << m.path;
+
+    // Sort best → worst
+    // if(exists)
+        // std::sort(oundSubs.begin(), foundSubs.end(), [](const SubtitleMatch &a, const SubtitleMatch &b)
+        // {
+             // return a.score > b.score;
+        // });
+
 
     return result;
 }

@@ -22,9 +22,9 @@ Window {
     // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
     property real rotationAngle:  0
 
-    property string selectedFilePath;
     property string currentSubtitle: ""
     property bool autoLoadSubtitles: true
+    property string selectedMediaFilePath;
 
     property var subtitle1;
     property int sub1Index: 0
@@ -36,6 +36,7 @@ Window {
     property real sub1BgOpacity: 0.5
     property int sub1FontSize: 35
     property int sub1posy: 0
+    property string sub1filePath: "";
 
 
     property var subtitle2;
@@ -48,11 +49,12 @@ Window {
     property real sub2BgOpacity: 0.5
     property int sub2FontSize: 35
     property int sub2posy: 50
+    property string sub2filePath: "";
 
 
     MediaPlayer {
         id: player
-        source: "file:///home/mrx/Desktop/s1/The.Big.Bang.Theory.S01E02.720p.BluRay.PaHe.mkv"
+        // source: "file:///home/mrx/Desktop/Shrek.2.2004.720p.BluRay.x264.YTS.ZarFilm.mkv"
         videoOutput: videoOutput
         audioOutput: AudioOutput {}
 
@@ -68,11 +70,12 @@ Window {
 
             //encounter subtitle files
             let matches = subtitleFinder.findMatchingSubtitles(player.source)
+            console.log("matches.length=",matches.length, "matches",matches )
             if (matches.length > 0) {
                 console.log("Possible subtitles found:")
-                for (let i = 1; i < matches.length; ++i)
+                for (let i = 0; i < matches.length; ++i)
                 {
-                    // console.log("  " + matches[i])
+                    console.log("sub: " + matches[i])
                     subtitleModel.append({"text":  matches[(i)] , "index": (i+1), "path": matches[i]})
                 }
 
@@ -97,7 +100,7 @@ Window {
 
             // console.log("Subtitle tracks:", subtitleTracks.length)
             // for (let i = 0; i < subtitleTracks.length; ++i)
-                // console.log(i, subtitleTracks[i].stringValue(6))  // 6 = language key
+            // console.log(i, Button { text: "Subtitle"; onClicked: popupMessage.open() }subtitleTracks[i].stringValue(6))  // 6 = language key
         }
     }
 
@@ -121,10 +124,16 @@ Window {
             if(player.playing)
             {
                 if(subtitle1Status)
+                {
+                    // console.log("subtitle1 = ",subtitleText1.text)
                     subtitleText1.text = Sub.getSubtitleForTime(subtitle1, player.position + subtitle1OffsetMs*1000)
+                }
 
                 if(subtitle2Status)
+                {
+                    // console.log("subtitle2 = ",subtitleText2.text)
                     subtitleText2.text = Sub.getSubtitleForTime(subtitle2, player.position + subtitle2OffsetMs*1000)
+                }
             }
         }
     }
@@ -133,6 +142,33 @@ Window {
     ListModel { id: subtitleModel }
 
 
+    Rectangle
+    {
+        width:implicitWidth
+        height:implicitHeight
+        // anchors.fill: parent
+        color:"black"
+        Button { text: "file"; onClicked: fileDialogMedia.open() }
+        FileDialog {
+            id: fileDialogMedia
+            title: "Choose a media file"
+            // folder: StandardPaths.home
+            // selectExisting: true
+            nameFilters: ["All Files (*)"]
+
+            onAccepted: {
+                selectedMediaFilePath = selectedFile
+                player.source = selectedMediaFilePath
+                player.play()
+            }
+
+            onRejected: {
+                selectedMediaFilePath=""
+                console.log("File selection canceled")
+            }
+        }
+    }
+
     // Controls
     Row {
         anchors.bottom: parent.bottom
@@ -140,7 +176,31 @@ Window {
         spacing: 10
         Button { text: "Play"; onClicked: player.play() }
         Button { text: "Pause"; onClicked: player.pause() }
+        Button { text: "+15"; onClicked: player.position = Math.min(player.position + 15000, player.duration); }
+        Button { text: "-15"; onClicked: player.position = Math.max(player.position - 15000, 0); }
         Button { text: "Subtitle"; onClicked: popupMessage.open() }
+        Button
+        {
+            text: "fillmode";
+            onClicked:
+            {
+                switch (videoOutput.fillMode)
+                {
+                    case VideoOutput.PreserveAspectFit:
+                        videoOutput.fillMode = VideoOutput.PreserveAspectCrop;
+                        text = "FillMode: PreserveAspectCrop";
+                        break;
+                    case VideoOutput.PreserveAspectCrop:
+                        videoOutput.fillMode = VideoOutput.Stretch;
+                        text = "FillMode: Stretch";
+                        break;
+                    case VideoOutput.Stretch:
+                        videoOutput.fillMode = VideoOutput.PreserveAspectFit;
+                        text = "FillMode: PreserveAspectFit";
+                        break;
+                }
+            }
+        }
         Button
         {
             text: "fullscreen";
@@ -162,6 +222,18 @@ Window {
             value: rotationAngle
             stepSize: 1
             onValueChanged: rotationAngle = value
+            width: 70
+            height: 70
+        }
+        Dial {
+            id: brightnessDial
+            // anchors.bottom: parent.bottom
+            // anchors.horizontalCenter: parent.horizontalCenter
+            from: 1
+            to: 0
+            value: brightnessOverlay.opacity
+            stepSize: 0.1
+            onValueChanged: brightnessOverlay.opacity = value
             width: 70
             height: 70
         }
@@ -244,10 +316,10 @@ Window {
                 // setStatusBorder:false;
                 onSwitchClicked:
                 {
-                     if(chooseSutitle.switchStatus)
-                         subtitle1Status = !subtitle1Status
-                     else
-                         subtitle2Status = !subtitle2Status
+                    if(chooseSutitle.switchStatus)
+                        subtitle1Status = !subtitle1Status
+                    else
+                        subtitle2Status = !subtitle2Status
                 }
             }
 
@@ -288,6 +360,13 @@ Window {
             {
                 text:"load from local starage subtitle:"
                 width:parent.width
+                height:30
+            }
+            Text
+            {
+                text:"selected file:" + chooseSutitle.switchStatus ? sub1filePath : sub2filePath
+                width:parent.width
+                visible: sub1filePath.length>0||sub2filePath.length>0 ? (chooseSutitle.switchStatus ? sub1filePath : sub2filePath) : false
                 height:30
             }
             Button
@@ -360,12 +439,27 @@ Window {
         nameFilters: ["Subtitle Files (*.srt)", "All Files (*)"]
 
         onAccepted: {
-            selectedFilePath = selectedFile
-            loadSubtitle(false, selectedFilePath, chooseSutitle.switchStatus, -1)
+            if(chooseSutitle.switchStatus)
+            {
+                sub1filePath = selectedFile
+                loadSubtitle(false, sub1filePath, chooseSutitle.switchStatus, -1)
+            }
+            else
+            {
+                sub2filePath = selectedFile
+                loadSubtitle(false, sub2filePath, chooseSutitle.switchStatus, -1)
+            }
         }
 
         onRejected: {
-            selectedFilePath=""
+            if(chooseSutitle.switchStatus)
+            {
+                sub1filePath = ""
+            }
+            else
+            {
+                sub2filePath = ""
+            }
             console.log("File selection canceled")
         }
     }
@@ -374,7 +468,7 @@ Window {
     // Subtitle overlay
     Rectangle
     {
-        width:subtitleText1.width
+        width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
         height:subtitleText1.height
         color:sub1BackColor
         opacity: sub1BgOpacity
@@ -404,9 +498,9 @@ Window {
                 sub1posy=parent.y
             }
         }
-        Text {
+        Label {
             id: subtitleText1
-            width: implicitWidth
+            width: parent.width
             height: implicitHeight
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
@@ -422,7 +516,7 @@ Window {
 
     Rectangle
     {
-        width:subtitleText2.width
+        width: subtitleText2.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText2.implicitWidth
         height:subtitleText2.height
         color:sub2BackColor
         opacity: sub2BgOpacity
@@ -453,9 +547,10 @@ Window {
                 sub2posy=parent.y
             }
         }
-        Text {
+        Label {
             id: subtitleText2
-            width: implicitWidth
+            // width: implicitWidth>parent.width/2? parent.width/2 : implicitWidth
+            width: parent.width
             height: implicitHeight
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
@@ -470,13 +565,21 @@ Window {
 
 
 
+    Rectangle
+    {
+        id:brightnessOverlay
+        anchors.fill: parent
+        color:"black"
+        opacity: 0.5
+    }
+
 
     function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
     {
         if(embedded)
         {
             currentSubtitle = extractor.extractSubtitle(player.source, subIndex)
-            console.log("extract subtitle from video=", currentSubtitle)
+            console.log("extract subtitle from video=")//, currentSubtitle)
         }
         else
         {
@@ -484,6 +587,8 @@ Window {
                 subPath = subPath.slice(7)
 
             currentSubtitle = extractor.loadSrtFile(subPath)
+            console.log("loaded subtitle from video=")//, currentSubtitle)
+
         }
 
         if(subtitleNo)

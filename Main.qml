@@ -11,6 +11,12 @@ Window {
     id:mainWindow
     width: 800; height: 600; visible: true
 
+    Rectangle
+    {
+        anchors.fill: parent
+        color:"black"
+    }
+
     SubtitleExtractor
     {
         id: extractor
@@ -25,6 +31,7 @@ Window {
     property string currentSubtitle: ""
     property bool autoLoadSubtitles: true
     property string selectedMediaFilePath;
+    property real thePlaybackRate:1.0
 
     property var subtitle1;
     property int sub1Index: 0
@@ -56,7 +63,8 @@ Window {
         id: player
         // source: "file:///home/mrx/Desktop/Shrek.2.2004.720p.BluRay.x264.YTS.ZarFilm.mkv"
         videoOutput: videoOutput
-        audioOutput: AudioOutput {}
+        audioOutput: audioOutput
+        playbackRate: thePlaybackRate
 
         onTracksChanged:
         {
@@ -67,6 +75,26 @@ Window {
                 let lang = subtitleTracks[i].stringValue(6) // 6 = language key
                 subtitleModel.append({"text": lang ? lang : "Embedded Subtitle " + i, "index": i, "path": "embedded"})
             }
+
+            // --- Audio Tracks ---
+            audioTracksModel.clear()
+            for (let i = 0; i < audioTracks.length; ++i) {
+                // Common string keys:
+                // 6 = language, 1 = codec, 3 = description (depends on Qt version)
+                let lang = audioTracks[i].stringValue(6)
+                let codec = audioTracks[i].stringValue(1)
+                audioTracksModel.append({
+                    "text": (lang ? lang+" "+i : "Track " + i) + (codec ? " (" + codec + ")" : ""),
+                    "index": i
+                })
+            }
+            if(audioTracksModel.count>0)
+            {
+                audioTrackCombobox.visible=true
+                audioTrackCombobox.currentIndex=0;
+            }
+            else
+                audioTrackCombobox.visible=false
 
             //encounter subtitle files
             let matches = subtitleFinder.findMatchingSubtitles(player.source)
@@ -97,11 +125,26 @@ Window {
             }
 
 
+            for (let i = 0; i < audioTracks.length; ++i)
+            {
+                // let lang = audioTracks[i].stringValue(6) // 6 = language key
+                console.log("audiotracks:",audioTracks)
+                // subtitleModel.append({"text": lang ? lang : "Embedded Subtitle " + i, "index": i, "path": "embedded"})
+            }
+
+
+
 
             // console.log("Subtitle tracks:", subtitleTracks.length)
             // for (let i = 0; i < subtitleTracks.length; ++i)
             // console.log(i, Button { text: "Subtitle"; onClicked: popupMessage.open() }subtitleTracks[i].stringValue(6))  // 6 = language key
         }
+    }
+
+    AudioOutput
+    {
+        id:audioOutput
+        volume: videoArea.volume
     }
 
     VideoOutput {
@@ -141,103 +184,12 @@ Window {
     //subtitle list
     ListModel { id: subtitleModel }
 
+    ListModel { id: audioTracksModel }
 
-    Rectangle
-    {
-        width:implicitWidth
-        height:implicitHeight
-        // anchors.fill: parent
-        color:"black"
-        Button { text: "file"; onClicked: fileDialogMedia.open() }
-        FileDialog {
-            id: fileDialogMedia
-            title: "Choose a media file"
-            // folder: StandardPaths.home
-            // selectExisting: true
-            nameFilters: ["All Files (*)"]
 
-            onAccepted: {
-                selectedMediaFilePath = selectedFile
-                player.source = selectedMediaFilePath
-                player.play()
-            }
 
-            onRejected: {
-                selectedMediaFilePath=""
-                console.log("File selection canceled")
-            }
-        }
-    }
 
-    // Controls
-    Row {
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 10
-        Button { text: "Play"; onClicked: player.play() }
-        Button { text: "Pause"; onClicked: player.pause() }
-        Button { text: "+15"; onClicked: player.position = Math.min(player.position + 15000, player.duration); }
-        Button { text: "-15"; onClicked: player.position = Math.max(player.position - 15000, 0); }
-        Button { text: "Subtitle"; onClicked: popupMessage.open() }
-        Button
-        {
-            text: "fillmode";
-            onClicked:
-            {
-                switch (videoOutput.fillMode)
-                {
-                    case VideoOutput.PreserveAspectFit:
-                        videoOutput.fillMode = VideoOutput.PreserveAspectCrop;
-                        text = "FillMode: PreserveAspectCrop";
-                        break;
-                    case VideoOutput.PreserveAspectCrop:
-                        videoOutput.fillMode = VideoOutput.Stretch;
-                        text = "FillMode: Stretch";
-                        break;
-                    case VideoOutput.Stretch:
-                        videoOutput.fillMode = VideoOutput.PreserveAspectFit;
-                        text = "FillMode: PreserveAspectFit";
-                        break;
-                }
-            }
-        }
-        Button
-        {
-            text: "fullscreen";
-            onClicked:
-            {
-                if (mainWindow.visibility === Window.FullScreen) {
-                    mainWindow.visibility = Window.Windowed   // Back to normal
-                } else {
-                    mainWindow.visibility = Window.FullScreen  // Go fullscreen
-                }
-            }
-        }
-        Dial {
-            id: rotationDial
-            // anchors.bottom: parent.bottom
-            // anchors.horizontalCenter: parent.horizontalCenter
-            from: 0
-            to: 360
-            value: rotationAngle
-            stepSize: 1
-            onValueChanged: rotationAngle = value
-            width: 70
-            height: 70
-        }
-        Dial {
-            id: brightnessDial
-            // anchors.bottom: parent.bottom
-            // anchors.horizontalCenter: parent.horizontalCenter
-            from: 1
-            to: 0
-            value: brightnessOverlay.opacity
-            stepSize: 0.1
-            onValueChanged: brightnessOverlay.opacity = value
-            width: 70
-            height: 70
-        }
-    }
+
 
     CustomPopupMessage
     {
@@ -356,6 +308,7 @@ Window {
                     }
                 }
             }
+
             Text
             {
                 text:"load from local starage subtitle:"
@@ -465,13 +418,190 @@ Window {
     }
 
 
+
+
+
+    Rectangle
+    {
+        id:brightnessOverlay
+        anchors.fill: parent
+        color:"black"
+        opacity: videoArea.brightness
+
+        MouseArea {
+            anchors.fill: parent
+            preventStealing: false
+            propagateComposedEvents: true
+
+            onPressAndHold: {
+                player.playbackRate=2;
+            }
+            onReleased: {
+                player.playbackRate=thePlaybackRate
+            }
+        }
+            Rectangle {
+                id: videoArea
+                anchors.fill: parent
+                color: "black"
+
+                // Properties for volume and brightness
+                property real volume:0.5
+                property real brightness:0.5
+                property real maxDy: 300
+                property real minDy: -300
+
+
+                // --- RIGHT SIDE: Volume Control ---
+                Rectangle {
+                    id: volumeControlArea
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    width: parent.width / 8
+                    color: "transparent"
+
+                    property real cumulativeDy: 0
+                    property real startY: 0
+
+                    MouseArea {
+                        anchors.fill: parent
+                        drag.target: null
+                        onPressed: (mouse) => {
+                            volumeControlArea.cumulativeDy = 0
+                            volumeControlArea.startY = mouse.y
+                        }
+                        onPositionChanged: (mouse) => {
+                            let delta = volumeControlArea.startY - mouse.y
+                            volumeControlArea.cumulativeDy += delta
+                            volumeControlArea.startY = mouse.y
+
+                            if (volumeControlArea.cumulativeDy > videoArea.maxDy)
+                                volumeControlArea.cumulativeDy = videoArea.maxDy
+                            if (volumeControlArea.cumulativeDy < videoArea.minDy)
+                                volumeControlArea.cumulativeDy = videoArea.minDy
+
+                            videoArea.volume = (volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
+                            videoArea.volume = Math.min(Math.max(videoArea.volume, 0), 1)
+                            // Volume
+                            volumeIndicator.visible = true
+                            volumeHideTimer.restart()   // reset timer every time volume changes
+
+
+                            console.log("Volume:", videoArea.volume.toFixed(2))
+                        }
+                    }
+                }
+
+                // --- LEFT SIDE: Brightness Control ---
+                Rectangle {
+                    id: brightnessControlArea
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    width: parent.width / 8
+                    color: "transparent"
+
+                    property real cumulativeDy: 0
+                    property real startY: 0
+
+                    MouseArea {
+                        anchors.fill: parent
+                        drag.target: null
+                        onPressed: (mouse) => {
+                            brightnessControlArea.cumulativeDy = 0
+                            brightnessControlArea.startY = mouse.y
+                        }
+                        onPositionChanged: (mouse) => {
+                            let delta = brightnessControlArea.startY - mouse.y
+                            brightnessControlArea.cumulativeDy += delta
+                            brightnessControlArea.startY = mouse.y
+
+                            if (brightnessControlArea.cumulativeDy > videoArea.maxDy)
+                                brightnessControlArea.cumulativeDy = videoArea.maxDy
+                            if (brightnessControlArea.cumulativeDy < videoArea.minDy)
+                                brightnessControlArea.cumulativeDy = videoArea.minDy
+
+                            videoArea.brightness = (brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
+                            videoArea.brightness = Math.min(Math.max(videoArea.brightness, 0), 1)
+                            brightnessIndicator.visible = true
+                            brightnessHideTimer.restart()   // reset timer every time volume changes
+
+
+                            console.log("Brightness:", videoArea.brightness.toFixed(2))
+                        }
+                    }
+                }
+
+                // --- Volume indicator (right) ---
+                Rectangle {
+                    id: volumeIndicator
+                    width: 40
+                    height: 200
+                    anchors.right: parent.right
+                    anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#888"
+                    radius: 8
+                    visible: false
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: volumeIndicator.height * videoArea.volume
+                        color: "#0f0"
+                    }
+
+                    Timer {
+                        id: volumeHideTimer
+                        interval: 1000   // milliseconds to hide after last change
+                        repeat: false
+                        onTriggered: volumeIndicator.visible = false
+                    }
+                }
+
+                // --- Brightness indicator (left) ---
+                Rectangle {
+                    id: brightnessIndicator
+                    width: 40
+                    height: 200
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#888"
+                    radius: 8
+                    visible: false
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: brightnessIndicator.height * videoArea.brightness
+                        color: "#ff0"
+                    }
+
+                    Timer {
+                        id: brightnessHideTimer
+                        interval: 1000   // milliseconds to hide after last change
+                        repeat: false
+                        onTriggered: brightnessIndicator.visible = false
+                    }
+                }
+
+            }
+
+
+    }
+
+
     // Subtitle overlay
     Rectangle
     {
         width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
         height:subtitleText1.height
         color:sub1BackColor
-        opacity: sub1BgOpacity
+        opacity: sub1BgOpacity-brightnessOverlay.opacity/2
         visible: subtitle1Status
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
@@ -512,14 +642,12 @@ Window {
             font.pixelSize: sub1FontSize
         }
     }
-
-
     Rectangle
     {
         width: subtitleText2.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText2.implicitWidth
         height:subtitleText2.height
         color:sub2BackColor
-        opacity: sub2BgOpacity
+        opacity: sub2BgOpacity-brightnessOverlay.opacity/2
         visible: subtitle2Status
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
@@ -563,14 +691,126 @@ Window {
         }
     }
 
-
-
+    // Controls
     Rectangle
     {
-        id:brightnessOverlay
-        anchors.fill: parent
+        width:implicitWidth
+        height:implicitHeight
+        // anchors.fill: parent
         color:"black"
-        opacity: 0.5
+        Button { text: "file"; onClicked: fileDialogMedia.open() }
+        FileDialog {
+            id: fileDialogMedia
+            title: "Choose a media file"
+            // folder: StandardPaths.home
+            // selectExisting: true
+            nameFilters: ["All Files (*)"]
+
+            onAccepted: {
+                selectedMediaFilePath = selectedFile
+                player.source = selectedMediaFilePath
+                player.play()
+            }
+
+            onRejected: {
+                selectedMediaFilePath=""
+                console.log("File selection canceled")
+            }
+        }
+    }
+    Row {
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 10
+        Button
+        {
+            text: player.playing ? "pause" : "play";
+            onClicked:
+            {
+                if(!player.playing)
+                {
+                    player.play()
+                }
+                else
+                {
+                    player.pause()
+                }
+
+
+            }
+        }
+        Button { text: "+15"; onClicked: player.position = Math.min(player.position + 15000, player.duration); }
+        Button { text: "-15"; onClicked: player.position = Math.max(player.position - 15000, 0); }
+        Button { text: "Subtitle"; onClicked: popupMessage.open() }
+        Button
+        {
+            text: "fillmode";
+            onClicked:
+            {
+                switch (videoOutput.fillMode)
+                {
+                    case VideoOutput.PreserveAspectFit:
+                        videoOutput.fillMode = VideoOutput.PreserveAspectCrop;
+                        text = "FillMode: PreserveAspectCrop";
+                        break;
+                    case VideoOutput.PreserveAspectCrop:
+                        videoOutput.fillMode = VideoOutput.Stretch;
+                        text = "FillMode: Stretch";
+                        break;
+                    case VideoOutput.Stretch:
+                        videoOutput.fillMode = VideoOutput.PreserveAspectFit;
+                        text = "FillMode: PreserveAspectFit";
+                        break;
+                }
+            }
+        }
+        Button
+        {
+            text: "fullscreen";
+            onClicked:
+            {
+                if (mainWindow.visibility === Window.FullScreen) {
+                    mainWindow.visibility = Window.Windowed   // Back to normal
+                } else {
+                    mainWindow.visibility = Window.FullScreen  // Go fullscreen
+                }
+            }
+        }
+        ComboBox {
+            id:audioTrackCombobox
+            width:100
+            height:50
+            model: audioTracksModel
+            textRole: "text"
+            onActivated: (index) => {
+                player.activeAudioTrack = audioTracksModel.get(index).index
+            }
+        }
+        SpinBox {
+            id: playRateSpinbox
+            width: 50
+            height:50
+            from: 0
+            to:15
+            value: 1
+            onValueChanged:
+            {
+                thePlaybackRate=value
+                player.playbackRate=thePlaybackRate
+            }
+        }
+        Dial {
+            id: rotationDial
+            // anchors.bottom: parent.bottom
+            // anchors.horizontalCenter: parent.horizontalCenter
+            from: 0
+            to: 360
+            value: rotationAngle
+            stepSize: 1
+            onValueChanged: rotationAngle = value
+            width: 70
+            height: 70
+        }
     }
 
 
@@ -579,7 +819,7 @@ Window {
         if(embedded)
         {
             currentSubtitle = extractor.extractSubtitle(player.source, subIndex)
-            console.log("extract subtitle from video=")//, currentSubtitle)
+            // console.log("extract subtitle from video=", currentSubtitle)
         }
         else
         {
@@ -587,7 +827,7 @@ Window {
                 subPath = subPath.slice(7)
 
             currentSubtitle = extractor.loadSrtFile(subPath)
-            console.log("loaded subtitle from video=")//, currentSubtitle)
+            // console.log("loaded subtitle from video=", currentSubtitle)
 
         }
 

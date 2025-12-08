@@ -61,7 +61,7 @@ Window {
 
     MediaPlayer {
         id: player
-        // source: "file:///home/mrx/Desktop/Shrek.2.2004.720p.BluRay.x264.YTS.ZarFilm.mkv"
+        // source: "https://dl4.indllserver.info/Movies8/2025/Roofman.2025/Roofman.2025.480p.WEB-DL.x264.ZarFilm.mkv?md5=Se8-Q7EJHgZjH1BWWcaqbA&u=743953&expires=1762946468"
         videoOutput: videoOutput
         audioOutput: audioOutput
         playbackRate: thePlaybackRate
@@ -78,20 +78,25 @@ Window {
 
             // --- Audio Tracks ---
             audioTracksModel.clear()
+            audioTracksModel.append({
+                                        "text":"null",
+                                        "index": -1
+                                    })
+
             for (let i = 0; i < audioTracks.length; ++i) {
                 // Common string keys:
                 // 6 = language, 1 = codec, 3 = description (depends on Qt version)
                 let lang = audioTracks[i].stringValue(6)
                 let codec = audioTracks[i].stringValue(1)
                 audioTracksModel.append({
-                    "text": (lang ? lang+" "+i : "Track " + i) + (codec ? " (" + codec + ")" : ""),
-                    "index": i
-                })
+                                            "text": (lang ? lang+" "+i : "Track " + i) + (codec ? " (" + codec + ")" : ""),
+                                            "index": i
+                                        })
             }
-            if(audioTracksModel.count>0)
+            if(audioTracksModel.count>1)
             {
                 audioTrackCombobox.visible=true
-                audioTrackCombobox.currentIndex=0;
+                audioTrackCombobox.currentIndex=1;
             }
             else
                 audioTrackCombobox.visible=false
@@ -155,6 +160,28 @@ Window {
         rotation: rotationAngle
         transformOrigin: Item.Center   // rotate around center
         // source: player
+    }
+
+
+
+
+    //custom dub/track form file
+    MediaPlayer {
+        id: dubPlayer
+        audioOutput: customAudioOutputFromFile
+        onMediaStatusChanged: {
+               if (mediaStatus === MediaPlayer.LoadedMedia)
+               {
+                   // now safe to seek
+                   dubPlayer.position = player.position
+                   playVideo()
+               }
+           }
+    }
+    AudioOutput
+    {
+        id:customAudioOutputFromFile
+        volume: videoArea.volume
     }
 
     // Update subtitle every 200 ms
@@ -383,7 +410,6 @@ Window {
 
     }
 
-
     FileDialog {
         id: fileDialog
         title: "Choose a subtitle file"
@@ -419,8 +445,6 @@ Window {
 
 
 
-
-
     Rectangle
     {
         id:brightnessOverlay
@@ -428,10 +452,93 @@ Window {
         color:"black"
         opacity: videoArea.brightness
 
+        Keys.onPressed: (event) =>
+                        {
+                            console.log("ptrddf= ", event.key)
+                            if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ShiftModifier))
+                            {
+                                videoArea.brightness += 0.1
+                                console.log("shoift")
+                            }
+
+                            else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ShiftModifier))
+                            {
+                                videoArea.brightness -= 0.1
+                                console.log("shoift-")
+                            }
+
+                            else if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ControlModifier))
+                            {
+                                console.log("control playback=",thePlaybackRate)
+                                thePlaybackRate += 0.10
+                                player.playbackRate=thePlaybackRate
+                            }
+
+                            else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ControlModifier))
+                            {
+                                console.log("control- playback=",thePlaybackRate)
+                                thePlaybackRate -= 0.10
+                                player.playbackRate=thePlaybackRate
+                            }
+
+                            else
+                            switch(event.key)
+                            {
+                                case Qt.Key_M:
+                                {
+                                    videoArea.volume=0
+                                }break;
+                                case Qt.Key_Space:
+                                {
+                                    if(!player.playing)
+                                    playVideo()
+                                    else
+                                    pauseVideo()
+                                }break;
+                                case Qt.Key_Right:
+                                {
+                                    seekForth()
+                                }break;
+                                case Qt.Key_Left:
+                                {
+                                    seekBack();
+                                }break;
+                                case Qt.Key_Up:
+                                {
+                                    videoArea.volume += 0.1
+                                }break;
+                                case Qt.Key_Down:
+                                {
+                                    videoArea.volume -= 0.1
+                                }break;
+                                case Qt.Key_F:
+                                case Qt.Key_Enter:
+                                case Qt.Key_Return:
+                                {
+                                    changeWindowFullScreen()
+                                }break;
+                            }
+                            showControls()
+                        }
+
         MouseArea {
+            hoverEnabled: true  // enables movement detection even without pressing
+
             anchors.fill: parent
             preventStealing: false
             propagateComposedEvents: true
+            onDoubleClicked:
+            {
+                changeWindowFullScreen()
+            }
+            onPositionChanged: (mouse) =>
+                               {
+                                   showControls()
+                               }
+            // onClicked:
+            // {
+
+            // }
 
             onPressAndHold: {
                 player.playbackRate=2;
@@ -440,157 +547,98 @@ Window {
                 player.playbackRate=thePlaybackRate
             }
         }
+        Rectangle {
+            id: videoArea
+            anchors.fill: parent
+            color: "black"
+
+            // Properties for volume and brightness
+            property real volume:0.5
+            property real brightness:0.5
+            property real maxDy: 300
+            property real minDy: -300
+
+
+            // --- RIGHT SIDE: Volume Control ---
             Rectangle {
-                id: videoArea
-                anchors.fill: parent
-                color: "black"
+                id: volumeControlArea
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                width: parent.width / 8
+                color: "transparent"
 
-                // Properties for volume and brightness
-                property real volume:0.5
-                property real brightness:0.5
-                property real maxDy: 300
-                property real minDy: -300
+                property real cumulativeDy: 0
+                property real startY: 0
 
+                MouseArea {
+                    anchors.fill: parent
+                    drag.target: null
+                    onPressed: (mouse) => {
+                                   volumeControlArea.cumulativeDy = 0
+                                   volumeControlArea.startY = mouse.y
+                               }
+                    onPositionChanged: (mouse) => {
+                                           let delta = volumeControlArea.startY - mouse.y
+                                           volumeControlArea.cumulativeDy += delta
+                                           volumeControlArea.startY = mouse.y
 
-                // --- RIGHT SIDE: Volume Control ---
-                Rectangle {
-                    id: volumeControlArea
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    width: parent.width / 8
-                    color: "transparent"
+                                           if (volumeControlArea.cumulativeDy > videoArea.maxDy)
+                                           volumeControlArea.cumulativeDy = videoArea.maxDy
+                                           if (volumeControlArea.cumulativeDy < videoArea.minDy)
+                                           volumeControlArea.cumulativeDy = videoArea.minDy
 
-                    property real cumulativeDy: 0
-                    property real startY: 0
+                                           videoArea.volume = (volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
+                                           videoArea.volume = Math.min(Math.max(videoArea.volume, 0), 1)
+                                           // Volume
+                                           volumeIndicator.visible = true
 
-                    MouseArea {
-                        anchors.fill: parent
-                        drag.target: null
-                        onPressed: (mouse) => {
-                            volumeControlArea.cumulativeDy = 0
-                            volumeControlArea.startY = mouse.y
-                        }
-                        onPositionChanged: (mouse) => {
-                            let delta = volumeControlArea.startY - mouse.y
-                            volumeControlArea.cumulativeDy += delta
-                            volumeControlArea.startY = mouse.y
-
-                            if (volumeControlArea.cumulativeDy > videoArea.maxDy)
-                                volumeControlArea.cumulativeDy = videoArea.maxDy
-                            if (volumeControlArea.cumulativeDy < videoArea.minDy)
-                                volumeControlArea.cumulativeDy = videoArea.minDy
-
-                            videoArea.volume = (volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
-                            videoArea.volume = Math.min(Math.max(videoArea.volume, 0), 1)
-                            // Volume
-                            volumeIndicator.visible = true
-                            volumeHideTimer.restart()   // reset timer every time volume changes
-
-
-                            console.log("Volume:", videoArea.volume.toFixed(2))
-                        }
-                    }
+                                           console.log("Volume:", videoArea.volume.toFixed(2))
+                                       }
                 }
-
-                // --- LEFT SIDE: Brightness Control ---
-                Rectangle {
-                    id: brightnessControlArea
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.left: parent.left
-                    width: parent.width / 8
-                    color: "transparent"
-
-                    property real cumulativeDy: 0
-                    property real startY: 0
-
-                    MouseArea {
-                        anchors.fill: parent
-                        drag.target: null
-                        onPressed: (mouse) => {
-                            brightnessControlArea.cumulativeDy = 0
-                            brightnessControlArea.startY = mouse.y
-                        }
-                        onPositionChanged: (mouse) => {
-                            let delta = brightnessControlArea.startY - mouse.y
-                            brightnessControlArea.cumulativeDy += delta
-                            brightnessControlArea.startY = mouse.y
-
-                            if (brightnessControlArea.cumulativeDy > videoArea.maxDy)
-                                brightnessControlArea.cumulativeDy = videoArea.maxDy
-                            if (brightnessControlArea.cumulativeDy < videoArea.minDy)
-                                brightnessControlArea.cumulativeDy = videoArea.minDy
-
-                            videoArea.brightness = (brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
-                            videoArea.brightness = Math.min(Math.max(videoArea.brightness, 0), 1)
-                            brightnessIndicator.visible = true
-                            brightnessHideTimer.restart()   // reset timer every time volume changes
-
-
-                            console.log("Brightness:", videoArea.brightness.toFixed(2))
-                        }
-                    }
-                }
-
-                // --- Volume indicator (right) ---
-                Rectangle {
-                    id: volumeIndicator
-                    width: 40
-                    height: 200
-                    anchors.right: parent.right
-                    anchors.rightMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: "#888"
-                    radius: 8
-                    visible: false
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: volumeIndicator.height * videoArea.volume
-                        color: "#0f0"
-                    }
-
-                    Timer {
-                        id: volumeHideTimer
-                        interval: 1000   // milliseconds to hide after last change
-                        repeat: false
-                        onTriggered: volumeIndicator.visible = false
-                    }
-                }
-
-                // --- Brightness indicator (left) ---
-                Rectangle {
-                    id: brightnessIndicator
-                    width: 40
-                    height: 200
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: "#888"
-                    radius: 8
-                    visible: false
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: brightnessIndicator.height * videoArea.brightness
-                        color: "#ff0"
-                    }
-
-                    Timer {
-                        id: brightnessHideTimer
-                        interval: 1000   // milliseconds to hide after last change
-                        repeat: false
-                        onTriggered: brightnessIndicator.visible = false
-                    }
-                }
-
             }
 
+            // --- LEFT SIDE: Brightness Control ---
+            Rectangle {
+                id: brightnessControlArea
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                width: parent.width / 8
+                color: "transparent"
+
+                property real cumulativeDy: 0
+                property real startY: 0
+
+                MouseArea {
+                    anchors.fill: parent
+                    drag.target: null
+                    onPressed: (mouse) => {
+                                   brightnessControlArea.cumulativeDy = 0
+                                   brightnessControlArea.startY = mouse.y
+                               }
+                    onPositionChanged: (mouse) => {
+                                           let delta = brightnessControlArea.startY - mouse.y
+                                           brightnessControlArea.cumulativeDy += delta
+                                           brightnessControlArea.startY = mouse.y
+
+                                           if (brightnessControlArea.cumulativeDy > videoArea.maxDy)
+                                           brightnessControlArea.cumulativeDy = videoArea.maxDy
+                                           if (brightnessControlArea.cumulativeDy < videoArea.minDy)
+                                           brightnessControlArea.cumulativeDy = videoArea.minDy
+
+                                           videoArea.brightness = (brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
+                                           videoArea.brightness = Math.min(Math.max(videoArea.brightness, 0), 1)
+                                           brightnessIndicator.visible = true
+
+
+                                           console.log("Brightness:", videoArea.brightness.toFixed(2))
+                                       }
+                }
+            }
+
+
+        }
 
     }
 
@@ -694,11 +742,151 @@ Window {
     // Controls
     Rectangle
     {
-        width:implicitWidth
+        id:controls
+        width:parent.width
         height:implicitHeight
-        // anchors.fill: parent
-        color:"black"
-        Button { text: "file"; onClicked: fileDialogMedia.open() }
+        anchors.bottom:parent.bottom
+
+
+        Row {
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 10
+            Text {
+                text: player.position
+                color:"white"
+            }
+            Button { text: "file"; onClicked: fileDialogMedia.open() }
+            Button
+            {
+                text: player.playing ? "pause" : "play";
+                onClicked:
+                {
+                    if(!player.playing)
+                    {
+                        playVideo()
+                    }
+                    else
+                    {
+                        pauseVideo()
+                    }
+
+
+                }
+            }
+            Button { text: "+15"; onClicked: seekForth()}
+            Button { text: "-15"; onClicked: seekBack()}
+            Button { text: "sub"; onClicked: popupMessage.open() }
+
+            Button
+            {
+                text: "fillmode";
+                onClicked:
+                {
+                    switch (videoOutput.fillMode)
+                    {
+                    case VideoOutput.PreserveAspectFit:
+                        videoOutput.fillMode = VideoOutput.PreserveAspectCrop;
+                        text = "FillMode: PreserveAspectCrop";
+                        break;
+                    case VideoOutput.PreserveAspectCrop:
+                        videoOutput.fillMode = VideoOutput.Stretch;
+                        text = "FillMode: Stretch";
+                        break;
+                    case VideoOutput.Stretch:
+                        videoOutput.fillMode = VideoOutput.PreserveAspectFit;
+                        text = "FillMode: PreserveAspectFit";
+                        break;
+                    }
+                }
+            }
+            Button
+            {
+                text: "fullscreen";
+                onClicked:
+                {
+                    changeWindowFullScreen()
+                }
+            }
+            ComboBox {
+                id:audioTrackCombobox
+                width:100
+                height:50
+                model: audioTracksModel
+                textRole: "text"
+                onActivated: (index) => {
+                                 player.activeAudioTrack = audioTracksModel.get(index).index
+                             }
+                onCurrentIndexChanged:
+                {
+                    player.activeAudioTrack = audioTracksModel.get(currentIndex).index
+                }
+            }
+            Button
+            {
+                id:addAnAudioTrack
+                text: (String(dubPlayer.source) === "") ? "pick custom audio" : "remove custom audio"
+                onClicked:
+                {
+                    if ((String(dubPlayer.source) === ""))
+                        fileDialogAnAudioTrack.open()
+                    else
+                    {
+                        dubPlayer.source = ""
+
+                        //set first audio track to play
+                        if(audioTracksModel.count>1)
+                            audioTrackCombobox.currentIndex=1
+                    }
+                }
+                FileDialog {
+                    id: fileDialogAnAudioTrack
+                    title: "Choose an audio track file"
+                    // folder: StandardPaths.home
+                    // selectExisting: true
+
+                    nameFilters: ["Audio Files (*.mp3 *.aac *.m4a *.ogg *.opus *.wav *.flac)", "All Files (*)"]
+                    onAccepted: {
+
+                        var audioPath = selectedFile
+                        console.log("selected audio path=",audioPath)
+
+                        pauseVideo()
+
+                        // set original audio to null or mute it
+                        audioTrackCombobox.currentIndex=0
+
+                        dubPlayer.source=audioPath
+                    }
+                }
+            }
+            ComboBox {
+                id:playRateComboBox
+                width:100
+                height:50
+                model: [{value:0.5},{value:1.0},{value:1.5},{value:2.0},{value:2.5}]
+                currentIndex: 1
+                textRole: "value"
+                onActivated: (index) => {
+                                 thePlaybackRate=currentText
+                                 player.playbackRate=thePlaybackRate
+                             }
+
+            }
+            /*Dial {
+                id: rotationDial
+                // anchors.bottom: parent.bottom
+                // anchors.horizontalCenter: parent.horizontalCenter
+                from: 0
+                to: 360
+                value: rotationAngle
+                stepSize: 1
+                onValueChanged: rotationAngle = value
+                width: 70
+                height: 70
+            }*/
+
+        }
         FileDialog {
             id: fileDialogMedia
             title: "Choose a media file"
@@ -717,102 +905,102 @@ Window {
                 console.log("File selection canceled")
             }
         }
+        Timer {
+            id: controlsHideTimer
+            interval: 3000   // milliseconds to hide after last change
+            repeat: false
+            running: true
+            onTriggered: controls.visible = false
+        }
+
+
+        // --- Volume indicator (right) ---
+        Rectangle {
+            id: volumeIndicator
+            width: 40
+            height: 200
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            // anchors.verticalCenter: parent.verticalCenter
+            anchors.bottom:parent.top
+            anchors.bottomMargin: 100
+            color: "#888"
+            radius: 8
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: volumeIndicator.height * videoArea.volume
+                color: "#0f0"
+            }
+        }
+
+        // --- Brightness indicator (left) ---
+        Rectangle {
+            id: brightnessIndicator
+            width: 40
+            height: 200
+            anchors.left: parent.left
+            anchors.leftMargin: 10
+            anchors.bottom:parent.top
+            anchors.bottomMargin: 100
+            color: "#888"
+            radius: 8
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: brightnessIndicator.height * videoArea.brightness
+                color: "#ff0"
+            }
+
+        }
+
     }
-    Row {
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 10
-        Button
-        {
-            text: player.playing ? "pause" : "play";
-            onClicked:
-            {
-                if(!player.playing)
-                {
-                    player.play()
-                }
-                else
-                {
-                    player.pause()
-                }
 
 
-            }
-        }
-        Button { text: "+15"; onClicked: player.position = Math.min(player.position + 15000, player.duration); }
-        Button { text: "-15"; onClicked: player.position = Math.max(player.position - 15000, 0); }
-        Button { text: "Subtitle"; onClicked: popupMessage.open() }
-        Button
-        {
-            text: "fillmode";
-            onClicked:
-            {
-                switch (videoOutput.fillMode)
-                {
-                    case VideoOutput.PreserveAspectFit:
-                        videoOutput.fillMode = VideoOutput.PreserveAspectCrop;
-                        text = "FillMode: PreserveAspectCrop";
-                        break;
-                    case VideoOutput.PreserveAspectCrop:
-                        videoOutput.fillMode = VideoOutput.Stretch;
-                        text = "FillMode: Stretch";
-                        break;
-                    case VideoOutput.Stretch:
-                        videoOutput.fillMode = VideoOutput.PreserveAspectFit;
-                        text = "FillMode: PreserveAspectFit";
-                        break;
-                }
-            }
-        }
-        Button
-        {
-            text: "fullscreen";
-            onClicked:
-            {
-                if (mainWindow.visibility === Window.FullScreen) {
-                    mainWindow.visibility = Window.Windowed   // Back to normal
-                } else {
-                    mainWindow.visibility = Window.FullScreen  // Go fullscreen
-                }
-            }
-        }
-        ComboBox {
-            id:audioTrackCombobox
-            width:100
-            height:50
-            model: audioTracksModel
-            textRole: "text"
-            onActivated: (index) => {
-                player.activeAudioTrack = audioTracksModel.get(index).index
-            }
-        }
-        SpinBox {
-            id: playRateSpinbox
-            width: 50
-            height:50
-            from: 0
-            to:15
-            value: 1
-            onValueChanged:
-            {
-                thePlaybackRate=value
-                player.playbackRate=thePlaybackRate
-            }
-        }
-        Dial {
-            id: rotationDial
-            // anchors.bottom: parent.bottom
-            // anchors.horizontalCenter: parent.horizontalCenter
-            from: 0
-            to: 360
-            value: rotationAngle
-            stepSize: 1
-            onValueChanged: rotationAngle = value
-            width: 70
-            height: 70
+
+
+
+    function playVideo()
+    {
+        player.play()
+        dubPlayer.play()
+    }
+    function pauseVideo()
+    {
+        player.pause()
+        dubPlayer.pause()
+    }
+
+    function seekForth()
+    {
+        player.position = Math.min(player.position + 15000, player.duration);
+        dubPlayer.position=player.position
+    }
+    function seekBack()
+    {
+        player.position = Math.max(player.position - 15000, 0);
+        dubPlayer.position=player.position
+    }
+
+    function changeWindowFullScreen()
+    {
+        if (mainWindow.visibility === Window.FullScreen) {
+            mainWindow.visibility = Window.Windowed   // Back to normal
+        } else {
+            mainWindow.visibility = Window.FullScreen  // Go fullscreen
         }
     }
 
+    function showControls()
+    {
+        controls.visible=true
+        controlsHideTimer.running=true
+        brightnessOverlay.focus=true
+    }
 
     function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
     {
@@ -833,14 +1021,14 @@ Window {
 
         if(subtitleNo)
         {
-            subtitle1 = Sub.parseSrt(currentSubtitle)
+            subtitle1 = Sub.parseSubtitle(currentSubtitle)
             if(subIndex>=0)//loaded from somehwereelse
                 sub1Index=subIndex
         }
 
         else
         {
-            subtitle2 = Sub.parseSrt(currentSubtitle)
+            subtitle2 = Sub.parseSubtitle(currentSubtitle)
             if(subIndex>=0)//loaded from somehwereelse
                 sub2Index=subIndex
         }

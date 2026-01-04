@@ -45,7 +45,6 @@ Window {
     property int sub1posy: 0
     property string sub1filePath: "";
 
-
     property var subtitle2;
     property int sub2Index: 0
     property int subtitle2OffsetMs: 0
@@ -58,6 +57,8 @@ Window {
     property int sub2posy: 50
     property string sub2filePath: "";
 
+
+    property bool spedupByHold: false
 
     MediaPlayer {
         id: player
@@ -163,27 +164,6 @@ Window {
     }
 
 
-
-
-    //custom dub/track form file
-    MediaPlayer {
-        id: dubPlayer
-        audioOutput: customAudioOutputFromFile
-        onMediaStatusChanged: {
-               if (mediaStatus === MediaPlayer.LoadedMedia)
-               {
-                   // now safe to seek
-                   dubPlayer.position = player.position
-                   playVideo()
-               }
-           }
-    }
-    AudioOutput
-    {
-        id:customAudioOutputFromFile
-        volume: videoArea.volume
-    }
-
     // Update subtitle every 200 ms
     Timer {
         interval: 200
@@ -204,8 +184,67 @@ Window {
                     // console.log("subtitle2 = ",subtitleText2.text)
                     subtitleText2.text = Sub.getSubtitleForTime(subtitle2, player.position + subtitle2OffsetMs*1000)
                 }
+
+                //ignore subtitles which contain website domains
+                if(removeDomains.checkState)
+                {
+                    if(containsDomain(subtitleText1.text))
+                        subtitleText1.text=""
+                    if(containsDomain(subtitleText2.text))
+                        subtitleText2.text=""
+                }
+
+
+                //remove html tags
+                if(removeHtmlTags.checkState)
+                {
+                    subtitleText1.text = stripHtmlClean(subtitleText1.text)
+                    subtitleText2.text = stripHtmlClean(subtitleText2.text)
+                }
+
+
+
+                if(spedupByHold)//user held mouse click to spedup
+                {
+                    player.playbackRate=2
+                    console.log("hold speedhp")
+                }
+                else if(speedupWhenNoSubtitle.checkState)
+                {
+                    //speed up when text is empty.
+                    if(subtitleText1.text==="" && subtitleText2.text==="")
+                        player.playbackRate=2;
+                    else
+                        player.playbackRate=thePlaybackRate
+
+                }
+                else // set playbackrate value
+                {
+                    player.playbackRate=thePlaybackRate
+                    console.log("normal speed")
+                }
             }
         }
+    }
+
+    function containsDomain(text) {
+        if (!text)
+            return false;
+
+        var domainRegex =
+                /\b((https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(\/\S*)?\b/;
+
+        return domainRegex.test(text);
+    }
+
+
+    function stripHtmlClean(text) {
+        if (!text)
+            return "";
+        return text
+        .replace(/<[^>]+>/g, "") // remove tags
+        .replace(/\s+/g, " ") // normalize spaces
+        .trim();
     }
 
     //subtitle list
@@ -370,8 +409,8 @@ Window {
                 id: offsetSpin
                 width: 50
                 height:50
-                from: -10    // advance up to 10s
-                to: 10       // delay up to 10s
+                from: -50    // advance up to 10s
+                to: 50       // delay up to 10s
                 // stepSize: 0.5
                 value: chooseSutitle.switchStatus ? subtitle1OffsetMs : subtitle2OffsetMs
                 onValueChanged:
@@ -451,6 +490,30 @@ Window {
         anchors.fill: parent
         color:"black"
         opacity: videoArea.brightness
+        WheelHandler {
+            onWheel: function(event) {
+                if (event.angleDelta.y !== 0) {
+                    let posX = event.x;
+                    let halfWidth = videoArea.width / 2;
+
+                    if (posX > halfWidth) {
+                        // Right side → control volume
+                        if (event.angleDelta.y > 0) {
+                            videoArea.volume = Math.min(videoArea.volume + 0.1, 1.0);
+                        } else {
+                            videoArea.volume = Math.max(videoArea.volume - 0.1, 0.0);
+                        }
+                    } else {
+                        // Left side → control brightness
+                        if (event.angleDelta.y > 0) {
+                            videoArea.brightness = Math.min(videoArea.brightness + 0.1, 1.0);
+                        } else {
+                            videoArea.brightness = Math.max(videoArea.brightness - 0.1, 0.0);
+                        }
+                    }
+                }
+            }
+        }
 
         Keys.onPressed: (event) =>
                         {
@@ -541,10 +604,10 @@ Window {
             // }
 
             onPressAndHold: {
-                player.playbackRate=2;
+                spedupByHold=true
             }
             onReleased: {
-                player.playbackRate=thePlaybackRate
+                spedupByHold=false
             }
         }
         Rectangle {
@@ -777,6 +840,39 @@ Window {
             Button { text: "+15"; onClicked: seekForth()}
             Button { text: "-15"; onClicked: seekBack()}
             Button { text: "sub"; onClicked: popupMessage.open() }
+            Column
+            {
+                width: 150
+                height:implicitHeight
+                CheckBox
+                {
+                    id:speedupWhenNoSubtitle
+                    checked:false;
+                    text:"SNS"
+                    onCheckStateChanged:
+                    {
+                        if(checkState)
+                        {
+                            player.playbackRate=thePlaybackRate
+                        }
+                    }
+                }
+
+                CheckBox
+                {
+                    id:removeDomains
+                    checked:false;
+                    text:"ignore domains"
+                }
+
+                CheckBox
+                {
+                    id:removeHtmlTags
+                    checked:false;
+                    text:"no html"
+                }
+            }
+
 
             Button
             {
@@ -822,44 +918,7 @@ Window {
                     player.activeAudioTrack = audioTracksModel.get(currentIndex).index
                 }
             }
-            Button
-            {
-                id:addAnAudioTrack
-                text: (String(dubPlayer.source) === "") ? "pick custom audio" : "remove custom audio"
-                onClicked:
-                {
-                    if ((String(dubPlayer.source) === ""))
-                        fileDialogAnAudioTrack.open()
-                    else
-                    {
-                        dubPlayer.source = ""
 
-                        //set first audio track to play
-                        if(audioTracksModel.count>1)
-                            audioTrackCombobox.currentIndex=1
-                    }
-                }
-                FileDialog {
-                    id: fileDialogAnAudioTrack
-                    title: "Choose an audio track file"
-                    // folder: StandardPaths.home
-                    // selectExisting: true
-
-                    nameFilters: ["Audio Files (*.mp3 *.aac *.m4a *.ogg *.opus *.wav *.flac)", "All Files (*)"]
-                    onAccepted: {
-
-                        var audioPath = selectedFile
-                        console.log("selected audio path=",audioPath)
-
-                        pauseVideo()
-
-                        // set original audio to null or mute it
-                        audioTrackCombobox.currentIndex=0
-
-                        dubPlayer.source=audioPath
-                    }
-                }
-            }
             ComboBox {
                 id:playRateComboBox
                 width:100
@@ -912,6 +971,7 @@ Window {
             running: true
             onTriggered: controls.visible = false
         }
+
 
 
         // --- Volume indicator (right) ---
@@ -967,23 +1027,23 @@ Window {
     function playVideo()
     {
         player.play()
-        dubPlayer.play()
+        // dubPlayer.play()
     }
     function pauseVideo()
     {
         player.pause()
-        dubPlayer.pause()
+        // dubPlayer.pause()
     }
 
     function seekForth()
     {
         player.position = Math.min(player.position + 15000, player.duration);
-        dubPlayer.position=player.position
+        // dubPlayer.position=player.position + dubPlayerOffset
     }
     function seekBack()
     {
         player.position = Math.max(player.position - 15000, 0);
-        dubPlayer.position=player.position
+        // dubPlayer.position=player.position + dubPlayerOffset
     }
 
     function changeWindowFullScreen()

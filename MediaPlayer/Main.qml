@@ -371,7 +371,7 @@ ApplicationWindow {
             }
             onPositionChanged: (mouse) =>
                                {
-                                   showControlsByHover()
+                                    showControlsByHover()
                                }
             onClicked:
             {
@@ -818,8 +818,11 @@ ApplicationWindow {
             running: true
             onTriggered:
             {
-                controls.visible = false
-                hideControls.start()
+                if(!playbackControl.isMouseOnControl)
+                {
+                    controls.visible = false
+                    hideControls.start()
+                }
             }
         }
 
@@ -1079,6 +1082,7 @@ ApplicationWindow {
 
     function showControlsByHover()
     {
+        console.log("showControlsByHover")
         controls.visible=true
         controlsHideTimer.running=true
         brightnessOverlay.focus=true
@@ -1086,7 +1090,7 @@ ApplicationWindow {
             // if (videoOutput.fullScreen) {
                 showControls.start()
             // } else {
-                seeker.showSeeker.start()
+                // seeker.showSeeker.start()
             // }
         // } else {
             // timer.restart()
@@ -1200,6 +1204,8 @@ ApplicationWindow {
                 mediaPlayer.doFullscreen()
             }break;
         }
+
+        console.log("key pressed lets show controls")
         showControlsByHover()
     }
 
@@ -1213,6 +1219,10 @@ ApplicationWindow {
         color: "yellow"
         font.pixelSize: 15
         z:0
+        Component.onCompleted:
+        {
+            console.log("label speedingLable loaded caompletetly")
+        }
     }
 
 

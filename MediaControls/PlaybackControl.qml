@@ -12,6 +12,24 @@ Item {
 
     implicitHeight: 120
 
+    MouseArea
+    {
+        id:mouseAreaCheckMouseOnControl
+        anchors.fill: parent
+        hoverEnabled: true
+        onEntered:
+        {
+            isMouseOnControl=true
+            console.log("mouse entered on control,",isMouseOnControl)
+        }
+        onExited:
+        {
+            isMouseOnControl=false
+            console.log("mouse exited from control,",isMouseOnControl)
+        }
+    }
+    property bool isMouseOnControl:false
+
     required property MediaPlayer mediaPlayer
     readonly property int mediaPlayerState: root.mediaPlayer.playbackState
     property bool isPlaylistShuffled: false

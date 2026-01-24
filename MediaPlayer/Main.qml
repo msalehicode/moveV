@@ -501,6 +501,8 @@ ApplicationWindow {
         visible: false
         isShuffled: playbackControl.isPlaylistShuffled
 
+        onVisibleChanged: controlsHideTimer.start()
+
         onPlaylistUpdated: {
             if (mediaPlayer.playbackState == MediaPlayer.StoppedState && root.currentFile < playlistInfo.mediaCount - 1) {
                 ++root.currentFile
@@ -534,6 +536,7 @@ ApplicationWindow {
         selectedSubtitleTrack: mediaPlayer.activeSubtitleTrack
         visible: false
 
+        onVisibleChanged: controlsHideTimer.start()
 
     }
 
@@ -818,7 +821,7 @@ ApplicationWindow {
             running: true
             onTriggered:
             {
-                if(!playbackControl.isMouseOnControl)
+                if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible)
                 {
                     controls.visible = false
                     hideControls.start()
@@ -1082,7 +1085,6 @@ ApplicationWindow {
 
     function showControlsByHover()
     {
-        console.log("showControlsByHover")
         controls.visible=true
         controlsHideTimer.running=true
         brightnessOverlay.focus=true
@@ -1205,7 +1207,6 @@ ApplicationWindow {
             }break;
         }
 
-        console.log("key pressed lets show controls")
         showControlsByHover()
     }
 
@@ -1219,10 +1220,6 @@ ApplicationWindow {
         color: "yellow"
         font.pixelSize: 15
         z:0
-        Component.onCompleted:
-        {
-            console.log("label speedingLable loaded caompletetly")
-        }
     }
 
 

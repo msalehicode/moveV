@@ -13,6 +13,21 @@
 #include "subtitleextractor.h"
 #include "subtitlefinder.h"
 
+
+
+
+//handle pause play... commands from handsfree, and gnome notification to manage media and show metadata of media
+#include <QDBusConnection>
+#include "mprisadaptor.h"
+#include "mprisrootadaptor.h"
+#include <QDBusError>
+// #include "bluezmediaplayer.h"
+
+
+//to set media.role make sure app get foucs and attention from os
+#include <QProcessEnvironment>
+
+
 using namespace Qt::Literals::StringLiterals;
 
 struct NameFilters
@@ -53,6 +68,10 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+
+    // Set the media role to "video"
+    qputenv("PULSE_PROP", "media.role=video");
+
     QCoreApplication::setApplicationName("MediaPlayer Example");
     QCoreApplication::setOrganizationName("QtProject");
     QCoreApplication::setApplicationVersion(QT_VERSION_STR);
@@ -84,6 +103,54 @@ int main(int argc, char *argv[])
 
     engine.setInitialProperties(initialProperties);
     engine.loadFromModule("MediaPlayer", "Main");
+
+
+
+
+
+    //dbus
+
+    if (engine.rootObjects().isEmpty())
+        return -1;
+
+    QObject *rootObject = engine.rootObjects().first();
+
+    // Create BOTH adaptors
+    new MprisRootAdaptor(rootObject);
+    new MprisAdaptor(rootObject, "/org/mpris/MediaPlayer2");
+
+
+    QDBusConnection connection = QDBusConnection::sessionBus();
+
+    connection.registerService("org.mpris.MediaPlayer2.myplayer");
+
+    connection.registerObject(
+        "/org/mpris/MediaPlayer2",
+        rootObject,
+        QDBusConnection::ExportAdaptors
+        );
+
+
+    if (!connection.registerService("org.mpris.MediaPlayer2.myplayer")) {
+        qWarning() << "Failed to register D-Bus service:" << connection.lastError().message();
+    }
+
+
+    //handle bluz
+    // BluezMediaPlayer *bluezPlayer = new BluezMediaPlayer(rootObject);
+
+    // QDBusConnection systemBus = QDBusConnection::systemBus();
+    // if (!systemBus.registerObject("/org/bluez/hci0/player0", rootObject, QDBusConnection::ExportAdaptors)) {
+    //     qWarning() << "Failed to register system-bus BlueZ MediaPlayer";
+    // }
+
+    // if (!systemBus.registerService("org.bluez")) {
+    //     qWarning() << "Failed to register system-bus BlueZ service";
+    // }
+
+
+
+
 
     return app.exec();
 }

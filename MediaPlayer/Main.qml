@@ -1032,6 +1032,26 @@ ApplicationWindow {
         mediaPlayer.pause()
         // dubPlayer.pause()
     }
+    function togglePlayPause() {
+        if (mediaPlayer.playbackState === MediaPlayer.PlayingState)
+            mediaPlayer.pause()
+        else
+            mediaPlayer.play()
+    }
+    function stopVideo() {
+        mediaPlayer.stop()
+    }
+    function nextVideo()
+    {
+        playbackControl.playNextFile()
+    }
+
+    function previousVideo()
+    {
+        playbackControl.playPreviousFile()
+    }
+
+
 
     function seekForth()
     {

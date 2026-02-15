@@ -4,10 +4,8 @@ project(MediaPlayerApp LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus)
+
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -21,7 +19,10 @@ qt_add_qml_module(MediaPlayerApp
     VERSION 1.0
     SOURCES subtitleextractor.h subtitleextractor.cpp
     SOURCES subtitlefinder.h subtitlefinder.cpp
-    SOURCES
+    SOURCES mprisadaptor.h mprisadaptor.cpp
+    SOURCES mprisrootadaptor.h mprisrootadaptor.cpp
+    SOURCES bluezmediaplayer.h
+    SOURCES changeVolumeManually.cpp
 )
 
 qt_add_ios_ffmpeg_libraries(MediaPlayerApp)
@@ -36,13 +37,13 @@ target_link_libraries(MediaPlayerApp PRIVATE
     Qt6::Quick
     Qt6::Multimedia
     Qt6::Bluetooth
+    Qt6::DBus
     MediaControlsplugin
     MediaPlayerplugin
     Configplugin
 )
 target_link_libraries(MediaPlayerApp PRIVATE Qt6::Core)
-target_link_libraries(MediaPlayerApp PRIVATE Qt6::Core)
-target_link_libraries(MediaPlayerApp PRIVATE Qt6::Core)
+
 
 install(TARGETS MediaPlayerApp
     BUNDLE  DESTINATION .

@@ -11,12 +11,24 @@ Item {
     id: root
     implicitHeight: 40
 
+
+    HoverHandler {
+           acceptedDevices: PointerDevice.Mouse
+           onHoveredChanged: {
+               root.isMouseOnControl = hovered
+               // console.log("mouse on seeker:",hovered)
+           }
+       }
+
+    property bool isMouseOnControl:false
+
+
     required property MediaPlayer mediaPlayer
     property alias fullScreenButton: fullScreenButton
     property alias settingsButton: settingsButton
     property alias isMediaSliderPressed: mediaSlider.pressed
-    property alias showSeeker: showSeekerAnim
-    property alias hideSeeker: hideSeekerAnim
+    // property alias showSeeker: showSeekerAnim
+    // property alias hideSeeker: hideSeekerAnim
 
     function getTime(time : int) : string {
         const h = Math.floor(time / 3600000).toString()
@@ -68,39 +80,39 @@ Item {
         }
     }
 
-    ParallelAnimation {
-        id: hideSeekerAnim
-        NumberAnimation {
-            target: root
-            properties: "opacity"
-            to: 0
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-        NumberAnimation {
-            target: root
-            properties: "anchors.bottomMargin"
-            to: -root.height
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-    }
+    // ParallelAnimation {
+    //     id: hideSeekerAnim
+    //     NumberAnimation {
+    //         target: root
+    //         properties: "opacity"
+    //         to: 0
+    //         duration: 1000
+    //         easing.type: Easing.InOutQuad
+    //     }
+    //     NumberAnimation {
+    //         target: root
+    //         properties: "anchors.bottomMargin"
+    //         to: -root.height
+    //         duration: 1000
+    //         easing.type: Easing.InOutQuad
+    //     }
+    // }
 
-    ParallelAnimation {
-        id: showSeekerAnim
-        PropertyAnimation {
-            target: root
-            properties: "opacity"
-            to: 1
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-        PropertyAnimation {
-            target: root
-            properties: "anchors.bottomMargin"
-            to: 0
-            duration: 500
-            easing.type: Easing.InOutQuad
-        }
-    }
+    // ParallelAnimation {
+    //     id: showSeekerAnim
+    //     PropertyAnimation {
+    //         target: root
+    //         properties: "opacity"
+    //         to: 1
+    //         duration: 1000
+    //         easing.type: Easing.InOutQuad
+    //     }
+    //     PropertyAnimation {
+    //         target: root
+    //         properties: "anchors.bottomMargin"
+    //         to: 0
+    //         duration: 500
+    //         easing.type: Easing.InOutQuad
+    //     }
+    // }
 }

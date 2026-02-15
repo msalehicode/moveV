@@ -821,11 +821,13 @@ ApplicationWindow {
             running: true
             onTriggered:
             {
-                if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible)
+                if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
+                    && !seeker.isMouseOnControl)
                 {
                     controls.visible = false
                     hideControls.start()
                 }
+
             }
         }
 
@@ -1170,7 +1172,7 @@ ApplicationWindow {
 
             case Qt.Key_MediaPlay:
             case Qt.Key_MediaPause:
-            case Qt.Key_MediaTogglePlayPausedb:
+            case Qt.Key_MediaTogglePlayPause:
             case Qt.Key_Space:
             {
                 if(!mediaPlayer.playing)

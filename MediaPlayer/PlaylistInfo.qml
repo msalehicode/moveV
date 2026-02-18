@@ -43,27 +43,28 @@ Rectangle {
         selectedFiles.forEach(function (file)
         {
             const url = new URL(file)
-            files.insert(index,
-                {
-                    path: url,
-                    isMovie: isMovie(FileNameProvider.getFileName(url.toString()))
-                })
+            console.log("file url=", url, " file=", file)
+            files.append({
+                path: url.toString(),
+                isMovie: isMovie(FileNameProvider.getFileName(url.toString()))
+            })
         })
         playlistUpdated()
     }
 
-    function addFile(index, selectedFile) {
-        if (index > mediaCount || index < 0) {
-            index = 0
-            currentIndex = 0
-        }
-        files.insert(index,
-            {
-                path: selectedFile,
-                isMovie: isMovie(FileNameProvider.getFileName(selectedFile.toString()))
-            })
 
-    }
+    // function addFile(index, selectedFile) {
+    //     if (index > mediaCount || index < 0) {
+    //         index = 0
+    //         currentIndex = 0
+    //     }
+    //     files.insert(index,
+    //         {
+    //             path: selectedFile,
+    //             isMovie: isMovie(FileNameProvider.getFileName(selectedFile.toString()))
+    //         })
+
+    // }
 
     function isMovie(path) {
         const paths = path.split('.')

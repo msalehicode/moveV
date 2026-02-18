@@ -510,6 +510,11 @@ ApplicationWindow {
             }
         }
 
+        onPlaySelectedIndex:
+        {
+            root.playMedia();
+        }
+
         onCurrentFileRemoved: {
             mediaPlayer.stop()
             if (root.currentFile < playlistInfo.mediaCount - 1) {
@@ -931,6 +936,7 @@ ApplicationWindow {
                 root.playMedia()
             }
         }
+
 
         onPlayPreviousFile: {
             if (playlistInfo.mediaCount) {

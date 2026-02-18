@@ -15,7 +15,7 @@ import io.qt.filenameprovider
 Rectangle {
     id: root
 
-    implicitWidth: 380
+    implicitWidth: 580
     color: Config.mainColor
     border.color: "lightgrey"
     radius: 10
@@ -25,6 +25,7 @@ Rectangle {
     property alias mediaCount: files.count
     signal playlistUpdated()
     signal currentFileRemoved()
+    signal playSelectedIndex();
 
     function getSource() {
         if (isShuffled && mediaCount > 1) {
@@ -192,8 +193,8 @@ Rectangle {
                         anchors.fill: parent
                         onClicked:
                         {
-                            console.log("play...path=,",row.path, "text=",parent.text)
                             root.currentIndex=row.index
+                            playSelectedIndex()
                         }
                     }
                 }

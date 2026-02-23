@@ -10,7 +10,7 @@ import QtQuick.Controls
 Item {
     id: root
 
-    implicitHeight: 120
+    implicitHeight: 140
 
     HoverHandler {
            acceptedDevices: PointerDevice.Mouse
@@ -42,6 +42,7 @@ Item {
     property alias removeDomainsStatus:removeDomainsCheckbox.checked
     property alias removeHTMLStatus:removeHtmlTagsCheckbox.checked
     property alias cleanSubtitleStatus:cleanSubtitleCheckBox.checked
+    property alias removeExtraInfo: removeExtraInfoCheckBox.checked
 
     signal playNextFile()
     signal playPreviousFile()
@@ -107,7 +108,7 @@ Item {
 
                     CustomCheckbox {
                         id: parentBox
-                        text: qsTr("clean all")
+                        text: qsTr("check all")
                         checkState: childGroup.checkState
                     }
 
@@ -129,6 +130,13 @@ Item {
                     CustomCheckbox {
                         id:cleanSubtitleCheckBox
                         text: qsTr("clean subtitle")
+                        leftPadding: indicator.width
+                        ButtonGroup.group: childGroup
+                    }
+
+                    CustomCheckbox {
+                        id:removeExtraInfoCheckBox
+                        text: qsTr("remove extraInfo")
                         leftPadding: indicator.width
                         ButtonGroup.group: childGroup
                     }

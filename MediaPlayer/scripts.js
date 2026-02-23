@@ -34,3 +34,32 @@ function cleanSubtitleText(text) {
         // Trim leading/trailing whitespace
         .trim();
 }
+
+
+function removeExtraInfo(text) {
+    if (!text) return "";
+
+    return text
+        // Remove ( ... )
+        .replace(/\([^)]*\)/g, "")
+
+        // Remove [ ... ]
+        .replace(/\[[^\]]*\]/g, "")
+
+        // Remove < ... >
+        .replace(/<[^>]*>/g, "")
+
+        // Remove « ... »
+        .replace(/«[^»]*»/g, "")
+
+        // // Remove ** ... **
+        // .replace(/\*\*[^*]*\*\*/g, "")
+
+        // // Remove - ... -  (only when surrounded by spaces)
+        // .replace(/ -[^-]*- /g, " ")
+
+        // // Cleanup extra spaces
+        // .replace(/[ \t]+/g, " ")
+        // .replace(/\n\s+/g, "\n")
+        .trim();
+}

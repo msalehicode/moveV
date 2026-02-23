@@ -50,15 +50,16 @@ ApplicationWindow {
     property real rotationAngle:  0 // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
     property string selectedMediaFilePath;
     property bool autoLoadSubtitles: true
+    property int subtitlesTimerInterval: 200
 
 
     //hold to speedup
     property real speedHold:2
+    property bool spedupByHold: false //a flag to set when user hold mouse click to speedup
 
 
     //SNS settings
     property real secBeforeSpeedup: 1; //x Seconds before subtitle make pace normal. (FOR SNS) (for those subtitles are not shown/matched when actor speak)
-    property bool spedupByHold: false
 
 
     //subtitles properties
@@ -617,7 +618,7 @@ ApplicationWindow {
     // Subtitle overlay
     // Update subtitle every ..ms
     Timer {
-        interval: 200
+        interval: subtitlesTimerInterval
         running: true
         repeat: true
 
@@ -1035,30 +1036,37 @@ ApplicationWindow {
 
 
 
-    function checkAndClean(sub1)
+    function checkAndClean(textPara)
     {
         //ignore subtitles which contain website domains
         if(playbackControl.removeDomainsStatus)
         {
-            if(Scripts.containsDomain(sub1))
-                sub1=""
+            if(Scripts.containsDomain(textPara))
+                textPara=""
         }
 
 
         //remove html tags
         if(playbackControl.removeHTMLStatus)
         {
-            sub1 = Scripts.stripHtmlClean(sub1)
+            textPara = Scripts.stripHtmlClean(textPara)
         }
 
 
         //clean subtitle
         if(playbackControl.cleanSubtitleStatus)
         {
-            sub1 = Scripts.cleanSubtitleText(sub1)
+            textPara = Scripts.cleanSubtitleText(textPara)
         }
 
-        return sub1;
+
+        //remove more info like (hello) or [this is building] or <dwadwa> or «something» ...
+        if(playbackControl.removeExtraInfo)
+        {
+            textPara= Scripts.removeExtraInfo(textPara)
+        }
+
+        return textPara;
     }
 
 

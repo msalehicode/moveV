@@ -24,6 +24,9 @@ QtObject {
     readonly property color highlightColor : "#41CD52"
 
 
+    property QtObject subtitle1DataPtr;
+    property QtObject subtitle2DataPtr;
+
     function iconName(fileName, addSuffix = true) {
         return `${fileName}${activeTheme === Config.Theme.Dark && addSuffix ? "_Dark.svg" : ".svg"}`
     }

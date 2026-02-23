@@ -34,9 +34,60 @@ Item {
 
                 ButtonGroup.group: groupAudioOutputDevice
                 onClicked: {
-                    mediaPlayer.audioOutput.device = modelData
+                    // mediaPlayer.audioOutput.device = modelData
+                    Config.mediaDevicesPtr.audioOutput.device = modelData
                 }
             }
         }
+
+        Label{
+            text:"Subtitle 1 Settings:"
+            font.bold: true
+            font.pixelSize: 15
+        }
+        CheckBox
+        {
+            checked: Config.subtitle1DataPtr.wordByWordMode
+            text: qsTr("word by word subtitle 1")
+            leftPadding: indicator.width
+            onCheckedChanged:
+            {
+                Config.subtitle1DataPtr.wordByWordMode = checked
+            }
+        }
+        SpinBox
+        {
+            value:Config.subtitle1DataPtr.subFontSize
+            onValueChanged:
+            {
+                Config.subtitle1DataPtr.subFontSize = value
+            }
+        }
+
+        Label{
+            text:"Subtitle 2 Settings:"
+            font.bold: true
+            font.pixelSize: 15
+        }
+        CheckBox
+        {
+            checked: Config.subtitle2DataPtr.wordByWordMode
+            text: qsTr("word by word subtitle 2")
+            leftPadding: indicator.width
+            onCheckedChanged:
+            {
+                Config.subtitle2DataPtr.wordByWordMode = checked
+            }
+        }
+
+        SpinBox
+        {
+            value:Config.subtitle2DataPtr.subFontSize
+            onValueChanged:
+            {
+                Config.subtitle2DataPtr.subFontSize = value
+            }
+        }
+
     }
 }

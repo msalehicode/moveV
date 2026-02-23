@@ -65,7 +65,7 @@ ApplicationWindow {
     //subtitles properties
     QtObject {
         id: subtitle1Data
-        property bool wordByWordMode:true;
+        property bool wordByWordMode:false;
         property int subtitleOffsetMs: 0
         property bool subtitleStatus: true;
 
@@ -95,7 +95,7 @@ ApplicationWindow {
 
     QtObject {
         id: subtitle2Data
-        property bool wordByWordMode:true;
+        property bool wordByWordMode:false;
         property int subtitleOffsetMs: 0
         property bool subtitleStatus: true;
 
@@ -1295,5 +1295,9 @@ ApplicationWindow {
 
         //set media devicesfor config
         Config.mediaDevicesPtr=mediaDevices
+
+        //alias data to config
+        Config.subtitle1DataPtr= subtitle1Data
+        Config.subtitle2DataPtr= subtitle2Data
     }
 }

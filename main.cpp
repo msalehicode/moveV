@@ -28,6 +28,9 @@
 #include <QProcessEnvironment>
 
 
+
+#include "backend.h"
+
 using namespace Qt::Literals::StringLiterals;
 
 struct NameFilters
@@ -86,7 +89,15 @@ int main(int argc, char *argv[])
     qmlRegisterType<SubtitleFinder>("SubtitleFinder", 1, 0, "SubtitleFinder");
 
 
+
+
+
     QQmlApplicationEngine engine;
+
+
+    Backend backend(&app);
+    engine.rootContext()->setContextProperty("backend", &backend);
+
 
     QObject::connect(&engine, &QQmlApplicationEngine::quit, &app, &QGuiApplication::quit);
 

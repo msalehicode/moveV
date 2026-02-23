@@ -34,8 +34,6 @@ ApplicationWindow {
     property alias metadataInfo: settingsInfo.metadataInfo
     property alias tracksInfo: settingsInfo.tracksInfo
 
-
-
     SubtitleExtractor
     {
         id: extractor
@@ -177,6 +175,10 @@ ApplicationWindow {
 
             //encounter embedded subtitles
             subtitleModel.clear()
+            subtitle1="";
+            subtitle2="";
+
+
             for (let i = 0; i < subtitleTracks.length; ++i)
             {
                 let lang = subtitleTracks[i].stringValue(6) // 6 = language key
@@ -220,11 +222,6 @@ ApplicationWindow {
             }
 
 
-
-
-            // console.log("Subtitle tracks:", subtitleTracks.length)
-            // for (let i = 0; i < subtitleTracks.length; ++i)
-            // console.log(i, Button { text: "Subtitle"; onClicked: popupMessage.open() }subtitleTracks[i].stringValue(6))  // 6 = language key
         }
 
 
@@ -371,7 +368,7 @@ ApplicationWindow {
             }
             onPositionChanged: (mouse) =>
                                {
-                                    showControlsByHover()
+                                   showControlsByHover()
                                }
             onClicked:
             {
@@ -801,8 +798,6 @@ ApplicationWindow {
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 10
-            // Button { text: "sub"; onClicked: popupMessage.open() }
-
             // }
             /*Dial {
                 id: rotationDial
@@ -827,10 +822,11 @@ ApplicationWindow {
             onTriggered:
             {
                 if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
-                    && !seeker.isMouseOnControl)
+                        && !seeker.isMouseOnControl)
                 {
                     controls.visible = false
                     hideControls.start()
+                    backend.setAppCursor(10); //blank cursor
                 }
 
             }
@@ -972,7 +968,7 @@ ApplicationWindow {
         // nameFilters : root.nameFilters
         // nameFilters: ["All Files (*)"]
         nameFilters:
-        [
+            [
             "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
             "GIF Files (*.gif)",
             "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
@@ -1031,12 +1027,10 @@ ApplicationWindow {
     function playVideo()
     {
         mediaPlayer.play()
-        // dubPlayer.play()
     }
     function pauseVideo()
     {
         mediaPlayer.pause()
-        // dubPlayer.pause()
     }
     function togglePlayPause() {
         if (mediaPlayer.playbackState === MediaPlayer.PlayingState)
@@ -1062,12 +1056,10 @@ ApplicationWindow {
     function seekForth()
     {
         mediaPlayer.position = Math.min(mediaPlayer.position + 15000, mediaPlayer.duration);
-        // dubPlayer.position=player.position + dubPlayerOffset
     }
     function seekBack()
     {
         mediaPlayer.position = Math.max(mediaPlayer.position - 15000, 0);
-        // dubPlayer.position=player.position + dubPlayerOffset
     }
 
     function volUp(val=0.10)
@@ -1116,15 +1108,8 @@ ApplicationWindow {
         controls.visible=true
         controlsHideTimer.running=true
         brightnessOverlay.focus=true
-        // if (!seeker.opacity) {
-            // if (videoOutput.fullScreen) {
-                showControls.start()
-            // } else {
-                // seeker.showSeeker.start()
-            // }
-        // } else {
-            // timer.restart()
-        // }
+        backend.setAppCursor(0); //normal arrow
+        showControls.start()
     }
 
     function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
@@ -1184,8 +1169,8 @@ ApplicationWindow {
 
 
         else
-        switch(event.key)
-        {
+            switch(event.key)
+            {
 
 
 
@@ -1233,7 +1218,7 @@ ApplicationWindow {
             {
                 mediaPlayer.doFullscreen()
             }break;
-        }
+            }
 
         showControlsByHover()
     }

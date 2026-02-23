@@ -6,7 +6,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus)
 
-
 qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(MediaPlayerApp
@@ -23,6 +22,7 @@ qt_add_qml_module(MediaPlayerApp
     SOURCES mprisrootadaptor.h mprisrootadaptor.cpp
     SOURCES bluezmediaplayer.h
     SOURCES changeVolumeManually.cpp
+    SOURCES backend.h backend.cpp
 )
 
 qt_add_ios_ffmpeg_libraries(MediaPlayerApp)

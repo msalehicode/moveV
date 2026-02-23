@@ -68,3 +68,81 @@ function getSubtitleForTime(subs, timeMs) {
     }
     return "";
 }
+
+
+// function findSubtitleEndTime(subs, startTime) {
+//     for (var i = 0; i < subs.length; i++) {
+//         if (subs[i].start === startTime)
+//             return subs[i].end
+//     }
+//     return startTime + 1000 // fallback 1s
+// }
+
+function getSubtitleEntry(subs, timeMs) {
+    if (!Array.isArray(subs)) return null;
+    for (let i = 0; i < subs.length; i++) {
+        if (timeMs >= subs[i].start && timeMs <= subs[i].end)
+            return subs[i];
+    }
+    return null;
+}
+
+
+
+
+function giveWordByWordSubtitle(data,mediaPlayerPosition,duration=2000)
+{
+    // Detect subtitle change
+    if (data.currentSubtitle !== data.lastSubtitle) {
+        data.lastSubtitle = data.currentSubtitle
+        data.wordIndex = 0
+
+        if (data.currentSubtitle === "") {
+            data.wordList = []
+        } else {
+            // MULTI-LINE SUPPORT
+            var lines = data.currentSubtitle.split(/\n+/)
+            data.wordList = []
+
+            for (var i = 0; i < lines.length; i++) {
+                var words = lines[i].trim().split(/\s+/)
+                for (var w = 0; w < words.length; w++) {
+                    if (words[w] !== "")
+                        data.wordList.push(words[w])
+                }
+            }
+
+            // GET SUBTITLE TIMING
+            var entry = getSubtitleEntry(data.subtitle, mediaPlayerPosition + data.subtitleOffsetMs*1000)
+            if (entry) {
+                data.subtitleStart = entry.start
+                data.subtitleEnd = entry.end
+                data.subtitleDuration = data.subtitleEnd - data.subtitleStart
+            } else {
+                data.subtitleStart = mediaPlayerPosition
+                data.subtitleDuration = duration
+            }
+        }
+    }
+
+    // No subtitle → clear
+    if (data.currentSubtitle === "") {
+        return ""
+    }
+
+    // CALCULATE HOW MANY WORDS SHOULD BE SHOWN BY NOW
+    var elapsed = mediaPlayerPosition - data.subtitleStart
+    if (elapsed < 0) elapsed = 0
+    if (elapsed > data.subtitleDuration) elapsed = data.subtitleDuration
+
+    var progress = elapsed / data.subtitleDuration
+    var targetIndex = Math.floor(progress * data.wordList.length)
+
+    if (targetIndex >= data.wordList.length)
+        targetIndex = data.wordList.length - 1
+
+    // Show the correct word
+    return data.wordList[targetIndex];
+
+}
+

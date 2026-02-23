@@ -24,7 +24,7 @@ ApplicationWindow {
     minimumWidth: 640
     visible: true
     color: Config.mainColor
-    title: qsTr("Multimedia Player")
+    title: qsTr("moveV Player")
     required property url source
     required property list<string> nameFilters
     required property int selectedNameFilter
@@ -34,6 +34,9 @@ ApplicationWindow {
     property alias metadataInfo: settingsInfo.metadataInfo
     property alias tracksInfo: settingsInfo.tracksInfo
 
+
+
+    property string currentSubtitle: "" //temp
     SubtitleExtractor
     {
         id: extractor
@@ -44,42 +47,81 @@ ApplicationWindow {
 
 
     property bool isMuted: false
-    // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
-    property real rotationAngle:  0
-
-    property string currentSubtitle: ""
-    property bool autoLoadSubtitles: true
+    property real rotationAngle:  0 // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
     property string selectedMediaFilePath;
-
-    property var subtitle1;
-    property int sub1Index: 0
-    property int subtitle1OffsetMs: 0
-    property bool subtitle1Status: true;
-    property string sub1TextColor: "yellow"
-    property string sub1TextOfsetColor: "red"
-    property string sub1BackColor:"black"
-    property real sub1BgOpacity: 0.5
-    property int sub1FontSize: 50
-    property int sub1posy: 0
-    property string sub1filePath: "";
-
-    property var subtitle2;
-    property int sub2Index: 0
-    property int subtitle2OffsetMs: 0
-    property bool subtitle2Status: true;
-    property string sub2TextColor: "yellow"
-    property string sub2TextOfsetColor: "red"
-    property string sub2BackColor:"black"
-    property real sub2BgOpacity: 0.5
-    property int sub2FontSize: 50
-    property int sub2posy: 50
-    property string sub2filePath: "";
+    property bool autoLoadSubtitles: true
 
 
-    property real secBeforeSpeedup: 1;
-
-    property bool spedupByHold: false
+    //hold to speedup
     property real speedHold:2
+
+
+    //SNS settings
+    property real secBeforeSpeedup: 1; //x Seconds before subtitle make pace normal. (FOR SNS) (for those subtitles are not shown/matched when actor speak)
+    property bool spedupByHold: false
+
+
+    //subtitles properties
+    QtObject {
+        id: subtitle1Data
+        property bool wordByWordMode:true;
+        property int subtitleOffsetMs: 0
+        property bool subtitleStatus: true;
+
+        //subtitle texts and variables
+        property var subtitle; //whole subtitle file text loaded here
+        property int subIndex: 0 //in listing combobox
+        property string currentSubtitle:""; //to hold that current chunk of subtitle for that time of media
+        property string preSubtitle:""; //for SNS (speedup and stop) to find upcoming subtitle (to make subtitle's speed to normal when hit before-time offset)
+        property string subfilePath: "";//to hold selected subtitle file path
+
+        //subtitle styling
+        property string subTextColor: "yellow"
+        property string subTextOfsetColor: "red"
+        property string subBackColor:"black"
+        property real subBgOpacity: 0.5
+        property int subFontSize: 50
+        property int subposy: 50
+
+        //word by word feature
+        property var wordList: []
+        property int wordIndex: 0
+        property string lastSubtitle: ""
+        property int subtitleStart: 0
+        property int subtitleEnd: 0
+        property int subtitleDuration: 1
+    }
+
+    QtObject {
+        id: subtitle2Data
+        property bool wordByWordMode:true;
+        property int subtitleOffsetMs: 0
+        property bool subtitleStatus: true;
+
+        //subtitle texts and variables
+        property var subtitle; //whole subtitle file text loaded here
+        property int subIndex: 0 //in listing combobox
+        property string currentSubtitle:""; //to hold that current chunk of subtitle for that time of media
+        property string preSubtitle:""; //for SNS (speedup and stop) to find upcoming subtitle (to make subtitle's speed to normal when hit before-time offset)
+        property string subfilePath: "";//to hold selected subtitle file path
+
+        //subtitle styling
+        property string subTextColor: "yellow"
+        property string subTextOfsetColor: "red"
+        property string subBackColor:"black"
+        property real subBgOpacity: 0.5
+        property int subFontSize: 50
+        property int subposy: 50
+
+        //word by word feature
+        property var wordList: []
+        property int wordIndex: 0
+        property string lastSubtitle: ""
+        property int subtitleStart: 0
+        property int subtitleEnd: 0
+        property int subtitleDuration: 1
+    }
+
 
     function playMedia() {
         mediaPlayer.source = playlistInfo.getSource()
@@ -112,22 +154,6 @@ ApplicationWindow {
         }
         onClicked: root.closeOverlays()
     }
-
-    // Timer {
-    //     id: timer
-    //     interval: 3000
-    //     onTriggered: {
-    //         if (!seeker.isMediaSliderPressed) {
-    //             if (videoOutput.fullScreen) {
-    //                 hideControls.start()
-    //             } else {
-    //                 seeker.hideSeeker.start()
-    //             }
-    //         } else {
-    //             timer.restart()
-    //         }
-    //     }
-    // }
 
     ErrorPopup {
         id: errorPopup
@@ -175,8 +201,8 @@ ApplicationWindow {
 
             //encounter embedded subtitles
             subtitleModel.clear()
-            subtitle1="";
-            subtitle2="";
+            subtitle1Data.subtitle="";
+            subtitle2Data.subtitle="";
 
 
             for (let i = 0; i < subtitleTracks.length; ++i)
@@ -589,37 +615,51 @@ ApplicationWindow {
 
 
     // Subtitle overlay
-    // Update subtitle every 200 ms
+    // Update subtitle every ..ms
     Timer {
         interval: 200
         running: true
         repeat: true
+
+
+
         onTriggered:
         {
             if(mediaPlayer.playing)
             {
+                subtitle1Data.currentSubtitle=""
+                subtitle2Data.currentSubtitle=""
 
-                var sub1=""
-                var sub2="";
-
-                if(subtitle1Status)
+                if(subtitle1Data.subtitleStatus)
                 {
-                    // console.log("subtitle1 = ",subtitleText1.text)
-                    sub1 = Sub.getSubtitleForTime(subtitle1, mediaPlayer.position + subtitle1OffsetMs*1000)
+                    subtitle1Data.currentSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + subtitle1Data.subtitleOffsetMs*1000)
                 }
 
-                if(subtitle2Status)
+                if(subtitle2Data.subtitleStatus)
                 {
-                    // console.log("subtitle2 = ",subtitleText2.text)
-                    sub2 = Sub.getSubtitleForTime(subtitle2, mediaPlayer.position + subtitle2OffsetMs*1000)
+                    subtitle2Data.currentSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + subtitle2Data.subtitleOffsetMs*1000)
                 }
 
 
-                sub1=checkAndClean(sub1)
-                sub2=checkAndClean(sub2)
+                subtitle1Data.currentSubtitle=checkAndClean(subtitle1Data.currentSubtitle)
+                subtitle2Data.currentSubtitle=checkAndClean(subtitle2Data.currentSubtitle)
 
-                subtitleText1.text =sub1
-                subtitleText2.text= sub2
+
+
+                // WORD BY WORD MODE
+                if (subtitle1Data.wordByWordMode)
+                    subtitleText1.text = Sub.giveWordByWordSubtitle(subtitle1Data,mediaPlayer.position);
+                else
+                    subtitleText1.text =subtitle1Data.currentSubtitle
+
+                if (subtitle2Data.wordByWordMode)
+                    subtitleText2.text = Sub.giveWordByWordSubtitle(subtitle2Data,mediaPlayer.position);
+                else
+                    subtitleText2.text =subtitle2Data.currentSubtitle
+
+
+
+
 
                 if(spedupByHold)//user held mouse click to spedup
                 {
@@ -630,33 +670,33 @@ ApplicationWindow {
                 else if(playbackControl.snsStatus)
                 {
                     //speed up when text is empty.
-                    if(sub1==="" && sub2==="")
+                    if(subtitle1Data.currentSubtitle==="" && subtitle2Data.currentSubtitle==="")
                     {
 
-                        var preSub1=""
-                        var preSub2=""
+                        subtitle1Data.preSubtitle=""
+                        subtitle2Data.preSubtitle=""
                         //read coming up subtitle for seconds before speedup
 
-                        if(subtitle1Status)
+                        if(subtitle1Data.subtitleStatus)
                         {
                             //get presubtitle
-                            preSub1 = Sub.getSubtitleForTime(subtitle1, mediaPlayer.position + subtitle1OffsetMs*1000 + playbackControl.secBeforeSpeedup*1000)
+                            subtitle1Data.preSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + subtitle1Data.subtitleOffsetMs*1000 + playbackControl.secBeforeSpeedup*1000)
 
                             //clean presubtitle
-                            preSub1=checkAndClean(preSub1)
+                            subtitle1Data.preSubtitle=checkAndClean(subtitle1Data.preSubtitle)
                         }
-                        if(subtitle2Status)
+                        if(subtitle2Data.subtitleStatus)
                         {
                             //get presubtitle
-                            preSub2 = Sub.getSubtitleForTime(subtitle2, mediaPlayer.position + subtitle2OffsetMs*1000 + playbackControl.secBeforeSpeedup*1000)
+                            subtitle2Data.preSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + subtitle2Data.subtitleOffsetMs*1000 + playbackControl.secBeforeSpeedup*1000)
 
                             //clean presubtitle
-                            preSub2=checkAndClean(preSub2)
+                            subtitle2Data.preSubtitle=checkAndClean(subtitle2Data.preSubtitle)
                         }
 
 
                         //check for seconds before speedup to avoid speedup
-                        if(preSub1==="" && preSub2==="")
+                        if(subtitle1Data.preSubtitle==="" && subtitle2Data.preSubtitle==="")
                         {
                             mediaPlayer.playbackRate=playbackControl.snsSpeed;
                             speedingLabel.visible=true
@@ -664,7 +704,7 @@ ApplicationWindow {
                         }
                         else
                         {
-                            // console.log("subtitle is not empty for speedup. presub1=",preSub1,"presub2=",preSub2)
+                            // console.log("subtitle is not empty for speedup. subtitle1Data.preSubtitle=",subtitle1Data.preSubtitle,"subtitle2Data.preSubtitle=",subtitle2Data.preSubtitle)
                             mediaPlayer.playbackRate=playbackControl.playbackRate
                             speedingLabel.visible=false
                             speedingLabel.text=""
@@ -692,13 +732,13 @@ ApplicationWindow {
     {
         width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
         height:subtitleText1.height
-        color:sub1BackColor
-        opacity: sub1BgOpacity-brightnessOverlay.opacity/2
-        visible: subtitle1Status
+        color:subtitle1Data.subBackColor
+        opacity: subtitle1Data.subBgOpacity-brightnessOverlay.opacity/2
+        visible: subtitle1Data.subtitleStatus
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
         Drag.source: parent
-        y:sub1posy
+        y:subtitle1Data.subposy
 
         property int parentWidth: parent ? parent.width : 0
         property int parentHeight: parent ? parent.height : 0
@@ -717,7 +757,7 @@ ApplicationWindow {
                 if (parent.y + parent.height > parent.parentHeight)
                     parent.y = parent.parentHeight - parent.height
 
-                sub1posy=parent.y
+                subtitle1Data.subposy=parent.y
             }
         }
         Label {
@@ -728,23 +768,23 @@ ApplicationWindow {
             horizontalAlignment: Text.AlignHCenter
             // horizontalAlignment: Text.AlignRight
 
-            color: sub1TextColor
+            color: subtitle1Data.subTextColor
             style: Text.Outline
-            styleColor: sub1TextOfsetColor
-            font.pixelSize: sub1FontSize
+            styleColor: subtitle1Data.subTextOfsetColor
+            font.pixelSize: subtitle1Data.subFontSize
         }
     }
     Rectangle
     {
         width: subtitleText2.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText2.implicitWidth
         height:subtitleText2.height
-        color:sub2BackColor
-        opacity: sub2BgOpacity-brightnessOverlay.opacity/2
-        visible: subtitle2Status
+        color:subtitle2Data.subBackColor
+        opacity: subtitle2Data.subBgOpacity-brightnessOverlay.opacity/2
+        visible: subtitle2Data.subtitleStatus
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
         Drag.source: parent
-        y:sub2posy
+        y:subtitle2Data.subposy
 
         property int parentWidth: parent ? parent.width : 0
         property int parentHeight: parent ? parent.height : 0
@@ -764,7 +804,7 @@ ApplicationWindow {
                     parent.y = parent.parentHeight - parent.height
 
 
-                sub2posy=parent.y
+                subtitle2Data.subposy=parent.y
             }
         }
         Label {
@@ -776,10 +816,10 @@ ApplicationWindow {
             horizontalAlignment: Text.AlignHCenter
             // horizontalAlignment: Text.AlignRight
 
-            color: sub2TextColor
+            color: subtitle2Data.subTextColor
             style: Text.Outline
-            styleColor: sub2TextOfsetColor
-            font.pixelSize: sub2FontSize
+            styleColor: subtitle2Data.subTextOfsetColor
+            font.pixelSize: subtitle2Data.subFontSize
         }
     }
 
@@ -1131,16 +1171,16 @@ ApplicationWindow {
 
         if(subtitleNo)
         {
-            subtitle1 = Sub.parseSubtitle(currentSubtitle)
+            subtitle1Data.subtitle = Sub.parseSubtitle(currentSubtitle)
             if(subIndex>=0)//loaded from somehwereelse
-                sub1Index=subIndex
+                subtitle1Data.subIndex=subIndex
         }
 
         else
         {
-            subtitle2 = Sub.parseSubtitle(currentSubtitle)
+            subtitle2Data.subtitle = Sub.parseSubtitle(currentSubtitle)
             if(subIndex>=0)//loaded from somehwereelse
-                sub2Index=subIndex
+                subtitle2Data.subIndex=subIndex
         }
 
     }

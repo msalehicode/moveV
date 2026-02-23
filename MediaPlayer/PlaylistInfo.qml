@@ -53,18 +53,18 @@ Rectangle {
     }
 
 
-    // function addFile(index, selectedFile) {
-    //     if (index > mediaCount || index < 0) {
-    //         index = 0
-    //         currentIndex = 0
-    //     }
-    //     files.insert(index,
-    //         {
-    //             path: selectedFile,
-    //             isMovie: isMovie(FileNameProvider.getFileName(selectedFile.toString()))
-    //         })
+    function addFile(index, selectedFile) {
+        if (index > mediaCount || index < 0) {
+            index = 0
+            currentIndex = 0
+        }
+        files.insert(index,
+            {
+                path: selectedFile,
+                isMovie: isMovie(FileNameProvider.getFileName(selectedFile.toString()))
+            })
 
-    // }
+    }
 
     function isMovie(path) {
         const paths = path.split('.')

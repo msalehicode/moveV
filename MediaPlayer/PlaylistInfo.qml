@@ -42,16 +42,16 @@ Rectangle {
     {
         selectedFiles.forEach(function (file)
         {
-            const url = new URL(file)
-            console.log("file url=", url, " file=", file)
             files.append({
-                path: url.toString(),
-                isMovie: isMovie(FileNameProvider.getFileName(url.toString()))
+                path: file,
+                isMovie: isMovie(
+                    FileNameProvider.getFileName(file.toString())
+                )
             })
         })
+
         playlistUpdated()
     }
-
 
     function addFile(index, selectedFile) {
         if (index > mediaCount || index < 0) {

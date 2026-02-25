@@ -47,6 +47,7 @@ Item {
         }
         CheckBox
         {
+            id:wordByWordSubtitle1Checkbox
             checked: Config.subtitle1DataPtr.wordByWordMode
             text: qsTr("word by word subtitle 1")
             leftPadding: indicator.width
@@ -54,6 +55,26 @@ Item {
             {
                 Config.subtitle1DataPtr.wordByWordMode = checked
             }
+        }
+        Label{
+            text:"Subtitle 1 wordByWord Chunks:"
+            font.pixelSize: 12
+            visible: wordByWordSubtitle1Checkbox.checked
+        }
+        SpinBox
+        {
+            value:Config.subtitle1DataPtr.wordByWordChunks
+            visible: wordByWordSubtitle1Checkbox.checked
+            onValueChanged:
+            {
+                Config.subtitle1DataPtr.wordByWordChunks = value
+            }
+        }
+
+
+        Label{
+            text:"Subtitle 1 font size:"
+            font.pixelSize: 12
         }
         SpinBox
         {
@@ -65,12 +86,31 @@ Item {
         }
 
         Label{
+            text:"Subtitle 1 offset:"
+            font.pixelSize: 12
+        }
+        SpinBox
+        {
+            value:Config.subtitle1DataPtr.subtitleOffsetMs
+            from:-100
+            to:100
+            onValueChanged:
+            {
+                Config.subtitle1DataPtr.subtitleOffsetMs = value
+            }
+        }
+
+
+
+
+        Label{
             text:"Subtitle 2 Settings:"
             font.bold: true
             font.pixelSize: 15
         }
         CheckBox
         {
+            id:wordByWordSubtitle2Checkbox
             checked: Config.subtitle2DataPtr.wordByWordMode
             text: qsTr("word by word subtitle 2")
             leftPadding: indicator.width
@@ -79,7 +119,27 @@ Item {
                 Config.subtitle2DataPtr.wordByWordMode = checked
             }
         }
+        Label{
+            text:"Subtitle 2 wordByWord Chunks:"
+            font.pixelSize: 12
+            visible: wordByWordSubtitle2Checkbox.checked
+        }
+        SpinBox
+        {
+            value:Config.subtitle2DataPtr.wordByWordChunks
+            visible: wordByWordSubtitle2Checkbox.checked
+            onValueChanged:
+            {
+                Config.subtitle2DataPtr.wordByWordChunks = value
+            }
+        }
 
+
+
+        Label{
+            text:"Subtitle 2 font size:"
+            font.pixelSize: 12
+        }
         SpinBox
         {
             value:Config.subtitle2DataPtr.subFontSize
@@ -88,6 +148,23 @@ Item {
                 Config.subtitle2DataPtr.subFontSize = value
             }
         }
+
+        Label{
+            text:"Subtitle 2 offset:"
+            font.pixelSize: 12
+        }
+        SpinBox
+        {
+            value:Config.subtitle2DataPtr.subtitleOffsetMs
+            from:-100
+            to:100
+            onValueChanged:
+            {
+                Config.subtitle2DataPtr.subtitleOffsetMs = value
+            }
+        }
+
+
 
     }
 }

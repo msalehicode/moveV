@@ -90,59 +90,129 @@ function getSubtitleEntry(subs, timeMs) {
 
 
 
-function giveWordByWordSubtitle(data,mediaPlayerPosition,duration=2000)
+// function giveWordByWordSubtitle(data,mediaPlayerPosition,duration=2000)
+// {
+//     // Detect subtitle change
+//     if (data.currentSubtitle !== data.lastSubtitle) {
+//         data.lastSubtitle = data.currentSubtitle
+//         data.wordIndex = 0
+
+//         if (data.currentSubtitle === "") {
+//             data.wordList = []
+//         } else {
+//             // MULTI-LINE SUPPORT
+//             var lines = data.currentSubtitle.split(/\n+/)
+//             data.wordList = []
+
+//             for (var i = 0; i < lines.length; i++) {
+//                 var words = lines[i].trim().split(/\s+/)
+//                 for (var w = 0; w < words.length; w++) {
+//                     if (words[w] !== "")
+//                         data.wordList.push(words[w])
+//                 }
+//             }
+
+//             // GET SUBTITLE TIMING
+//             var entry = getSubtitleEntry(data.subtitle, mediaPlayerPosition + data.subtitleOffsetMs*1000)
+//             if (entry) {
+//                 data.subtitleStart = entry.start
+//                 data.subtitleEnd = entry.end
+//                 data.subtitleDuration = data.subtitleEnd - data.subtitleStart
+//             } else {
+//                 data.subtitleStart = mediaPlayerPosition
+//                 data.subtitleDuration = duration
+//             }
+//         }
+//     }
+
+//     // No subtitle → clear
+//     if (data.currentSubtitle === "") {
+//         return ""
+//     }
+
+//     // CALCULATE HOW MANY WORDS SHOULD BE SHOWN BY NOW
+//     var elapsed = mediaPlayerPosition - data.subtitleStart
+//     if (elapsed < 0) elapsed = 0
+//     if (elapsed > data.subtitleDuration) elapsed = data.subtitleDuration
+
+//     var progress = elapsed / data.subtitleDuration
+//     var targetIndex = Math.floor(progress * data.wordList.length)
+
+//     if (targetIndex >= data.wordList.length)
+//         targetIndex = data.wordList.length - 1
+
+//     // Show the correct word
+//     return data.wordList[targetIndex];
+
+// }
+function giveWordByWordSubtitle(data, mediaPlayerPosition, duration = 2000)
 {
     // Detect subtitle change
     if (data.currentSubtitle !== data.lastSubtitle) {
-        data.lastSubtitle = data.currentSubtitle
-        data.wordIndex = 0
+        data.lastSubtitle = data.currentSubtitle;
+        data.wordIndex = 0;
 
         if (data.currentSubtitle === "") {
-            data.wordList = []
+            data.wordList = [];
         } else {
+
             // MULTI-LINE SUPPORT
-            var lines = data.currentSubtitle.split(/\n+/)
-            data.wordList = []
+            var lines = data.currentSubtitle.split(/\n+/);
+            data.wordList = [];
 
             for (var i = 0; i < lines.length; i++) {
-                var words = lines[i].trim().split(/\s+/)
+                var words = lines[i].trim().split(/\s+/);
                 for (var w = 0; w < words.length; w++) {
                     if (words[w] !== "")
-                        data.wordList.push(words[w])
+                        data.wordList.push(words[w]);
                 }
             }
 
             // GET SUBTITLE TIMING
-            var entry = getSubtitleEntry(data.subtitle, mediaPlayerPosition + data.subtitleOffsetMs*1000)
+            var entry = getSubtitleEntry(
+                data.subtitle,
+                mediaPlayerPosition + data.subtitleOffsetMs * 1000
+            );
+
             if (entry) {
-                data.subtitleStart = entry.start
-                data.subtitleEnd = entry.end
-                data.subtitleDuration = data.subtitleEnd - data.subtitleStart
+                data.subtitleStart = entry.start;
+                data.subtitleEnd = entry.end;
+                data.subtitleDuration = data.subtitleEnd - data.subtitleStart;
             } else {
-                data.subtitleStart = mediaPlayerPosition
-                data.subtitleDuration = duration
+                data.subtitleStart = mediaPlayerPosition;
+                data.subtitleDuration = duration;
             }
         }
     }
 
     // No subtitle → clear
     if (data.currentSubtitle === "") {
-        return ""
+        return "";
     }
 
-    // CALCULATE HOW MANY WORDS SHOULD BE SHOWN BY NOW
-    var elapsed = mediaPlayerPosition - data.subtitleStart
-    if (elapsed < 0) elapsed = 0
-    if (elapsed > data.subtitleDuration) elapsed = data.subtitleDuration
+    // CALCULATE ELAPSED TIME
+    var elapsed = mediaPlayerPosition - data.subtitleStart;
+    if (elapsed < 0) elapsed = 0;
+    if (elapsed > data.subtitleDuration) elapsed = data.subtitleDuration;
 
-    var progress = elapsed / data.subtitleDuration
-    var targetIndex = Math.floor(progress * data.wordList.length)
+    var progress = elapsed / data.subtitleDuration;
 
-    if (targetIndex >= data.wordList.length)
-        targetIndex = data.wordList.length - 1
+    var totalWords = data.wordList.length;
+    if (totalWords === 0) return "";
 
-    // Show the correct word
-    return data.wordList[targetIndex];
+    // Current word position based on progress
+    var currentWordIndex = Math.floor(progress * totalWords);
 
+    if (currentWordIndex >= totalWords)
+        currentWordIndex = totalWords - 1;
+
+    // Determine block index (prevents overlapping)
+    var blockIndex = Math.floor(currentWordIndex / data.wordByWordChunks);
+
+    var startIndex = blockIndex * data.wordByWordChunks;
+    var endIndex = Math.min(startIndex + data.wordByWordChunks, totalWords);
+
+    var wordsToShow = data.wordList.slice(startIndex, endIndex);
+
+    return wordsToShow.join(" ");
 }
-

@@ -91,6 +91,7 @@ ApplicationWindow {
         property int subtitleStart: 0
         property int subtitleEnd: 0
         property int subtitleDuration: 1
+        property int wordByWordChunks: 1
     }
 
     QtObject {
@@ -121,6 +122,7 @@ ApplicationWindow {
         property int subtitleStart: 0
         property int subtitleEnd: 0
         property int subtitleDuration: 1
+        property int wordByWordChunks: 1
     }
 
 

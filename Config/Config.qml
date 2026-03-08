@@ -11,11 +11,15 @@ QtObject {
         Light,
         Dark
     }
+    property int mouseCursorNoControl:10 //blank mouse
+    property int mouseCursorOnControls:13//hand mouse
+    property int mouseCursorNormal:0// arrow mouse
+    property int mouseCursorWait:4//loading/wait
 
     property int activeTheme : Config.Theme.Dark
 
     property MediaDevices mediaDevicesPtr
-
+    property MediaPlayer mediaPlayerPtr;
     property bool autoSwitchAudioDeviceToDefault:true;
 
     readonly property bool isMobileTarget : Qt.platform.os === "android" || Qt.platform.os === "ios"

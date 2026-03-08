@@ -37,4 +37,9 @@ RadioButton {
         leftPadding: control.indicator.width + control.spacing
         color: Config.secondaryColor
     }
+
+    onHoveredChanged:
+    {
+        backend.setAppCursor(hovered?Config.mouseCursorOnControls:Config.mouseCursorNormal); //hand icon, blank mouse
+    }
 }

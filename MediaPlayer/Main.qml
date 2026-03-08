@@ -29,6 +29,7 @@ ApplicationWindow {
     required property list<string> nameFilters
     required property int selectedNameFilter
 
+
     property alias currentFile: playlistInfo.currentIndex
     property alias playlistLooped: playbackControl.isPlaylistLooped
     property alias metadataInfo: settingsInfo.metadataInfo
@@ -255,6 +256,9 @@ ApplicationWindow {
 
 
         onMediaStatusChanged: {
+
+            loadingMedia(mediaStatus)
+
             if ((MediaPlayer.EndOfMedia === mediaStatus && mediaPlayer.loops !== MediaPlayer.Infinite) &&
                     ((root.currentFile < playlistInfo.mediaCount - 1) || playlistInfo.isShuffled)) {
                 if (!playlistInfo.isShuffled) {
@@ -265,6 +269,15 @@ ApplicationWindow {
                 root.currentFile = 0
                 root.playMedia()
             }
+
+        }
+
+        function loadingMedia(mediaStatus)
+        {
+            if(mediaStatus=== MediaPlayer.LoadingMedia)
+                backend.setAppCursor(Config.mouseCursorWait); //loading cursor
+            else if(mediaStatus===MediaPlayer.LoadedMedia)
+                backend.setAppCursor(Config.mouseCursorNormal); //normal cursor
         }
 
         function seekForward(val=15)
@@ -411,6 +424,7 @@ ApplicationWindow {
                 spedupByHold=false
             }
         }
+
         Rectangle {
             id: videoArea
             anchors.fill: parent
@@ -507,6 +521,8 @@ ApplicationWindow {
 
 
     }
+
+
 
     MultiEffect {
         source: settingsInfo
@@ -869,7 +885,7 @@ ApplicationWindow {
                 {
                     controls.visible = false
                     hideControls.start()
-                    backend.setAppCursor(10); //blank cursor
+                    backend.setAppCursor(Config.mouseCursorNoControl); //blank cursor
                 }
 
             }
@@ -1083,6 +1099,7 @@ ApplicationWindow {
         mediaPlayer.pause()
     }
     function togglePlayPause() {
+
         if (mediaPlayer.playbackState === MediaPlayer.PlayingState)
             mediaPlayer.pause()
         else
@@ -1100,8 +1117,6 @@ ApplicationWindow {
     {
         playbackControl.playPreviousFile()
     }
-
-
 
     function seekForth()
     {
@@ -1158,7 +1173,7 @@ ApplicationWindow {
         controls.visible=true
         controlsHideTimer.running=true
         brightnessOverlay.focus=true
-        backend.setAppCursor(0); //normal arrow
+        backend.setAppCursor(Config.mouseCursorNormal); //normal arrow
         showControls.start()
     }
 
@@ -1297,6 +1312,7 @@ ApplicationWindow {
 
         //set media devicesfor config
         Config.mediaDevicesPtr=mediaDevices
+        Config.mediaPlayerPtr=mediaPlayer
 
         //alias data to config
         Config.subtitle1DataPtr= subtitle1Data

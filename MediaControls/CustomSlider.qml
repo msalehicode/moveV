@@ -33,6 +33,10 @@ Slider {
         implicitHeight: 8
         color: "red"
     }
+    onHoveredChanged:
+    {
+        backend.setAppCursor(hovered?Config.mouseCursorOnControls:Config.mouseCursorNormal); //hand icon, blank mouse
+    }
 
     Rectangle {
         width: slider.visualPosition * slider.availableWidth

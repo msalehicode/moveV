@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls.Fusion
 import QtQuick.Effects
+import Config
 
 Button {
     id: control
@@ -22,5 +23,10 @@ Button {
         shadowEnabled: true
         blurEnabled: true
         blur: 0.5
+    }
+
+    onHoveredChanged:
+    {
+        backend.setAppCursor(hovered?Config.mouseCursorOnControls:Config.mouseCursorNormal); //hand icon, blank mouse
     }
 }

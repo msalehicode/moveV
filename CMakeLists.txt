@@ -23,6 +23,7 @@ qt_add_qml_module(MediaPlayerApp
     SOURCES bluezmediaplayer.h
     SOURCES changeVolumeManually.cpp
     SOURCES backend.h backend.cpp
+    SOURCES customcursor.h customcursor.cpp
 )
 
 qt_add_ios_ffmpeg_libraries(MediaPlayerApp)

@@ -36,7 +36,6 @@ ApplicationWindow {
     property alias tracksInfo: settingsInfo.tracksInfo
 
 
-
     property string currentSubtitle: "" //temp
     SubtitleExtractor
     {
@@ -275,9 +274,9 @@ ApplicationWindow {
         function loadingMedia(mediaStatus)
         {
             if(mediaStatus=== MediaPlayer.LoadingMedia)
-                backend.setAppCursor(Config.mouseCursorWait); //loading cursor
+                backend.changeCursor("wait")
             else if(mediaStatus===MediaPlayer.LoadedMedia)
-                backend.setAppCursor(Config.mouseCursorNormal); //normal cursor
+                backend.changeCursor()
         }
 
         function seekForward(val=15)
@@ -885,7 +884,7 @@ ApplicationWindow {
                 {
                     controls.visible = false
                     hideControls.start()
-                    backend.setAppCursor(Config.mouseCursorNoControl); //blank cursor
+                    backend.changeCursor("blank");
                 }
 
             }
@@ -1053,7 +1052,6 @@ ApplicationWindow {
     }
 
 
-
     function checkAndClean(textPara)
     {
         //ignore subtitles which contain website domains
@@ -1173,7 +1171,7 @@ ApplicationWindow {
         controls.visible=true
         controlsHideTimer.running=true
         brightnessOverlay.focus=true
-        backend.setAppCursor(Config.mouseCursorNormal); //normal arrow
+        backend.changeCursor()
         showControls.start()
     }
 
@@ -1317,5 +1315,11 @@ ApplicationWindow {
         //alias data to config
         Config.subtitle1DataPtr= subtitle1Data
         Config.subtitle2DataPtr= subtitle2Data
+
+
+        backend.setupCustomCursor(Config.customCursorIconPath,20,20,10,10);
+
+        //load customCursrorStatus
+        Config.customCursorStatus = backend.customCursorStatus()
     }
 }

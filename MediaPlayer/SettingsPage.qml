@@ -8,6 +8,8 @@ import QtQuick.Controls.Fusion
 import MediaControls
 import Config
 
+import QtQuick.Dialogs
+
 Item {
     id: root
     anchors.fill: parent
@@ -49,6 +51,45 @@ Item {
                     }
                 }
             }
+
+
+
+            Row
+            {
+                CheckBox {
+                    checked: Config.customCursorStatus
+                    text: qsTr("Custom Cursor")
+                    leftPadding: indicator.width
+                    onCheckedChanged: {
+                        Config.customCursorStatus=checked
+                        backend.setCustomCursorStatus(checked?1:0)
+                    }
+                }
+
+                FileDialog {
+                    id: customCursorfileDialog
+                    currentFolder: StandardPaths.standardLocations(StandardPaths.MoviesLocation)[0]
+                    nameFilters:
+                        [
+                        "All Supported Files (*.jpeg *.jpg *.png *.svg)"
+                    ]
+                    title: qsTr("Please choose a file")
+                    onAccepted:
+                    {
+                        Config.customCursorIconPath = selectedFile
+                        backend.setupCustomCursor(Config.customCursorIconPath,20,20,10,10);
+                    }
+                }
+
+                CustomButton {
+                    icon.source: ControlImages.iconSource("Add_file")
+                    onClicked: customCursorfileDialog.open()
+                }
+
+            }
+
+
+
 
             Label {
                 text: "Subtitle 1 Settings:"

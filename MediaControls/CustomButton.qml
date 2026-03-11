@@ -27,6 +27,9 @@ Button {
 
     onHoveredChanged:
     {
-        backend.setAppCursor(hovered?Config.mouseCursorOnControls:Config.mouseCursorNormal); //hand icon, blank mouse
+        if(hovered)
+            backend.changeCursor("hand")
+        else
+            backend.changeCursor()
     }
 }

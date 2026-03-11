@@ -11,11 +11,6 @@ QtObject {
         Light,
         Dark
     }
-    property int mouseCursorNoControl:10 //blank mouse
-    property int mouseCursorOnControls:13//hand mouse
-    property int mouseCursorNormal:0// arrow mouse
-    property int mouseCursorWait:4//loading/wait
-
     property int activeTheme : Config.Theme.Dark
 
     property MediaDevices mediaDevicesPtr
@@ -27,6 +22,9 @@ QtObject {
     readonly property color secondaryColor : activeTheme ? "#FFFFFF" : "#09102B"
     readonly property color highlightColor : "#41CD52"
 
+
+    property bool customCursorStatus:false
+    property string customCursorIconPath: "file:///home/mrx/head.png"
 
     property QtObject subtitle1DataPtr;
     property QtObject subtitle2DataPtr;

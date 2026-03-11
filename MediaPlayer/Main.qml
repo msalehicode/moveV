@@ -8,6 +8,7 @@ import QtMultimedia
 import QtQuick.Effects
 import MediaControls
 import Config
+import io.qt.filenameprovider
 
 import CustomMedia 1.0
 import SubtitleFinder 1.0
@@ -199,6 +200,10 @@ ApplicationWindow {
             settingsInfo.tracksInfo.selectedVideoTrack = mediaPlayer.activeVideoTrack
             settingsInfo.tracksInfo.selectedSubtitleTrack = mediaPlayer.activeSubtitleTrack
             updateMetadata()
+
+
+            mediaCurrentFileLabel.text = FileNameProvider.getFileName(mediaPlayer.source)
+
 
 
 
@@ -590,7 +595,7 @@ ApplicationWindow {
         id: hideControls
 
         NumberAnimation {
-            targets: [playbackControl, seeker, background, shadow]
+            targets: [playbackControl, seeker, background, shadow, topControls]
             property: "opacity"
             to: 0
             duration: 1000
@@ -609,7 +614,7 @@ ApplicationWindow {
         id: showControls
 
         NumberAnimation {
-            targets: [playbackControl, seeker, shadow]
+            targets: [playbackControl, seeker, shadow,topControls]
             property: "opacity"
             to: 1
             duration: 1000
@@ -1035,20 +1040,50 @@ ApplicationWindow {
         selectedNameFilter : root.selectedNameFilter
     }
 
-    TouchMenu {
-        id: menuPopup
-        x: (parent.width - width) / 2
-        y: parent.height - height - 32
-        width: root.width - 64
-        openFileMenuItem.onClicked: {
-            menuPopup.close()
-            menuBar.openFileMenu.open()
+
+    Row
+    {
+        id:topControls
+        height:implicitHeight
+        width: root.width
+
+        Rectangle
+        {
+            width:150
+            height:150
+            color:"transparent"
+            TouchMenu {
+                id: menuPopup
+                width: 100//root.width - 64
+                // x: (parent.width - width) / 2
+                // y: parent.height - height - 32
+                openFileMenuItem.onClicked: {
+                    menuPopup.close()
+                    menuBar.openFileMenu.open()
+                }
+
+                openUrlMenuItem.onClicked: {
+                    menuPopup.close()
+                    menuBar.openUrlPopup.open()
+                }
+            }
+        }
+        Rectangle
+        {
+            width:200
+            height:50
+            color:"transparent"
+            Label
+            {
+                id:mediaCurrentFileLabel
+                text:""
+                color:"yellow"
+                font.pixelSize: 35
+            }
+
         }
 
-        openUrlMenuItem.onClicked: {
-            menuPopup.close()
-            menuBar.openUrlPopup.open()
-        }
+
     }
 
 

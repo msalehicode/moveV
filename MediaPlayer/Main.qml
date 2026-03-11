@@ -1018,29 +1018,6 @@ ApplicationWindow {
 
 
 
-    PlayerMenuBar {
-        id: menuBar
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-
-        // visible: !videoOutput.fullScreen
-
-        onFileOpened: (path) => openFile(path)
-
-        // nameFilters : root.nameFilters
-        // nameFilters: ["All Files (*)"]
-        nameFilters:
-            [
-            "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
-            "GIF Files (*.gif)",
-            "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
-            "All Files (*)"
-        ]
-        selectedNameFilter : root.selectedNameFilter
-    }
-
-
     Row
     {
         id:topControls
@@ -1066,6 +1043,27 @@ ApplicationWindow {
                     menuPopup.close()
                     menuBar.openUrlPopup.open()
                 }
+            }
+            PlayerMenuBar {
+                id: menuBar
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+
+                // visible: !videoOutput.fullScreen
+
+                onFileOpened: (path) => openFile(path)
+
+                // nameFilters : root.nameFilters
+                // nameFilters: ["All Files (*)"]
+                nameFilters:
+                    [
+                    "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
+                    "GIF Files (*.gif)",
+                    "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
+                    "All Files (*)"
+                ]
+                selectedNameFilter : root.selectedNameFilter
             }
         }
         Rectangle

@@ -641,7 +641,7 @@ ApplicationWindow {
     // Update subtitle every ..ms
     Timer {
         interval: subtitlesTimerInterval
-        running: true
+        running: mediaPlayer.playing ? true : false
         repeat: true
 
 

@@ -31,6 +31,8 @@ void Backend::changeCursor(const QString &mode)
         cc.setCursor(3);
     else if(mode=="hand")
         cc.setCursor(13);
+    else if(mode=="verReposition")
+        cc.setCursor(5);
     else if(mode=="custom")
         cc.loadCustom();
     else

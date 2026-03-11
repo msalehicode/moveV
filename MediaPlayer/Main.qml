@@ -767,6 +767,10 @@ ApplicationWindow {
         property int parentHeight: parent ? parent.height : 0
         MouseArea {
             id: dragArea
+
+            onEntered: backend.changeCursor("verReposition")
+            onExited: backend.changeCursor()
+
             anchors.fill: parent
             drag.target: parent
             onReleased: {
@@ -809,12 +813,15 @@ ApplicationWindow {
         Drag.source: parent
         y:subtitle2Data.subposy
 
+
         property int parentWidth: parent ? parent.width : 0
         property int parentHeight: parent ? parent.height : 0
         MouseArea
         {
             anchors.fill: parent
             drag.target: parent
+            onEntered: backend.changeCursor("verReposition")
+            onExited: backend.changeCursor()
             onReleased: {
                 // Ensure rectangle stays inside parent bounds
                 if (parent.x < 0)

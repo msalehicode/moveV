@@ -11,9 +11,9 @@ QtObject {
         Light,
         Dark
     }
-    property int activeTheme : Config.Theme.Dark
-
-    property MediaDevices mediaDevicesPtr
+    property int activeTheme : settings.value["App/theme"]==="dark" ? Config.Theme.Dark : Config.Theme.Light
+    readonly property string defaultAudioLabel: "Default"
+    property MediaDevices mediaDevicesPtr;
     property MediaPlayer mediaPlayerPtr;
     property bool autoSwitchAudioDeviceToDefault:true;
 
@@ -21,9 +21,8 @@ QtObject {
     readonly property color mainColor : activeTheme ? "#09102B" : "#FFFFFF"
     readonly property color secondaryColor : activeTheme ? "#FFFFFF" : "#09102B"
     readonly property color highlightColor : "#41CD52"
+    property int currentActiveAudioTrack:0
 
-
-    property bool customCursorStatus:false
     property string customCursorIconPath: "file:///home/mrx/head.png"
 
     property QtObject subtitle1DataPtr;

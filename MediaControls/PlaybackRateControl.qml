@@ -9,7 +9,7 @@ import Config
 Item {
     id: root
 
-    property alias playbackRate: slider.value
+    // property alias playbackRate: slider.value
 
     Layout.minimumWidth: 50
     Layout.maximumWidth: 200
@@ -30,7 +30,8 @@ Item {
             from: 0.5
             to: 2.5
             stepSize: 0.5
-            value: 1.0
+            value: settings.value["Media/rate"]
+            onValueChanged: settings.setSetting("Media/rate",value)
         }
 
         Label {

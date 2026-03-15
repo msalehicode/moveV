@@ -4,12 +4,34 @@
 import QtQuick
 import QtQuick.Controls.Fusion
 import QtQuick.Effects
-import Config
+
 CheckBox
 {
     property string theText: ""
+    property bool initialCheckedState:false;
     text:theText
     // checked: true
+    checked: initialCheckedState
+
+    signal statusChangeAction(bool newStatus);
+
+    onCheckedChanged:
+    {
+        if (initialCheckedState !== checked)
+        {
+            statusChangeAction(checked)
+
+            // After setting, update initialCheckedState to prevent re-triggering on next load
+            initialCheckedState = checked;
+        }
+    }
+
+    Component.onCompleted:
+    {
+        if (checked !== initialCheckedState)
+            checked = initialCheckedState;
+    }
+
     onHoveredChanged:
     {
         if(hovered)
@@ -17,4 +39,6 @@ CheckBox
         else
             backend.changeCursor()
     }
+
+
 }

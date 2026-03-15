@@ -2,6 +2,7 @@
 // playerctl --player=myplayer pause
 //playerctl -l
 //pactl list sink-inputs
+// pactl set-sink-input-volume 603 100%   //603 is id
 
 #pragma once
 #include <QDBusAbstractAdaptor>

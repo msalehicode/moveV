@@ -24,14 +24,22 @@ Item {
                 checked: Config.Theme.Light === Config.activeTheme
                 text: qsTr("Light theme")
                 ButtonGroup.group: group
-                onClicked: Config.activeTheme = Config.Theme.Light
+                onClicked:
+                {
+                    settings.setSetting("App/theme","light")
+                    Config.activeTheme = Config.Theme.Light
+                }
             }
 
             CustomRadioButton {
                 checked: Config.Theme.Dark === Config.activeTheme
                 text: qsTr("Dark theme")
                 ButtonGroup.group: group
-                onClicked: Config.activeTheme = Config.Theme.Dark
+                onClicked:
+                {
+                    settings.setSetting("App/theme","dark")
+                    Config.activeTheme = Config.Theme.Dark
+                }
             }
         }
     }

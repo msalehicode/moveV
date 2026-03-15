@@ -35,4 +35,6 @@ qt_add_qml_module(MediaPlayer
         "icons/Music_Icon_Dark.svg"
         "icons/Music_Icon.svg"
         "icons/Warning_Icon.svg"
+        "icons/Rate_Icon.svg"
+        "icons/Rate_Icon_Dark.svg"
 )

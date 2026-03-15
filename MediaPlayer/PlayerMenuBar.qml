@@ -18,6 +18,7 @@ Item {
     property alias openUrlPopup: urlPopup
     property list<string> nameFilters
     property int selectedNameFilter
+    property bool isMenuOpened:false
 
     FileDialog {
         id: fileDialog
@@ -51,6 +52,8 @@ Item {
             palette.base: Config.mainColor
             palette.text: Config.secondaryColor
             palette.highlight: Config.highlightColor
+            onOpened: root.isMenuOpened=true
+            onClosed: root.isMenuOpened=false
 
             MenuItem {
                 text: qsTr("Open &File")
@@ -59,6 +62,10 @@ Item {
             MenuItem {
                 text: qsTr("Open &URL")
                 onTriggered: urlPopup.open()
+            }
+            MenuItem {
+                text: qsTr("Cancel")
+                onTriggered: parent.close()
             }
         }
     }

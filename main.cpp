@@ -6,7 +6,8 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QMediaFormat>
-#include <QMimeType>
+#include <QMimeType>#include <QGuiApplication>
+
 #include <algorithm>
 #include <QQmlContext>
 // #include "bluetoothserver.h"
@@ -26,10 +27,12 @@
 
 //to set media.role make sure app get foucs and attention from os
 #include <QProcessEnvironment>
+#include <QGuiApplication>
 
 
 
 #include "backend.h"
+#include "settingsmanager.h"
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -94,9 +97,10 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-
-    Backend backend(&app);
+    SettingsManager settings;
+    Backend backend(&settings);
     engine.rootContext()->setContextProperty("backend", &backend);
+    engine.rootContext()->setContextProperty("settings", &settings);
 
 
     QObject::connect(&engine, &QQmlApplicationEngine::quit, &app, &QGuiApplication::quit);

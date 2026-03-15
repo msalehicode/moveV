@@ -7,3 +7,4 @@ PlaybackControl 254.0 PlaybackControl.qml
 CustomSlider 254.0 CustomSlider.qml
 CustomButton 254.0 CustomButton.qml
 CustomRadioButton 254.0 CustomRadioButton.qml
+CustomCheckBox 254.0 CustomCheckbox.qml

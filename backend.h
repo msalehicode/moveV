@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 #include <QCursor>
 #include "customcursor.h"
+#include "settingsmanager.h"
 
 class Backend : public QObject
 {
@@ -12,20 +13,16 @@ class Backend : public QObject
     CustomCursor cc;
 
 public:
-    explicit Backend(QObject *parent = nullptr);
-    explicit Backend(QGuiApplication* app);
-
-
+    explicit Backend(const SettingsManager* const settings,QObject *parent = nullptr);
 
     Q_INVOKABLE bool setupCustomCursor(const QUrl& imageUrl, int width, int height, int hotX, int hotY);
     Q_INVOKABLE bool restoreCursor();
     Q_INVOKABLE void changeCursor(const QString& mode="");
-    Q_INVOKABLE void setCustomCursorStatus(int status);
-    bool customCursorStatus() const;
 
 private:
     QGuiApplication* m_app;
-    bool m_customCursorStatus;
+    const SettingsManager* const m_settings;
+
 signals:
 };
 

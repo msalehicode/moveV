@@ -30,19 +30,15 @@ Item {
     property url shuffleIcon: !root.isPlaylistShuffled ? ControlImages.iconSource("Shuffle_Icon") : ControlImages.iconSource("Shuffle_Active", false)
 
     property alias volume: audio.volume
-    property alias playbackRate: rate.playbackRate
+
+    // property alias playbackRate: rate.playbackRate
     property alias playlistButton: playlistButton
     property alias menuButton: menuButton
-    property alias snsStatus: snsCheckbox.checked
+    // property alias snsStatus: snsCheckbox.checked
 
-    property real secBeforeSpeedup: 1
-    property real secAfterSpeedup: 0
-    property real snsSpeed:2
-
-    property alias removeDomainsStatus:removeDomainsCheckbox.checked
-    property alias removeHTMLStatus:removeHtmlTagsCheckbox.checked
-    property alias cleanSubtitleStatus:cleanSubtitleCheckBox.checked
-    property alias removeExtraInfo: removeExtraInfoCheckBox.checked
+    // property real secBeforeSpeedup: 1
+    // property real secAfterSpeedup: 0
+    // property real snsSpeed:2
 
     signal playNextFile()
     signal playPreviousFile()
@@ -97,51 +93,6 @@ Item {
 
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillWidth: true
-
-                Column {
-
-                    ButtonGroup {
-                        id: childGroup
-                        exclusive: false
-                        checkState: parentBox.checkState
-                    }
-
-                    CustomCheckbox {
-                        id: parentBox
-                        text: qsTr("check all")
-                        checkState: childGroup.checkState
-                    }
-
-                    CustomCheckbox {
-                        id:removeDomainsCheckbox
-                        checked: true
-                        text: qsTr("remove domains")
-                        leftPadding: indicator.width
-                        ButtonGroup.group: childGroup
-                    }
-
-                    CustomCheckbox {
-                        id:removeHtmlTagsCheckbox
-                        text: qsTr("ignore HTML tags")
-                        leftPadding: indicator.width
-                        ButtonGroup.group: childGroup
-                    }
-
-                    CustomCheckbox {
-                        id:cleanSubtitleCheckBox
-                        text: qsTr("clean subtitle")
-                        leftPadding: indicator.width
-                        ButtonGroup.group: childGroup
-                    }
-
-                    CustomCheckbox {
-                        id:removeExtraInfoCheckBox
-                        text: qsTr("remove extraInfo")
-                        leftPadding: indicator.width
-                        ButtonGroup.group: childGroup
-                    }
-                }
-
 
                 CustomButton {
                     id: shuffleButton
@@ -216,69 +167,6 @@ Item {
                         }
                     ]
                 }
-
-                CustomButton {
-                    id: dofullScreenButton
-                    icon.source: ControlImages.iconSource("FullScreen_Icon")
-                    onClicked: root.mediaPlayer.doFullscreen()
-                }
-
-
-                Row
-                {
-                    SpinBox {
-                        id: offsetBeforeSubtitle
-                        width: 50
-                        height:25
-                        from: 0    // advance up to 10s
-                        to: 50       // delay up to 10s
-                        // stepSize: 0.5
-                        value: secBeforeSpeedup
-                        visible: snsCheckbox.checked
-                        onValueChanged:
-                        {
-                            secBeforeSpeedup = value
-                        }
-                    }
-                    Column
-                    {
-
-                        CustomCheckbox {
-                            id:snsCheckbox
-                            theText: "SNS"
-                        }
-                        SpinBox {
-                            id:snsSpeedSpinBox
-                            width: 50
-                            height:25
-                            from: 0    // advance up to 10s
-                            to: 50       // delay up to 10s
-                            value: snsSpeed
-                            visible: snsCheckbox.checked
-                            onValueChanged:
-                            {
-                                snsSpeed = value
-                            }
-                        }
-                    }
-
-                    SpinBox {
-                        id: offsetAfterSubtitle
-                        width: 50
-                        height:25
-                        from: 0    // advance up to 10s
-                        to: 50       // delay up to 10s
-                        // stepSize: 0.5
-                        value: secAfterSpeedup
-                        visible: snsCheckbox.checked
-                        onValueChanged:
-                        {
-                            secAfterSpeedup = value
-                        }
-                    }
-
-                }
-
 
 
             }

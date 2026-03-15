@@ -1,10 +1,7 @@
 #include "backend.h"
 
-Backend::Backend(QObject *parent)
-    : QObject{parent}
-{}
-
-Backend::Backend(QGuiApplication *app) : m_app(app), m_customCursorStatus(false)
+Backend::Backend(const SettingsManager* const settings, QObject *parent)
+    : QObject{parent}, m_settings(settings)
 {
 
 }
@@ -22,35 +19,38 @@ bool Backend::restoreCursor()
 
 void Backend::changeCursor(const QString &mode)
 {
-
     if(mode=="arrow")
+    {
         cc.setCursor(0);
+    }
     else if(mode=="blank")
+    {
         cc.setCursor(10);
+    }
     else if(mode=="wait")
+    {
         cc.setCursor(3);
+    }
     else if(mode=="hand")
+    {
         cc.setCursor(13);
+    }
     else if(mode=="verReposition")
+    {
         cc.setCursor(5);
+    }
     else if(mode=="custom")
-        cc.loadCustom();
+    {
+        if(cc.isCustomSet())
+            cc.loadCustom();
+    }
     else
     {
-        if(cc.isCustomSet() && m_customCursorStatus)
+        QVariant settingVariant = m_settings->getSetting("App/customCursorStatus",false);
+        bool status = settingVariant.value<bool>();
+        if(cc.isCustomSet() && status)
             cc.loadCustom();
         else
             QGuiApplication::setOverrideCursor(QCursor(Qt::ArrowCursor));
     }
 }
-
-void Backend::setCustomCursorStatus(int status)
-{
-    m_customCursorStatus = status;
-}
-
-bool Backend::customCursorStatus() const
-{
-    return m_customCursorStatus;
-}
-

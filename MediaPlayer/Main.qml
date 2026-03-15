@@ -14,13 +14,26 @@ import CustomMedia 1.0
 import SubtitleFinder 1.0
 import "SubtitleUtils.js" as Sub
 import "scripts.js" as Scripts
-
+import "../MediaControls/"
 import QtQuick.Dialogs
 
 ApplicationWindow {
+
     id: root
-    width: 1900//1200
-    height: 780
+    // width: settings.value["App/width"]//1200
+    // height: settings.value["App/height"]
+    width:1000
+    height:800
+
+    onClosing:
+    {
+        //save busy settings (stored in variable)
+        settings.setSetting("Media/brightness",root.brightness)
+        settings.setSetting("Media/volume",root.volume)
+    }
+
+    // onHeightChanged: settings.setSetting("App/height",height)
+    // onWidthChanged: settings.setSetting("App/width",width)
     minimumHeight: 460
     minimumWidth: 640
     visible: true
@@ -30,45 +43,36 @@ ApplicationWindow {
     required property list<string> nameFilters
     required property int selectedNameFilter
 
-
     property alias currentFile: playlistInfo.currentIndex
     property alias playlistLooped: playbackControl.isPlaylistLooped
     property alias metadataInfo: settingsInfo.metadataInfo
     property alias tracksInfo: settingsInfo.tracksInfo
 
+    property bool spedupByHold: false //a flag to set when user hold mouse click to speedup
+    property string currentSubtitle: "" //temp variable to hold subtitle
 
-    property string currentSubtitle: "" //temp
+
+
+    //on load fill these from settings.value then on closing save them.
+    property alias volume: playbackControl.volume
+    property real brightness;
+
+
+
     SubtitleExtractor
     {
         id: extractor
     }
-    SubtitleFinder {
+    SubtitleFinder
+    {
         id: subtitleFinder
     }
 
-
-    property bool isMuted: false
-    property real rotationAngle:  0 // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
-    property string selectedMediaFilePath;
-    property bool autoLoadSubtitles: true
-    property int subtitlesTimerInterval: 200
-
-
-    //hold to speedup
-    property real speedHold:2
-    property bool spedupByHold: false //a flag to set when user hold mouse click to speedup
-
-
-    //SNS settings
-    property real secBeforeSpeedup: 1; //x Seconds before subtitle make pace normal. (FOR SNS) (for those subtitles are not shown/matched when actor speak)
 
 
     //subtitles properties
     QtObject {
         id: subtitle1Data
-        property bool wordByWordMode:false;
-        property int subtitleOffsetMs: 0
-        property bool subtitleStatus: true;
 
         //subtitle texts and variables
         property var subtitle; //whole subtitle file text loaded here
@@ -77,14 +81,6 @@ ApplicationWindow {
         property string preSubtitle:""; //for SNS (speedup and stop) to find upcoming subtitle (to make subtitle's speed to normal when hit before-time offset)
         property string subfilePath: "";//to hold selected subtitle file path
 
-        //subtitle styling
-        property string subTextColor: "yellow"
-        property string subTextOfsetColor: "red"
-        property string subBackColor:"black"
-        property real subBgOpacity: 0.5
-        property int subFontSize: 50
-        property int subposy: 50
-
         //word by word feature
         property var wordList: []
         property int wordIndex: 0
@@ -92,14 +88,10 @@ ApplicationWindow {
         property int subtitleStart: 0
         property int subtitleEnd: 0
         property int subtitleDuration: 1
-        property int wordByWordChunks: 1
     }
 
     QtObject {
         id: subtitle2Data
-        property bool wordByWordMode:false;
-        property int subtitleOffsetMs: 0
-        property bool subtitleStatus: true;
 
         //subtitle texts and variables
         property var subtitle; //whole subtitle file text loaded here
@@ -108,14 +100,6 @@ ApplicationWindow {
         property string preSubtitle:""; //for SNS (speedup and stop) to find upcoming subtitle (to make subtitle's speed to normal when hit before-time offset)
         property string subfilePath: "";//to hold selected subtitle file path
 
-        //subtitle styling
-        property string subTextColor: "yellow"
-        property string subTextOfsetColor: "red"
-        property string subBackColor:"black"
-        property real subBgOpacity: 0.5
-        property int subFontSize: 50
-        property int subposy: 50
-
         //word by word feature
         property var wordList: []
         property int wordIndex: 0
@@ -123,7 +107,6 @@ ApplicationWindow {
         property int subtitleStart: 0
         property int subtitleEnd: 0
         property int subtitleDuration: 1
-        property int wordByWordChunks: 1
     }
 
 
@@ -168,19 +151,19 @@ ApplicationWindow {
     MediaDevices {
         id: mediaDevices
 
-        // onAudioOutputsChanged: {
-        //     settingsInfo.settingsPage.audioOutputDevicesChanged(defaultAudioOutput)
-        // }
+        onAudioOutputsChanged: {
+            settingsInfo.settingsPage.audioOutputDevicesChanged(defaultAudioOutput)
+        }
     }
 
     MediaPlayer {
         id: mediaPlayer
 
-        playbackRate: playbackControl.playbackRate
+        playbackRate: settings.value["Media/rate"]
         videoOutput: videoOutput
         audioOutput: AudioOutput {
             id: audio
-            volume: playbackControl.volume
+            volume: root.volume
         }
         // source: new URL("https://download.qt.io/learning/videos/media-player-example/Qt_LogoMergeEffect.mp4")
 
@@ -229,22 +212,27 @@ ApplicationWindow {
                     console.log("sub: " + matches[i])
                     subtitleModel.append({"text":  matches[(i)] , "index": (i+1), "path": matches[i]})
                 }
-
-
-            } else {
+            }
+            else
+            {
                 console.log("No matching subtitles found.")
             }
 
 
-            if(autoLoadSubtitles)
+            //pass subtitleModel to settings combobox
+            settingsInfo.settingsPage.foundSubtitles = subtitleModel
+
+
+            if (Scripts.asBool(settings.value["Media/autoLoadSubtitles"]))
             {
+                console.log("autioloadsubtitels..")
                 var path=subtitleModel.get(0).path
                 loadSubtitle(path==="embedded"?true:false,path,false,0)
-
+                console.log("path=",path)
 
                 path=subtitleModel.get(1).path
                 loadSubtitle(path==="embedded"?true:false,path,true,1)
-
+                console.log("path2=",path)
             }
 
 
@@ -342,8 +330,6 @@ ApplicationWindow {
 
 
 
-
-
     //subtitle list
     ListModel { id: subtitleModel }
 
@@ -371,7 +357,7 @@ ApplicationWindow {
         id:brightnessOverlay
         anchors.fill: parent
         color:"black"
-        opacity: videoArea.brightness
+        opacity: root.brightness
         WheelHandler {
             onWheel: function(event) {
                 if (event.angleDelta.y !== 0) {
@@ -381,16 +367,16 @@ ApplicationWindow {
                     if (posX > halfWidth) {
                         // Right side → control volume
                         if (event.angleDelta.y > 0) {
-                            playbackControl.volume = Math.min(playbackControl.volume + 0.1, 1.0);
+                            root.volume = Math.min(root.volume + 0.1, 1.0)
                         } else {
-                            playbackControl.volume = Math.max(playbackControl.volume - 0.1, 0.0);
+                            root.volume = Math.max(root.volume - 0.1, 0.0)
                         }
                     } else {
                         // Left side → control brightness
                         if (event.angleDelta.y > 0) {
-                            videoArea.brightness = Math.min(videoArea.brightness + 0.1, 1.0);
+                            root.brightness=Math.min(root.brightness + 0.1, 1.0)
                         } else {
-                            videoArea.brightness = Math.max(videoArea.brightness - 0.1, 0.0);
+                            root.brightness= Math.max(root.brightness - 0.1, 0.0)
                         }
                     }
                 }
@@ -434,9 +420,6 @@ ApplicationWindow {
             anchors.fill: parent
             color: "black"
 
-            // Properties for volume and brightness
-            property real volume:0.5
-            property real brightness:0.5
             property real maxDy: 300
             property real minDy: -300
 
@@ -461,6 +444,9 @@ ApplicationWindow {
                                    volumeControlArea.startY = mouse.y
                                }
                     onPositionChanged: (mouse) => {
+                                           // Volume
+                                           volumeIndicator.visible = true
+
                                            let delta = volumeControlArea.startY - mouse.y
                                            volumeControlArea.cumulativeDy += delta
                                            volumeControlArea.startY = mouse.y
@@ -470,12 +456,10 @@ ApplicationWindow {
                                            if (volumeControlArea.cumulativeDy < videoArea.minDy)
                                            volumeControlArea.cumulativeDy = videoArea.minDy
 
-                                           videoArea.volume = (volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
-                                           videoArea.volume = Math.min(Math.max(videoArea.volume, 0), 1)
-                                           // Volume
-                                           volumeIndicator.visible = true
+                                           root.volume=Math.min(Math.max(
+                                                                           ((volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy))
+                                                                           , 0), 1)
 
-                                           // console.log("Volume:", videoArea.volume.toFixed(2))
                                        }
                 }
             }
@@ -500,6 +484,8 @@ ApplicationWindow {
                                    brightnessControlArea.startY = mouse.y
                                }
                     onPositionChanged: (mouse) => {
+                                           brightnessIndicator.visible = true
+
                                            let delta = brightnessControlArea.startY - mouse.y
                                            brightnessControlArea.cumulativeDy += delta
                                            brightnessControlArea.startY = mouse.y
@@ -509,12 +495,9 @@ ApplicationWindow {
                                            if (brightnessControlArea.cumulativeDy < videoArea.minDy)
                                            brightnessControlArea.cumulativeDy = videoArea.minDy
 
-                                           videoArea.brightness = (brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)
-                                           videoArea.brightness = Math.min(Math.max(videoArea.brightness, 0), 1)
-                                           brightnessIndicator.visible = true
-
-
-                                           // console.log("Brightness:", videoArea.brightness.toFixed(2))
+                                           root.brightness=Math.min(Math.max(
+                                                                               ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy))
+                                                                                    , 0), 1)
                                        }
                 }
             }
@@ -539,7 +522,7 @@ ApplicationWindow {
         id: playlistInfo
 
         anchors.right: parent.right
-        anchors.top: parent.top
+        anchors.top: topControls.bottom
         anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
         anchors.topMargin: 10
         anchors.rightMargin: 5
@@ -576,7 +559,7 @@ ApplicationWindow {
         id: settingsInfo
 
         anchors.right: parent.right
-        anchors.top: parent.top
+        anchors.top: topControls.bottom
         anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
         anchors.topMargin: 10
         anchors.rightMargin: 5
@@ -620,6 +603,8 @@ ApplicationWindow {
             duration: 1000
             easing.type: Easing.InOutQuad
         }
+
+
         NumberAnimation {
             target: background
             property: "opacity"
@@ -640,11 +625,9 @@ ApplicationWindow {
     // Subtitle overlay
     // Update subtitle every ..ms
     Timer {
-        interval: subtitlesTimerInterval
+        interval: settings.value["Media/subtitleTimerInterval"]
         running: mediaPlayer.playing ? true : false
         repeat: true
-
-
 
         onTriggered:
         {
@@ -653,44 +636,56 @@ ApplicationWindow {
                 subtitle1Data.currentSubtitle=""
                 subtitle2Data.currentSubtitle=""
 
-                if(subtitle1Data.subtitleStatus)
+                if (Scripts.asBool(settings.value["Subtitle1/status"]))
                 {
-                    subtitle1Data.currentSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + subtitle1Data.subtitleOffsetMs*1000)
+                    // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+                    subtitle1Data.currentSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + settings.value["Subtitle1/offset"]*1000)
+
+                    //clean stage
+                    subtitle1Data.currentSubtitle=checkAndClean(subtitle1Data.currentSubtitle)
+
+
+                    // WORD BY WORD MODE
+                    if (Scripts.asBool(settings.value["Subtitle1/wordByWord"]))
+                    {
+                        subtitleText1.text = Sub.giveWordByWordSubtitle(subtitle1Data,settings.value["Subtitle1/offset"] ,
+                                                                        Scripts.asInt(settings.value["Subtitle1/wordByWordChunks"]),
+                                                                        mediaPlayer.position);
+                    }
+                    else
+                        subtitleText1.text =subtitle1Data.currentSubtitle
                 }
 
-                if(subtitle2Data.subtitleStatus)
+
+                if (Scripts.asBool(settings.value["Subtitle2/status"]))
                 {
-                    subtitle2Data.currentSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + subtitle2Data.subtitleOffsetMs*1000)
+                    // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+                    subtitle2Data.currentSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + settings.value["Subtitle2/offset"]*1000)
+
+                    //clean stage
+                    subtitle2Data.currentSubtitle=checkAndClean(subtitle2Data.currentSubtitle)
+
+
+                    // WORD BY WORD MODE
+                    if (Scripts.asBool(settings.value["Subtitle2/wordByWord"]))
+                    {
+                        subtitleText2.text = Sub.giveWordByWordSubtitle(subtitle2Data,settings.value["Subtitle2/offset"] ,
+                                                                        Scripts.asInt(settings.value["Subtitle2/wordByWordChunks"]),
+                                                                        mediaPlayer.position);
+                    }
+                    else
+                        subtitleText2.text =subtitle2Data.currentSubtitle
                 }
-
-
-                subtitle1Data.currentSubtitle=checkAndClean(subtitle1Data.currentSubtitle)
-                subtitle2Data.currentSubtitle=checkAndClean(subtitle2Data.currentSubtitle)
-
-
-
-                // WORD BY WORD MODE
-                if (subtitle1Data.wordByWordMode)
-                    subtitleText1.text = Sub.giveWordByWordSubtitle(subtitle1Data,mediaPlayer.position);
-                else
-                    subtitleText1.text =subtitle1Data.currentSubtitle
-
-                if (subtitle2Data.wordByWordMode)
-                    subtitleText2.text = Sub.giveWordByWordSubtitle(subtitle2Data,mediaPlayer.position);
-                else
-                    subtitleText2.text =subtitle2Data.currentSubtitle
-
 
 
 
 
                 if(spedupByHold)//user held mouse click to spedup
                 {
-                    mediaPlayer.playbackRate=speedHold
-                    speedingLabel.visible=true
-                    speedingLabel.text="hold speed "+speedHold + "x"
+                    mediaPlayer.playbackRate=settings.value["Media/speedHold"]
+                    showSpeeding("hold speed "+settings.value["Media/speedHold"] + "x")
                 }
-                else if(playbackControl.snsStatus)
+                else if (Scripts.asBool(settings.value["SNS/status"]))
                 {
                     //speed up when text is empty.
                     if(subtitle1Data.currentSubtitle==="" && subtitle2Data.currentSubtitle==="")
@@ -699,19 +694,18 @@ ApplicationWindow {
                         subtitle1Data.preSubtitle=""
                         subtitle2Data.preSubtitle=""
                         //read coming up subtitle for seconds before speedup
-
-                        if(subtitle1Data.subtitleStatus)
+                        if (Scripts.asBool(settings.value["Subtitle1/status"]))
                         {
                             //get presubtitle
-                            subtitle1Data.preSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + subtitle1Data.subtitleOffsetMs*1000 + playbackControl.secBeforeSpeedup*1000)
+                            subtitle1Data.preSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + settings.value["SNS/secBeforeSpeedup"]*1000)
 
                             //clean presubtitle
                             subtitle1Data.preSubtitle=checkAndClean(subtitle1Data.preSubtitle)
                         }
-                        if(subtitle2Data.subtitleStatus)
+                        if (Scripts.asBool(settings.value["Subtitle2/status"]))
                         {
                             //get presubtitle
-                            subtitle2Data.preSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + subtitle2Data.subtitleOffsetMs*1000 + playbackControl.secBeforeSpeedup*1000)
+                            subtitle2Data.preSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + settings.value["SNS/secBeforeSpeedup"]*1000)
 
                             //clean presubtitle
                             subtitle2Data.preSubtitle=checkAndClean(subtitle2Data.preSubtitle)
@@ -721,31 +715,27 @@ ApplicationWindow {
                         //check for seconds before speedup to avoid speedup
                         if(subtitle1Data.preSubtitle==="" && subtitle2Data.preSubtitle==="")
                         {
-                            mediaPlayer.playbackRate=playbackControl.snsSpeed;
-                            speedingLabel.visible=true
-                            speedingLabel.text="sns speed "+playbackControl.snsSpeed + "x" + ", before " + playbackControl.secBeforeSpeedup +"s"
+                            mediaPlayer.playbackRate=settings.value["SNS/speed"];
+                            showSpeeding("sns speed "+settings.value["SNS/speed"] + "x" + ", before " + settings.value["SNS/secBeforeSpeedup"] +"s")
                         }
                         else
                         {
                             // console.log("subtitle is not empty for speedup. subtitle1Data.preSubtitle=",subtitle1Data.preSubtitle,"subtitle2Data.preSubtitle=",subtitle2Data.preSubtitle)
-                            mediaPlayer.playbackRate=playbackControl.playbackRate
-                            speedingLabel.visible=false
-                            speedingLabel.text=""
+                            mediaPlayer.playbackRate=settings.value["Media/rate"]
+                            showSpeeding("")
                         }
                     }
                     else
                     {
-                        mediaPlayer.playbackRate=playbackControl.playbackRate
-                        speedingLabel.visible=false
-                        speedingLabel.text=""
+                        mediaPlayer.playbackRate=settings.value["Media/rate"]
+                        showSpeeding("")
                     }
 
                 }
                 else // set playbackrate value
                 {
-                    mediaPlayer.playbackRate=playbackControl.playbackRate
-                    speedingLabel.visible=false
-                    speedingLabel.text=""
+                    mediaPlayer.playbackRate=settings.value["Media/rate"]
+                    showSpeeding("")
                 }
             }
         }
@@ -755,13 +745,13 @@ ApplicationWindow {
     {
         width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
         height:subtitleText1.height
-        color:subtitle1Data.subBackColor
-        opacity: subtitle1Data.subBgOpacity-brightnessOverlay.opacity/2
-        visible: subtitle1Data.subtitleStatus
+        color:settings.value["Subtitle1/backColor"]
+        opacity: settings.value["Subtitle1/backOpacity"]-brightnessOverlay.opacity/2
+        visible: Scripts.asBool(settings.value["Subtitle1/status"])
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
         Drag.source: parent
-        y:subtitle1Data.subposy
+        y:settings.value["Subtitle1/posY"]
 
         property int parentWidth: parent ? parent.width : 0
         property int parentHeight: parent ? parent.height : 0
@@ -784,7 +774,7 @@ ApplicationWindow {
                 if (parent.y + parent.height > parent.parentHeight)
                     parent.y = parent.parentHeight - parent.height
 
-                subtitle1Data.subposy=parent.y
+                settings.setSetting("Subtitle1/posY",parent.y)
             }
         }
         Label {
@@ -795,23 +785,23 @@ ApplicationWindow {
             horizontalAlignment: Text.AlignHCenter
             // horizontalAlignment: Text.AlignRight
 
-            color: subtitle1Data.subTextColor
+            color: settings.value["Subtitle1/textColor"]
             style: Text.Outline
-            styleColor: subtitle1Data.subTextOfsetColor
-            font.pixelSize: subtitle1Data.subFontSize
+            // styleColor: subtitle1Data.subTextOfsetColor
+            font.pixelSize: settings.value["Subtitle1/textSize"]
         }
     }
     Rectangle
     {
         width: subtitleText2.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText2.implicitWidth
         height:subtitleText2.height
-        color:subtitle2Data.subBackColor
-        opacity: subtitle2Data.subBgOpacity-brightnessOverlay.opacity/2
-        visible: subtitle2Data.subtitleStatus
+        color:settings.value["Subtitle2/backColor"]
+        opacity: settings.value["Subtitle2/backOpacity"]-brightnessOverlay.opacity/2
+        visible: Scripts.asBool(settings.value["Subtitle2/status"])
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
         Drag.source: parent
-        y:subtitle2Data.subposy
+        y:settings.value["Subtitle2/posY"]
 
 
         property int parentWidth: parent ? parent.width : 0
@@ -834,7 +824,7 @@ ApplicationWindow {
                     parent.y = parent.parentHeight - parent.height
 
 
-                subtitle2Data.subposy=parent.y
+                settings.setSetting("Subtitle2/posY",parent.y)
             }
         }
         Label {
@@ -846,10 +836,10 @@ ApplicationWindow {
             horizontalAlignment: Text.AlignHCenter
             // horizontalAlignment: Text.AlignRight
 
-            color: subtitle2Data.subTextColor
+            color: settings.value["Subtitle2/textColor"]
             style: Text.Outline
-            styleColor: subtitle2Data.subTextOfsetColor
-            font.pixelSize: subtitle2Data.subFontSize
+            // styleColor: subtitle2Data.subTextOfsetColor
+            font.pixelSize: settings.value["Subtitle2/textSize"]
         }
     }
 
@@ -864,26 +854,6 @@ ApplicationWindow {
         anchors.bottom:parent.bottom
 
 
-        Row {
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 10
-            // }
-            /*Dial {
-                id: rotationDial
-                // anchors.bottom: parent.bottom
-                // anchors.horizontalCenter: parent.horizontalCenter
-                from: 0
-                to: 360
-                value: rotationAngle
-                stepSize: 1
-                onValueChanged: rotationAngle = value
-                width: 70
-                height: 70
-            }*/
-
-        }
-
         Timer {
             id: controlsHideTimer
             interval: 3000   // milliseconds to hide after last change
@@ -892,7 +862,7 @@ ApplicationWindow {
             onTriggered:
             {
                 if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
-                        && !seeker.isMouseOnControl)
+                        && !seeker.isMouseOnControl && !topControls.isMouseOnControl && !menuBar.isMenuOpened)
                 {
                     controls.visible = false
                     hideControls.start()
@@ -921,7 +891,7 @@ ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: volumeIndicator.height * playbackControl.volume
+                height: volumeIndicator.height * root.volume
                 color: "#0f0"
             }
         }
@@ -942,7 +912,7 @@ ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: brightnessIndicator.height * videoArea.brightness
+                height: brightnessIndicator.height * root.brightness
                 color: "#ff0"
             }
 
@@ -980,7 +950,6 @@ ApplicationWindow {
 
     PlaybackControl {
         id: playbackControl
-
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -1023,79 +992,221 @@ ApplicationWindow {
         menuButton.onClicked: menuPopup.open()
     }
 
-
-
-    Row
+    Rectangle
     {
         id:topControls
-        height:implicitHeight
-        width: root.width
-
-        Rectangle
+        width: parent.width
+        height:120
+        color:"transparent"
+        property bool isMouseOnControl: false;
+        HoverHandler {
+               acceptedDevices: PointerDevice.Mouse
+               onHoveredChanged: {
+                   parent.isMouseOnControl = hovered
+               }
+           }
+        Column
         {
-            width:150
-            height:150
-            color:"transparent"
-            TouchMenu {
-                id: menuPopup
-                width: 100//root.width - 64
-                // x: (parent.width - width) / 2
-                // y: parent.height - height - 32
-                openFileMenuItem.onClicked: {
-                    menuPopup.close()
-                    menuBar.openFileMenu.open()
-                }
-
-                openUrlMenuItem.onClicked: {
-                    menuPopup.close()
-                    menuBar.openUrlPopup.open()
-                }
-            }
-            PlayerMenuBar {
-                id: menuBar
-
-                anchors.left: parent.left
-                anchors.right: parent.right
-
-                // visible: !videoOutput.fullScreen
-
-                onFileOpened: (path) => openFile(path)
-
-                // nameFilters : root.nameFilters
-                // nameFilters: ["All Files (*)"]
-                nameFilters:
-                    [
-                    "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
-                    "GIF Files (*.gif)",
-                    "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
-                    "All Files (*)"
-                ]
-                selectedNameFilter : root.selectedNameFilter
-            }
-        }
-        Rectangle
-        {
-            width:200
-            height:50
-            color:"transparent"
-            Label
+            width: parent.width
+            height: parent.height
+            Rectangle
             {
-                id:mediaCurrentFileLabel
-                text:""
-                color:"yellow"
-                font.pixelSize: 35
+                id:bgTopControls
+                width: parent.width
+                height:60
+                color: "black"
+                opacity:0.5
+            }
+            Rectangle
+            {
+                id:bgSubTopControls
+                width: parent.width
+                height:60
+                color: "black"
+                opacity:0.4
+            }
+        }
+
+        Column
+        {
+            height: parent.height
+            width: parent.width
+            Row //row topControls
+            {
+                height: bgTopControls.height
+                width:parent.width
+
+                Rectangle //menubar
+                {
+                    width:100
+                    height:parent.height
+                    color:"transparent"
+                    TouchMenu {
+                        id: menuPopup
+                        width: 100//root.width - 64
+                        // x: (parent.width - width) / 2
+                        // y: parent.height - height - 32
+                        openFileMenuItem.onClicked: {
+                            menuPopup.close()
+                            menuBar.openFileMenu.open()
+                        }
+
+                        openUrlMenuItem.onClicked: {
+                            menuPopup.close()
+                            menuBar.openUrlPopup.open()
+                        }
+                    }
+                    PlayerMenuBar {
+                        id: menuBar
+
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+
+                        // visible: !videoOutput.fullScreen
+
+                        onFileOpened: (path) => openFile(path)
+
+                        // nameFilters : root.nameFilters
+                        // nameFilters: ["All Files (*)"]
+                        nameFilters:
+                            [
+                            "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
+                            "GIF Files (*.gif)",
+                            "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
+                            "All Files (*)"
+                        ]
+                        selectedNameFilter : root.selectedNameFilter
+                    }
+                }
+                Rectangle  //current media filename
+                {
+                    color: "transparent"
+                    width: mediaCurrentFileLabel.implicitWidth + 10
+                    height: parent.height
+
+                    Label {
+                        id: mediaCurrentFileLabel
+                        text: "Media not selected"
+                        color: "yellow"
+                        font.pixelSize: {
+                            // Define how width maps to font size
+                            const minW = 300;   // when window is 300px wide -> use min font
+                            const maxW = 1200;  // when window >=1200px -> use max font
+
+                            const minSize = 8;
+                            const maxSize = 25;
+
+                            // Clamp width between minW and maxW
+                            const w = Math.max(minW, Math.min(root.width, maxW));
+
+                            // Linear interpolation (lerp) between min and max font size
+                            return minSize + (maxSize - minSize) * ((w - minW) / (maxW - minW));
+                        }
+
+                        anchors.centerIn: parent
+                    }
+                }
+
+            }
+
+            Row //row sub TopControls
+            {
+                height: bgSubTopControls.height
+                width:parent.width
+                leftPadding: 50
+                rightPadding: 50
+                spacing: 25
+                Dial {
+                    id: rotationDial
+                    from: 0
+                    to: 360
+                    value: settings.value["Media/rotationAngle"] // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
+                    stepSize: 1
+                    onValueChanged:
+                    {
+                        settings.setSetting("Media/rotationAngle",value)
+                        videoOutput.rotation=value
+                    }
+                    width: 45
+                    height: 45
+                }
+
+                Row //sns settings
+                {
+                    anchors.verticalCenter:parent.verticalCenter
+                    SpinBox {
+                        id: offsetBeforeSubtitle
+                        width: 50
+                        height:25
+                        from: 0    // advance up to 10s
+                        to: 50       // delay up to 10s
+                        // stepSize: 0.5
+                        value: settings.value["SNS/secBeforeSpeedup"]
+                        visible: snsCheckbox.checked
+                        onValueChanged:
+                        {
+                            settings.setSetting("SNS/secBeforeSpeedup",value)
+                        }
+                    }
+                    Column
+                    {
+                        CustomCheckbox
+                        {
+                            id:snsCheckbox
+                            initialCheckedState: (settings.value["SNS/status"] === "true")
+                            theText:"SNS"
+                            onStatusChangeAction:
+                            {
+                                settings.setSetting("SNS/status",checked)
+                            }
+                            leftPadding: indicator.width
+                        }
+                        SpinBox {
+                            id:snsSpeedSpinBox
+                            width: 50
+                            height:25
+                            from: 0    // advance up to 10s
+                            to: 50       // delay up to 10s
+                            value: settings.value["SNS/speed"]
+                            visible: snsCheckbox.checked
+                            onValueChanged:
+                            {
+                                settings.setSetting("SNS/speed",value)
+                            }
+                        }
+                    }
+
+                    SpinBox {
+                        id: offsetAfterSubtitle
+                        width: 50
+                        height:25
+                        from: 0    // advance up to 10s
+                        to: 50       // delay up to 10s
+                        // stepSize: 0.5
+                        value: settings.value["SNS/secAfterSpeedup"]
+                        visible: snsCheckbox.checked
+                        onValueChanged:
+                        {
+                            settings.setSetting("SNS/secAfterSpeedup",value)
+                        }
+                    }
+
+                }
+
+
             }
 
         }
-
 
     }
+
+
 
 
     function checkAndClean(textPara)
     {
         //ignore subtitles which contain website domains
-        if(playbackControl.removeDomainsStatus)
+        if (Scripts.asBool(settings.value["Media/sub_removeDomains"]))
         {
             if(Scripts.containsDomain(textPara))
                 textPara=""
@@ -1103,21 +1214,21 @@ ApplicationWindow {
 
 
         //remove html tags
-        if(playbackControl.removeHTMLStatus)
+        if (Scripts.asBool(settings.value["Media/sub_ignoreHTMLtags"]))
         {
             textPara = Scripts.stripHtmlClean(textPara)
         }
 
 
         //clean subtitle
-        if(playbackControl.cleanSubtitleStatus)
+        if (Scripts.asBool(settings.value["Media/sub_cleanSubtitle"]))
         {
             textPara = Scripts.cleanSubtitleText(textPara)
         }
 
 
         //remove more info like (hello) or [this is building] or <dwadwa> or «something» ...
-        if(playbackControl.removeExtraInfo)
+        if (Scripts.asBool(settings.value["Media/sub_removeExtraInfo"]))
         {
             textPara= Scripts.removeExtraInfo(textPara)
         }
@@ -1126,6 +1237,16 @@ ApplicationWindow {
     }
 
 
+    function showSpeeding(text="")
+    {
+        if(text==="")
+            speedingBox.visible=false
+        else
+        {
+            speedingLabel.text = text;
+            speedingBox.visible=true
+        }
+    }
 
 
     function playVideo()
@@ -1167,43 +1288,46 @@ ApplicationWindow {
 
     function volUp(val=0.10)
     {
-        if(playbackControl.volume<100)
-            playbackControl.volume +=val
+        if(root.volume<100)
+            root.volume+=val
     }
 
     function volDown(val=0.10)
     {
-        if(playbackControl.volume>0)
-            playbackControl.volume -=val
+        if(root.volume>0)
+            root.volume-=val
     }
 
     function speedUp(val=0.5)
     {
-        if(playbackControl.playbackRate<100)
-            playbackControl.playbackRate +=val
+        var temp = settings.value["Media/rate"]
+        if(temp<100)
+            settings.setSetting("Media/rate",temp+val)
     }
 
     function speedDown(val=0.5)
     {
-        if(playbackControl.playbackRate>0)
-            playbackControl.playbackRate -= val
+        var temp = settings.value["Media/rate"]
+        if(temp>0)
+            settings.setSetting("Media/rate",temp-val)
     }
 
     function brightnessUp(val=0.10)
     {
-        if(videoArea.brightness<100)
-            videoArea.brightness += val
+        if(root.brightness<100)
+            root.brightness+=val
     }
 
     function brightnessDown(val=0.10)
     {
-        if(videoArea.brightness>0)
-            videoArea.brightness -= val
+        if(root.brightness>0)
+            root.brightness-=val
     }
 
     function muteUnmute()
     {
-        isMuted = !isMuted
+        settings.setSetting("Media/muted",
+                            Scripts.asBool(settings.value["Media/muted"]))
     }
 
     function showControlsByHover()
@@ -1228,24 +1352,27 @@ ApplicationWindow {
                 subPath = subPath.slice(7)
 
             currentSubtitle = extractor.loadSrtFile(subPath)
-            // console.log("loaded subtitle from video=", currentSubtitle)
-
+            // console.log("loaded subtitle beside video=", currentSubtitle)
         }
 
         if(subtitleNo)
         {
             subtitle1Data.subtitle = Sub.parseSubtitle(currentSubtitle)
-            if(subIndex>=0)//loaded from somehwereelse
+            if(subIndex>=0)//maybe loaded from somehwereelse
                 subtitle1Data.subIndex=subIndex
         }
 
         else
         {
             subtitle2Data.subtitle = Sub.parseSubtitle(currentSubtitle)
-            if(subIndex>=0)//loaded from somehwereelse
+            if(subIndex>=0)//maybe loaded from somehwereelse
                 subtitle2Data.subIndex=subIndex
         }
 
+        // console.log("subtitle1Data.subtitle=",subtitle1Data.subtitle)
+        // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+
+        currentSubtitle=""
     }
 
     function keyboardButtonsHandler(event)
@@ -1326,17 +1453,57 @@ ApplicationWindow {
         showControlsByHover()
     }
 
-    Label
+
+
+
+    Rectangle
     {
-        id:speedingLabel
-        text:playbackControl.snsSpeed
+        id:speedingBox
+        width: rowSpeeding.implicitWidth
+        height: rowSpeeding.implicitHeight
         visible: false
-        anchors.top:parent.top
-        anchors.left: parent.left
-        color: "yellow"
-        font.pixelSize: 15
-        z:0
+        color:"transparent"
+        anchors
+        {
+            verticalCenter: parent.verticalCenter
+            left:parent.left
+            leftMargin:50
+        }
+
+        Rectangle
+        {
+            anchors.fill: parent
+            color:"black"
+            opacity: 0.1
+        }
+
+        Row{
+            id:rowSpeeding
+            spacing: 10
+            anchors.fill: parent
+            Image {
+                source: Config.activeTheme === Config.Theme.Dark
+                        ? "icons/Rate_Icon_Dark.svg" : "icons/Rate_Icon.svg"
+                width: 25
+                height: 20
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Label
+            {
+                id:speedingLabel
+                text:""
+                color: "yellow"
+                font.pixelSize: 30
+                z:0
+            }
+        }
+
+
+
     }
+
+
 
 
 
@@ -1357,9 +1524,19 @@ ApplicationWindow {
         Config.subtitle2DataPtr= subtitle2Data
 
 
-        backend.setupCustomCursor(Config.customCursorIconPath,20,20,10,10);
+        root.brightness=Scripts.asInt(settings.value["Media/brightness"])
+        root.volume=Scripts.asInt(settings.value["Media/volume"])
 
-        //load customCursrorStatus
-        Config.customCursorStatus = backend.customCursorStatus()
+
+        backend.setupCustomCursor(settings.value["App/customCursorIconPath"],20,20,10,10);
     }
+
+    // Connections {
+    //         target: settings
+    //         function onValueChanged()
+    //         {
+    //             console.log("Settings changed")
+    //         }
+    //     }
 }
+

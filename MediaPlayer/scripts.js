@@ -63,3 +63,52 @@ function removeExtraInfo(text) {
         // .replace(/\n\s+/g, "\n")
         .trim();
 }
+
+
+
+function asBool(value) {
+    if (typeof value === "boolean")
+        return value
+
+    if (typeof value === "number")
+        return value !== 0
+
+    if (typeof value === "string") {
+        const v = value.trim().toLowerCase()
+        if (["true", "1", "yes", "on"].includes(v))
+            return true
+        if (["false", "0", "no", "off", ""].includes(v))
+            return false
+    }
+
+    // fallback: anything else → false
+    return false
+}
+
+function asPath(value) {
+    if (value === undefined || value === null)
+        return ""
+
+    if (value.toString) {
+        var s = value.toString()
+        if (s.startsWith("file:///"))
+            return s.replace("file://", "")
+    }
+
+    // If it's really a QUrl object, try .toLocalFile()
+    try {
+        if (typeof value.toLocalFile === "function")
+            return value.toLocalFile()
+    } catch(e) {}
+
+    return String(value)
+}
+
+
+function asInt(value)
+{
+    if (value === undefined || value === null)
+        return 0;
+
+    return Number(value)
+}

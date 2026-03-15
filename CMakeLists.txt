@@ -24,6 +24,7 @@ qt_add_qml_module(MediaPlayerApp
     SOURCES changeVolumeManually.cpp
     SOURCES backend.h backend.cpp
     SOURCES customcursor.h customcursor.cpp
+    SOURCES settingsmanager.h settingsmanager.cpp
 )
 
 qt_add_ios_ffmpeg_libraries(MediaPlayerApp)
@@ -44,7 +45,6 @@ target_link_libraries(MediaPlayerApp PRIVATE
     Configplugin
 )
 target_link_libraries(MediaPlayerApp PRIVATE Qt6::Core)
-
 
 install(TARGETS MediaPlayerApp
     BUNDLE  DESTINATION .

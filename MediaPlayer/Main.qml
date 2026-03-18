@@ -58,17 +58,6 @@ ApplicationWindow {
     property real brightness;
 
 
-    SubtitleExtractor
-    {
-        id: extractor
-    }
-    SubtitleFinder
-    {
-        id: subtitleFinder
-    }
-
-
-
     //subtitles properties
     QtObject {
         id: subtitle1Data
@@ -107,34 +96,6 @@ ApplicationWindow {
         property int subtitleEnd: 0
         property int subtitleDuration: 1
     }
-
-
-    function playMedia() {
-        mediaPlayer.source = playlistInfo.getSource()
-        mediaPlayer.play()
-    }
-
-    function closeOverlays() {
-        settingsInfo.visible = false
-        playlistInfo.visible = false
-    }
-
-    function showOverlay(overlay) {
-        closeOverlays()
-        overlay.visible = true
-    }
-
-    function openFile(path) {
-        ++currentFile
-        playlistInfo.addFile(currentFile, path)
-        mediaPlayer.source = path
-        mediaPlayer.play()
-    }
-
-    ErrorPopup {
-        id: errorPopup
-    }
-
 
 
     MediaDevices {
@@ -319,11 +280,6 @@ ApplicationWindow {
     }
 
 
-
-    //subtitle list
-    ListModel { id: subtitleModel }
-
-
     Rectangle {
         id: background
         anchors.left: parent.left
@@ -342,6 +298,7 @@ ApplicationWindow {
     }
 
 
+    //[brightness overlay],   [catch user actions(clicks,wheel,keys)],  [videoArea(drag up/down) to adjust voulme/brightness]
     Rectangle
     {
         id:brightnessOverlay
@@ -364,9 +321,9 @@ ApplicationWindow {
                     } else {
                         // Left side → control brightness
                         if (event.angleDelta.y > 0) {
-                            root.brightness=Math.min(root.brightness + 0.1, 1.0)
+                            root.brightness=Math.min(root.brightness - 0.1, 1.0)
                         } else {
-                            root.brightness= Math.max(root.brightness - 0.1, 0.0)
+                            root.brightness= Math.max(root.brightness + 0.1, 0.0)
                         }
                     }
                 }
@@ -436,7 +393,7 @@ ApplicationWindow {
                                }
                     onPositionChanged: (mouse) => {
                                            // Volume
-                                           volumeIndicator.visible = true
+                                           showControls.start()
 
                                            let delta = volumeControlArea.startY - mouse.y
                                            volumeControlArea.cumulativeDy += delta
@@ -475,7 +432,7 @@ ApplicationWindow {
                                    brightnessControlArea.startY = mouse.y
                                }
                     onPositionChanged: (mouse) => {
-                                           brightnessIndicator.visible = true
+                                           showControls.start()
 
                                            let delta = brightnessControlArea.startY - mouse.y
                                            brightnessControlArea.cumulativeDy += delta
@@ -486,9 +443,10 @@ ApplicationWindow {
                                            if (brightnessControlArea.cumulativeDy < videoArea.minDy)
                                            brightnessControlArea.cumulativeDy = videoArea.minDy
 
-                                           root.brightness=Math.min(Math.max(
-                                                                               ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy))
-                                                                                    , 0), 1)
+                                           root.brightness = Math.min(Math.max(
+                                               1 - ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)),
+                                               0), 1)
+
                                        }
                 }
             }
@@ -564,69 +522,22 @@ ApplicationWindow {
 
     }
 
-    ParallelAnimation {
-        id: hideControls
 
-        NumberAnimation {
-            targets: [playbackControl, seeker, background, shadow, topControls, volumeIndicator, brightnessIndicator]
-            property: "opacity"
-            to: 0
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-        NumberAnimation {
-            target: playbackControl
-            property: "anchors.bottomMargin"
-            to: -playbackControl.height - seeker.height
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-        onStarted:
-        {
-            backend.changeCursor("blank")
-        }
+    // -------------------------- SUBTITLE --------------------------
+
+    SubtitleExtractor
+    {
+        id: extractor
     }
-
-    ParallelAnimation {
-        id: showControls
-
-        NumberAnimation {
-            targets: [playbackControl, seeker, shadow,topControls, volumeIndicator, brightnessIndicator]
-            property: "opacity"
-            to: 1
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-
-
-        NumberAnimation {
-            target: background
-            property: "opacity"
-            to: 0.5
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-        NumberAnimation {
-            target: playbackControl
-            property: "anchors.bottomMargin"
-            to: 0
-            duration: 1000
-            easing.type: Easing.InOutQuad
-        }
-        onStarted:
-        {
-            //give focus for events
-            brightnessOverlay.focus=true
-
-            backend.changeCursor()
-
-            //to 3 seconds later check and decide to call hideControls.start() or not
-            controlsHideTimer.running=true
-        }
+    SubtitleFinder
+    {
+        id: subtitleFinder
     }
 
 
-    // Subtitle overlay
+    //subtitle list
+    ListModel { id: subtitleModel }
+
     // Update subtitle every ..ms
     Timer {
         interval: settings.value["Media/subtitleTimerInterval"]
@@ -745,6 +656,7 @@ ApplicationWindow {
         }
     }
 
+    // Subtitle boxes
     Rectangle
     {
         width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
@@ -849,6 +761,79 @@ ApplicationWindow {
 
 
 
+    function checkAndClean(textPara)
+    {
+        //ignore subtitles which contain website domains
+        if (Scripts.asBool(settings.value["Media/sub_removeDomains"]))
+        {
+            if(Scripts.containsDomain(textPara))
+                textPara=""
+        }
+
+
+        //remove html tags
+        if (Scripts.asBool(settings.value["Media/sub_ignoreHTMLtags"]))
+        {
+            textPara = Scripts.stripHtmlClean(textPara)
+        }
+
+
+        //clean subtitle
+        if (Scripts.asBool(settings.value["Media/sub_cleanSubtitle"]))
+        {
+            textPara = Scripts.cleanSubtitleText(textPara)
+        }
+
+
+        //remove more info like (hello) or [this is building] or <dwadwa> or «something» ...
+        if (Scripts.asBool(settings.value["Media/sub_removeExtraInfo"]))
+        {
+            textPara= Scripts.removeExtraInfo(textPara)
+        }
+
+        return textPara;
+    }
+
+
+    function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
+    {
+        if(embedded)
+        {
+            currentSubtitle = extractor.extractSubtitle(mediaPlayer.source, subIndex)
+            // console.log("extract subtitle from video=", currentSubtitle)
+        }
+        else
+        {
+            if (subPath.startsWith("file://"))
+                subPath = subPath.slice(7)
+
+            currentSubtitle = extractor.loadSrtFile(subPath)
+            // console.log("loaded subtitle beside video=", currentSubtitle)
+        }
+
+        if(subtitleNo)
+        {
+            subtitle1Data.subtitle = Sub.parseSubtitle(currentSubtitle)
+            if(subIndex>=0)//maybe loaded from somehwereelse
+                subtitle1Data.subIndex=subIndex
+        }
+
+        else
+        {
+            subtitle2Data.subtitle = Sub.parseSubtitle(currentSubtitle)
+            if(subIndex>=0)//maybe loaded from somehwereelse
+                subtitle2Data.subIndex=subIndex
+        }
+
+        // console.log("subtitle1Data.subtitle=",subtitle1Data.subtitle)
+        // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+
+        currentSubtitle=""
+    }
+
+
+    // -------------------------- INDICATORS --------------------------
+
 
     // --- Volume indicator (right) ---
     Rectangle {
@@ -860,6 +845,7 @@ ApplicationWindow {
         anchors.verticalCenter: parent.verticalCenter
         color: "#888"
         radius: 8
+        clip:true
 
         Rectangle {
             anchors.left: parent.left
@@ -880,16 +866,16 @@ ApplicationWindow {
         anchors.verticalCenter: parent.verticalCenter
         color: "#888"
         radius: 8
+        clip:true
 
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: brightnessIndicator.height * root.brightness
+            height: brightnessIndicator.height * (1.0 - root.brightness)
             color: "#ff0"
         }
     }
-
 
     Label {
         text: qsTr("Click <font color=\"#41CD52\">here</font> to open media file.")
@@ -903,6 +889,73 @@ ApplicationWindow {
             // cursorShape: Qt.OpenHandCursor
         }
     }
+
+    ErrorPopup {
+        id: errorPopup
+    }
+
+    Rectangle
+    {
+        id:speedingBox
+        width: rowSpeeding.implicitWidth
+        height: rowSpeeding.implicitHeight
+        visible: false
+        color:"transparent"
+        anchors
+        {
+            verticalCenter: parent.verticalCenter
+            left:parent.left
+            leftMargin:50
+        }
+
+        Rectangle
+        {
+            anchors.fill: parent
+            color:"black"
+            opacity: 0.1
+        }
+
+        Row{
+            id:rowSpeeding
+            spacing: 10
+            anchors.fill: parent
+            Image {
+                source: Config.activeTheme === Config.Theme.Dark
+                        ? "icons/Rate_Icon_Dark.svg" : "icons/Rate_Icon.svg"
+                width: 25
+                height: 20
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Label
+            {
+                id:speedingLabel
+                text:""
+                color: "yellow"
+                font.pixelSize: 30
+                z:0
+            }
+        }
+
+
+
+    }
+
+
+    function showSpeeding(text="")
+    {
+        if(text==="")
+            speedingBox.visible=false
+        else
+        {
+            speedingLabel.text = text;
+            speedingBox.visible=true
+        }
+    }
+
+
+
+    // -------------------------- CONTROLS --------------------------
 
     PlaybackSeekControl {
         id: seeker
@@ -1043,9 +1096,10 @@ ApplicationWindow {
                         // nameFilters: ["All Files (*)"]
                         nameFilters:
                             [
-                            "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
-                            "GIF Files (*.gif)",
+                            "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm *.mp3 *.wav *.aac *.aiff)",
+                            "Music Files (*.mp3 *.wav *.aac *.aiff)",
                             "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
+                            "GIF Files (*.gif)",
                             "All Files (*)"
                         ]
                         selectedNameFilter : root.selectedNameFilter
@@ -1190,51 +1244,148 @@ ApplicationWindow {
     }
 
 
+    ParallelAnimation {
+        id: hideControls
 
-    function checkAndClean(textPara)
-    {
-        //ignore subtitles which contain website domains
-        if (Scripts.asBool(settings.value["Media/sub_removeDomains"]))
+        NumberAnimation {
+            targets: [playbackControl, seeker, background, shadow, topControls, volumeIndicator, brightnessIndicator]
+            property: "opacity"
+            to: 0
+            duration: 1000
+            easing.type: Easing.InOutQuad
+        }
+        NumberAnimation {
+            target: playbackControl
+            property: "anchors.bottomMargin"
+            to: -playbackControl.height - seeker.height
+            duration: 1000
+            easing.type: Easing.InOutQuad
+        }
+        onStarted:
         {
-            if(Scripts.containsDomain(textPara))
-                textPara=""
+            backend.changeCursor("blank")
+        }
+    }
+
+    ParallelAnimation {
+        id: showControls
+
+        NumberAnimation {
+            targets: [playbackControl, seeker, shadow,topControls, volumeIndicator, brightnessIndicator]
+            property: "opacity"
+            to: 1
+            duration: 1000
+            easing.type: Easing.InOutQuad
         }
 
 
-        //remove html tags
-        if (Scripts.asBool(settings.value["Media/sub_ignoreHTMLtags"]))
-        {
-            textPara = Scripts.stripHtmlClean(textPara)
+        NumberAnimation {
+            target: background
+            property: "opacity"
+            to: 0.5
+            duration: 1000
+            easing.type: Easing.InOutQuad
         }
-
-
-        //clean subtitle
-        if (Scripts.asBool(settings.value["Media/sub_cleanSubtitle"]))
-        {
-            textPara = Scripts.cleanSubtitleText(textPara)
+        NumberAnimation {
+            target: playbackControl
+            property: "anchors.bottomMargin"
+            to: 0
+            duration: 1000
+            easing.type: Easing.InOutQuad
         }
-
-
-        //remove more info like (hello) or [this is building] or <dwadwa> or «something» ...
-        if (Scripts.asBool(settings.value["Media/sub_removeExtraInfo"]))
+        onStarted:
         {
-            textPara= Scripts.removeExtraInfo(textPara)
-        }
+            //give focus for events
+            brightnessOverlay.focus=true
 
-        return textPara;
+            backend.changeCursor()
+
+            //to 3 seconds later check and decide to call hideControls.start() or not
+            controlsHideTimer.running=true
+        }
     }
 
 
-    function showSpeeding(text="")
+
+    function keyboardButtonsHandler(event)
     {
-        if(text==="")
-            speedingBox.visible=false
+        if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ShiftModifier))
+        {
+            brightnessDown()
+        }
+
+        else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ShiftModifier))
+        {
+            brightnessUp()
+        }
+
+        else if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ControlModifier))
+        {
+            speedUp()
+        }
+
+        else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ControlModifier))
+        {
+            speedDown()
+        }
+
+
         else
-        {
-            speedingLabel.text = text;
-            speedingBox.visible=true
-        }
+            switch(event.key)
+            {
+
+
+
+
+            case Qt.Key_VolumeMute:
+            case Qt.Key_M:
+            {
+                muteUnmute()
+            }break;
+
+            case Qt.Key_MediaPlay:
+            case Qt.Key_MediaPause:
+            case Qt.Key_MediaTogglePlayPause:
+            case Qt.Key_Space:
+            {
+                if(!mediaPlayer.playing)
+                    playVideo()
+                else
+                    pauseVideo()
+            }break;
+
+            case Qt.Key_Right:
+            {
+                mediaPlayer.seekForward()
+            }break;
+            case Qt.Key_Left:
+            {
+                mediaPlayer.seekBackward()
+            }break;
+
+            case Qt.Key_VolumeUp:
+            case Qt.Key_Up:
+            {
+                volUp()
+            }break;
+
+            case Qt.Key_VolumeDown:
+            case Qt.Key_Down:
+            {
+                volDown()
+            }break;
+            case Qt.Key_F:
+            case Qt.Key_Enter:
+            case Qt.Key_Return:
+            {
+                mediaPlayer.doFullscreen()
+            }break;
+            }
+
+        showControls.start()
     }
+
+
 
 
     function playVideo()
@@ -1318,169 +1469,32 @@ ApplicationWindow {
                             Scripts.asBool(settings.value["Media/muted"]))
     }
 
-    function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
-    {
-        if(embedded)
-        {
-            currentSubtitle = extractor.extractSubtitle(mediaPlayer.source, subIndex)
-            // console.log("extract subtitle from video=", currentSubtitle)
-        }
-        else
-        {
-            if (subPath.startsWith("file://"))
-                subPath = subPath.slice(7)
 
-            currentSubtitle = extractor.loadSrtFile(subPath)
-            // console.log("loaded subtitle beside video=", currentSubtitle)
-        }
-
-        if(subtitleNo)
-        {
-            subtitle1Data.subtitle = Sub.parseSubtitle(currentSubtitle)
-            if(subIndex>=0)//maybe loaded from somehwereelse
-                subtitle1Data.subIndex=subIndex
-        }
-
-        else
-        {
-            subtitle2Data.subtitle = Sub.parseSubtitle(currentSubtitle)
-            if(subIndex>=0)//maybe loaded from somehwereelse
-                subtitle2Data.subIndex=subIndex
-        }
-
-        // console.log("subtitle1Data.subtitle=",subtitle1Data.subtitle)
-        // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
-
-        currentSubtitle=""
+    function playMedia() {
+        mediaPlayer.source = playlistInfo.getSource()
+        mediaPlayer.play()
     }
 
-    function keyboardButtonsHandler(event)
-    {
-        if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ShiftModifier))
-        {
-            brightnessUp()
-        }
+    function closeOverlays() {
+        settingsInfo.visible = false
+        playlistInfo.visible = false
+    }
 
-        else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ShiftModifier))
-        {
-            brightnessDown()
-        }
+    function showOverlay(overlay) {
+        closeOverlays()
+        overlay.visible = true
+    }
 
-        else if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ControlModifier))
-        {
-            speedUp()
-        }
-
-        else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ControlModifier))
-        {
-            speedDown()
-        }
-
-
-        else
-            switch(event.key)
-            {
-
-
-
-
-            case Qt.Key_VolumeMute:
-            case Qt.Key_M:
-            {
-                muteUnmute()
-            }break;
-
-            case Qt.Key_MediaPlay:
-            case Qt.Key_MediaPause:
-            case Qt.Key_MediaTogglePlayPause:
-            case Qt.Key_Space:
-            {
-                if(!mediaPlayer.playing)
-                    playVideo()
-                else
-                    pauseVideo()
-            }break;
-
-            case Qt.Key_Right:
-            {
-                mediaPlayer.seekForward()
-            }break;
-            case Qt.Key_Left:
-            {
-                mediaPlayer.seekBackward()
-            }break;
-
-            case Qt.Key_VolumeUp:
-            case Qt.Key_Up:
-            {
-                volUp()
-            }break;
-
-            case Qt.Key_VolumeDown:
-            case Qt.Key_Down:
-            {
-                volDown()
-            }break;
-            case Qt.Key_F:
-            case Qt.Key_Enter:
-            case Qt.Key_Return:
-            {
-                mediaPlayer.doFullscreen()
-            }break;
-            }
-
-        showControls.start()
+    function openFile(path) {
+        ++currentFile
+        playlistInfo.addFile(currentFile, path)
+        mediaPlayer.source = path
+        mediaPlayer.play()
     }
 
 
 
-
-    Rectangle
-    {
-        id:speedingBox
-        width: rowSpeeding.implicitWidth
-        height: rowSpeeding.implicitHeight
-        visible: false
-        color:"transparent"
-        anchors
-        {
-            verticalCenter: parent.verticalCenter
-            left:parent.left
-            leftMargin:50
-        }
-
-        Rectangle
-        {
-            anchors.fill: parent
-            color:"black"
-            opacity: 0.1
-        }
-
-        Row{
-            id:rowSpeeding
-            spacing: 10
-            anchors.fill: parent
-            Image {
-                source: Config.activeTheme === Config.Theme.Dark
-                        ? "icons/Rate_Icon_Dark.svg" : "icons/Rate_Icon.svg"
-                width: 25
-                height: 20
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Label
-            {
-                id:speedingLabel
-                text:""
-                color: "yellow"
-                font.pixelSize: 30
-                z:0
-            }
-        }
-
-
-
-    }
+    // -------------------------- ETC --------------------------
 
 
 
@@ -1503,15 +1517,13 @@ ApplicationWindow {
             mediaPlayer.play()
 
 
-        //set media devicesfor config
+        //alias media stuff for config
         Config.mediaDevicesPtr=mediaDevices
         Config.mediaPlayerPtr=mediaPlayer
 
-        //alias data to config
-        Config.subtitle1DataPtr= subtitle1Data
-        Config.subtitle2DataPtr= subtitle2Data
 
 
+        //get data from settings c++ (will save onClose app)
         root.brightness=Scripts.asInt(settings.value["Media/brightness"])
         root.volume=Scripts.asInt(settings.value["Media/volume"])
 

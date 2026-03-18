@@ -279,7 +279,7 @@ Item {
 
                 FileDialog {
                     id: customCursorfileDialog
-                    currentFolder: StandardPaths.standardLocations(StandardPaths.MoviesLocation)[0]
+                    // currentFolder: StandardPaths.standardLocations(StandardPaths.MoviesLocation)[0]
                     nameFilters:
                         [
                         "All Supported Files (*.jpeg *.jpg *.png *.svg)"

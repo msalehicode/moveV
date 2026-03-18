@@ -58,7 +58,6 @@ ApplicationWindow {
     property real brightness;
 
 
-
     SubtitleExtractor
     {
         id: extractor
@@ -130,16 +129,6 @@ ApplicationWindow {
         playlistInfo.addFile(currentFile, path)
         mediaPlayer.source = path
         mediaPlayer.play()
-    }
-
-    MouseArea {
-        id: mouseArea
-        anchors.fill: parent
-        hoverEnabled: true
-        onPositionChanged: {
-
-        }
-        onClicked: root.closeOverlays()
     }
 
     ErrorPopup {
@@ -294,30 +283,31 @@ ApplicationWindow {
     VideoOutput {
         id: videoOutput
 
-        anchors.top: fullScreen || Config.isMobileTarget ? parent.top : menuBar.bottom
-        anchors.bottom: fullScreen ? parent.bottom : playbackControl.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: fullScreen ? 0 : 20
-        anchors.rightMargin: fullScreen ? 0 : 20
+        // anchors.top: fullScreen || Config.isMobileTarget ? parent.top : topControls.top
+        // anchors.bottom: fullScreen ? parent.bottom : playbackControl.bottom
+        // anchors.left: parent.left
+        // anchors.right: parent.right
+        // anchors.leftMargin: fullScreen ? 0 : 20
+        // anchors.rightMargin: fullScreen ? 0 : 20
+        anchors.fill: parent
         visible: mediaPlayer.hasVideo
 
         property bool fullScreen: false
 
 
-        TapHandler {
-            onDoubleTapped: {
-                if (parent.fullScreen) {
-                    root.showNormal()
-                } else {
-                    root.showFullScreen()
-                }
-                parent.fullScreen = !parent.fullScreen
-            }
-            onTapped: {
-                root.closeOverlays()
-            }
-        }
+        // TapHandler {
+        //     onDoubleTapped: {
+        //         if (parent.fullScreen) {
+        //             root.showNormal()
+        //         } else {
+        //             root.showFullScreen()
+        //         }
+        //         parent.fullScreen = !parent.fullScreen
+        //     }
+        //     onTapped: {
+        //         root.closeOverlays()
+        //     }
+        // }
     }
 
     Image {
@@ -400,7 +390,7 @@ ApplicationWindow {
             }
             onPositionChanged: (mouse) =>
                                {
-                                   showControlsByHover()
+                                   showControls.start()
                                }
             onClicked:
             {
@@ -415,6 +405,7 @@ ApplicationWindow {
             }
         }
 
+        //handle hold and drag up/down to change volume and brightness
         Rectangle {
             id: videoArea
             anchors.fill: parent
@@ -502,7 +493,6 @@ ApplicationWindow {
                 }
             }
 
-
         }
 
 
@@ -511,12 +501,12 @@ ApplicationWindow {
 
 
 
-    MultiEffect {
-        source: settingsInfo
-        anchors.fill: settingsInfo
-        shadowEnabled: settingsInfo.visible || playlistInfo.visible
-        visible: settingsInfo.visible || playlistInfo.visible
-    }
+    // MultiEffect {
+    //     source: settingsInfo
+    //     anchors.fill: settingsInfo
+    //     shadowEnabled: settingsInfo.visible || playlistInfo.visible
+    //     visible: settingsInfo.visible || playlistInfo.visible
+    // }
 
     PlaylistInfo {
         id: playlistInfo
@@ -530,7 +520,7 @@ ApplicationWindow {
         visible: false
         isShuffled: playbackControl.isPlaylistShuffled
 
-        onVisibleChanged: controlsHideTimer.start()
+        onVisibleChanged: showControls.start()
 
         onPlaylistUpdated: {
             if (mediaPlayer.playbackState == MediaPlayer.StoppedState && root.currentFile < playlistInfo.mediaCount - 1) {
@@ -570,7 +560,7 @@ ApplicationWindow {
         selectedSubtitleTrack: mediaPlayer.activeSubtitleTrack
         visible: false
 
-        onVisibleChanged: controlsHideTimer.start()
+        onVisibleChanged: showControls.start()
 
     }
 
@@ -578,7 +568,7 @@ ApplicationWindow {
         id: hideControls
 
         NumberAnimation {
-            targets: [playbackControl, seeker, background, shadow, topControls]
+            targets: [playbackControl, seeker, background, shadow, topControls, volumeIndicator, brightnessIndicator]
             property: "opacity"
             to: 0
             duration: 1000
@@ -591,13 +581,17 @@ ApplicationWindow {
             duration: 1000
             easing.type: Easing.InOutQuad
         }
+        onStarted:
+        {
+            backend.changeCursor("blank")
+        }
     }
 
     ParallelAnimation {
         id: showControls
 
         NumberAnimation {
-            targets: [playbackControl, seeker, shadow,topControls]
+            targets: [playbackControl, seeker, shadow,topControls, volumeIndicator, brightnessIndicator]
             property: "opacity"
             to: 1
             duration: 1000
@@ -618,6 +612,16 @@ ApplicationWindow {
             to: 0
             duration: 1000
             easing.type: Easing.InOutQuad
+        }
+        onStarted:
+        {
+            //give focus for events
+            brightnessOverlay.focus=true
+
+            backend.changeCursor()
+
+            //to 3 seconds later check and decide to call hideControls.start() or not
+            controlsHideTimer.running=true
         }
     }
 
@@ -845,80 +849,48 @@ ApplicationWindow {
 
 
 
-    // Controls
-    Rectangle
-    {
-        id:controls
-        width:parent.width
-        height:implicitHeight
-        anchors.bottom:parent.bottom
 
+    // --- Volume indicator (right) ---
+    Rectangle {
+        id: volumeIndicator
+        width: 40
+        height: 200
+        anchors.right: parent.right
+        anchors.rightMargin: 10
+        anchors.verticalCenter: parent.verticalCenter
+        color: "#888"
+        radius: 8
 
-        Timer {
-            id: controlsHideTimer
-            interval: 3000   // milliseconds to hide after last change
-            repeat: false
-            running: true
-            onTriggered:
-            {
-                if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
-                        && !seeker.isMouseOnControl && !topControls.isMouseOnControl && !menuBar.isMenuOpened)
-                {
-                    controls.visible = false
-                    hideControls.start()
-                    backend.changeCursor("blank");
-                }
-
-            }
-        }
-
-
-
-        // --- Volume indicator (right) ---
         Rectangle {
-            id: volumeIndicator
-            width: 40
-            height: 200
-            anchors.right: parent.right
-            anchors.rightMargin: 10
-            // anchors.verticalCenter: parent.verticalCenter
-            anchors.bottom:parent.top
-            anchors.bottomMargin: 100
-            color: "#888"
-            radius: 8
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: volumeIndicator.height * root.volume
-                color: "#0f0"
-            }
-        }
-
-        // --- Brightness indicator (left) ---
-        Rectangle {
-            id: brightnessIndicator
-            width: 40
-            height: 200
             anchors.left: parent.left
-            anchors.leftMargin: 10
-            anchors.bottom:parent.top
-            anchors.bottomMargin: 100
-            color: "#888"
-            radius: 8
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: brightnessIndicator.height * root.brightness
-                color: "#ff0"
-            }
-
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: volumeIndicator.height * root.volume
+            color: "#0f0"
         }
-
     }
+
+    // --- Brightness indicator (left) ---
+    Rectangle {
+        id: brightnessIndicator
+        width: 40
+        height: 200
+        anchors.left: parent.left
+        anchors.leftMargin: 10
+        anchors.verticalCenter: parent.verticalCenter
+        color: "#888"
+        radius: 8
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: brightnessIndicator.height * root.brightness
+            color: "#ff0"
+        }
+    }
+
+
     Label {
         text: qsTr("Click <font color=\"#41CD52\">here</font> to open media file.")
         font.pixelSize: 24
@@ -928,6 +900,7 @@ ApplicationWindow {
 
         TapHandler {
             onTapped: menuBar.openFileMenu.open()
+            // cursorShape: Qt.OpenHandCursor
         }
     }
 
@@ -1086,7 +1059,7 @@ ApplicationWindow {
 
                     Label {
                         id: mediaCurrentFileLabel
-                        text: "Media not selected"
+                        text: "Media isn't selected"
                         color: "yellow"
                         font.pixelSize: {
                             // Define how width maps to font size
@@ -1200,6 +1173,21 @@ ApplicationWindow {
 
     }
 
+
+    Timer {
+        id: controlsHideTimer
+        interval: 3000   // milliseconds to hide after last change
+        repeat: false
+        running: false
+        onTriggered:
+        {
+            if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
+                    && !seeker.isMouseOnControl && !topControls.isMouseOnControl && !menuBar.isMenuOpened)
+            {
+                hideControls.start()
+            }
+        }
+    }
 
 
 
@@ -1330,15 +1318,6 @@ ApplicationWindow {
                             Scripts.asBool(settings.value["Media/muted"]))
     }
 
-    function showControlsByHover()
-    {
-        controls.visible=true
-        controlsHideTimer.running=true
-        brightnessOverlay.focus=true
-        backend.changeCursor()
-        showControls.start()
-    }
-
     function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
     {
         if(embedded)
@@ -1450,7 +1429,7 @@ ApplicationWindow {
             }break;
             }
 
-        showControlsByHover()
+        showControls.start()
     }
 
 
@@ -1505,8 +1484,17 @@ ApplicationWindow {
 
 
 
+    function callbycpp(name="empty")
+    {
+        return "."+name+".";
+    }
 
 
+
+    function dosomething()
+    {
+        console.log("doing something...")
+    }
 
     Component.onCompleted: {
         if (source.toString().length > 0)

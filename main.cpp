@@ -151,6 +151,17 @@ int main(int argc, char *argv[])
     }
 
 
+    QVariant returnedValue;
+    QVariant name = "Qt User";
+    QMetaObject::invokeMethod(rootObject, "callbycpp",
+                              Q_RETURN_ARG(QVariant, returnedValue),
+                              Q_ARG(QVariant, name));
+
+
+    QMetaObject::invokeMethod(rootObject, "dosomething");
+
+    qDebug() << " qML Retuerend: " << returnedValue.toString();
+
     //handle bluz
     // BluezMediaPlayer *bluezPlayer = new BluezMediaPlayer(rootObject);
 

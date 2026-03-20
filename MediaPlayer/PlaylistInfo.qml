@@ -11,6 +11,7 @@ import QtCore
 import MediaControls
 import Config
 import io.qt.filenameprovider
+import "scripts.js" as Scripts
 
 Rectangle {
     id: root
@@ -42,12 +43,18 @@ Rectangle {
     {
         selectedFiles.forEach(function (file)
         {
-            files.append({
-                path: file,
-                isMovie: isMovie(
-                    FileNameProvider.getFileName(file.toString())
-                )
-            })
+            if(Scripts.isSupportedFormat(file))
+            {
+                files.append({
+                    path: file,
+                    isMovie: Scripts.isMovie(
+                        FileNameProvider.getFileName(file.toString())
+                    )
+                })
+            }
+            else
+                console.log("file format not supported, file:",file)
+
         })
 
         playlistUpdated()
@@ -58,25 +65,19 @@ Rectangle {
             index = 0
             currentIndex = 0
         }
-        files.insert(index,
-            {
-                path: selectedFile,
-                isMovie: isMovie(FileNameProvider.getFileName(selectedFile.toString()))
-            })
 
-    }
-
-    function isMovie(path) {
-        const paths = path.split('.')
-        const extension = paths[paths.length - 1]
-        const musicFormats = ["mp3", "wav", "aac"]
-        for (const format of musicFormats) {
-            if (format === extension) {
-                return false
-            }
+        if(Scripts.isSupportedFormat(selectedFile))
+        {
+            files.insert(index,
+                {
+                    path: selectedFile,
+                    isMovie: Scripts.isMovie(FileNameProvider.getFileName(selectedFile.toString()))
+                })
         }
-        return true
+        else
+            console.log("file format not supported, file:",selectedFile)
     }
+
 
     MouseArea {
         anchors.fill: root
@@ -87,13 +88,8 @@ Rectangle {
         id: folderView
         title: qsTr("Add files to playlist")
         currentFolder: StandardPaths.standardLocations(StandardPaths.MoviesLocation)[0]
-        nameFilters:
-        [
-            "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm)",
-            "GIF Files (*.gif)",
-            "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
-            "All Files (*)"
-        ]
+        nameFilters: Config.nameFilters
+        selectedNameFilter.index: Config.selectedNameFilter
         fileMode: FileDialog.OpenFiles
         onAccepted: {
             root.addFiles(files.count, folderView.selectedFiles)

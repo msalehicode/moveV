@@ -17,6 +17,7 @@ import "scripts.js" as Scripts
 import "../MediaControls/"
 import QtQuick.Dialogs
 
+
 ApplicationWindow {
 
     id: root
@@ -32,16 +33,12 @@ ApplicationWindow {
         settings.setSetting("Media/volume",root.volume)
     }
 
-    // onHeightChanged: settings.setSetting("App/height",height)
-    // onWidthChanged: settings.setSetting("App/width",width)
     minimumHeight: 460
     minimumWidth: 640
     visible: true
     color: Config.mainColor
     title: qsTr("moveV Player")
     required property url source
-    required property list<string> nameFilters
-    required property int selectedNameFilter
 
     property alias currentFile: playlistInfo.currentIndex
     property alias playlistLooped: playbackControl.isPlaylistLooped
@@ -154,12 +151,12 @@ ApplicationWindow {
 
             //encounter subtitle files
             let matches = subtitleFinder.findMatchingSubtitles(mediaPlayer.source)
-            console.log("matches.length=",matches.length, "matches",matches )
+            // console.log("matches.length=",matches.length, "matches",matches )
             if (matches.length > 0) {
-                console.log("Possible subtitles found:")
+                // console.log("Possible subtitles found:")
                 for (let i = 0; i < matches.length; ++i)
                 {
-                    console.log("sub: " + matches[i])
+                    // console.log("sub: " + matches[i])
                     subtitleModel.append({"text":  matches[(i)] , "index": (i+1), "path": matches[i]})
                 }
             }
@@ -175,24 +172,22 @@ ApplicationWindow {
 
             if (Scripts.asBool(settings.value["Media/autoLoadSubtitles"]))
             {
-                console.log("autioloadsubtitels..")
+                console.log("autoLoadSubtitles..")
                 var path=subtitleModel.get(0).path
                 loadSubtitle(path==="embedded"?true:false,path,false,0)
-                console.log("path=",path)
 
                 path=subtitleModel.get(1).path
                 loadSubtitle(path==="embedded"?true:false,path,true,1)
-                console.log("path2=",path)
             }
 
-
+            /*
             for (let i = 0; i < audioTracks.length; ++i)
             {
-                // let lang = audioTracks[i].stringValue(6) // 6 = language key
-                console.log("audiotracks:",audioTracks)
-                // subtitleModel.append({"text": lang ? lang : "Embedded Subtitle " + i, "index": i, "path": "embedded"})
+                let track = audioTracks[i];
+                console.log("track=", track.stringValue(6))
+                // console.log("audiotracks:",audioTracks)
             }
-
+            */
 
         }
 
@@ -308,6 +303,7 @@ ApplicationWindow {
         WheelHandler {
             onWheel: function(event) {
                 if (event.angleDelta.y !== 0) {
+                    showControls.start()
                     let posX = event.x;
                     let halfWidth = videoArea.width / 2;
 
@@ -405,8 +401,8 @@ ApplicationWindow {
                                            volumeControlArea.cumulativeDy = videoArea.minDy
 
                                            root.volume=Math.min(Math.max(
-                                                                           ((volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy))
-                                                                           , 0), 1)
+                                                                    ((volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy))
+                                                                    , 0), 1)
 
                                        }
                 }
@@ -444,8 +440,8 @@ ApplicationWindow {
                                            brightnessControlArea.cumulativeDy = videoArea.minDy
 
                                            root.brightness = Math.min(Math.max(
-                                               1 - ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)),
-                                               0), 1)
+                                                                          1 - ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)),
+                                                                          0), 1)
 
                                        }
                 }
@@ -466,61 +462,8 @@ ApplicationWindow {
     //     visible: settingsInfo.visible || playlistInfo.visible
     // }
 
-    PlaylistInfo {
-        id: playlistInfo
 
-        anchors.right: parent.right
-        anchors.top: topControls.bottom
-        anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
-        anchors.topMargin: 10
-        anchors.rightMargin: 5
-
-        visible: false
-        isShuffled: playbackControl.isPlaylistShuffled
-
-        onVisibleChanged: showControls.start()
-
-        onPlaylistUpdated: {
-            if (mediaPlayer.playbackState == MediaPlayer.StoppedState && root.currentFile < playlistInfo.mediaCount - 1) {
-                ++root.currentFile
-                root.playMedia()
-            }
-        }
-
-        onPlaySelectedIndex:
-        {
-            root.playMedia();
-        }
-
-        onCurrentFileRemoved: {
-            mediaPlayer.stop()
-            if (root.currentFile < playlistInfo.mediaCount - 1) {
-                root.playMedia()
-            } else if (playlistInfo.mediaCount) {
-                --root.currentFile
-                root.playMedia()
-            }
-        }
-    }
-
-    SettingsInfo {
-        id: settingsInfo
-
-        anchors.right: parent.right
-        anchors.top: topControls.bottom
-        anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
-        anchors.topMargin: 10
-        anchors.rightMargin: 5
-
-        mediaPlayer: mediaPlayer
-        selectedAudioTrack: mediaPlayer.activeAudioTrack
-        selectedVideoTrack: mediaPlayer.activeVideoTrack
-        selectedSubtitleTrack: mediaPlayer.activeSubtitleTrack
-        visible: false
-
-        onVisibleChanged: showControls.start()
-
-    }
+    //
 
 
     // -------------------------- SUBTITLE --------------------------
@@ -795,8 +738,15 @@ ApplicationWindow {
     }
 
 
-    function loadSubtitle(embedded, subPath,subtitleNo, subIndex)
+    function loadSubtitle(embedded, subPath,subtitleNo=true, subIndex=50)
     {
+        //embeded -> stuck with media or not
+        //subPath -> address of file
+        //subtitleNo -> apply for sub1 or sub2?
+        //subIndex -> those case e.g media has 2 embedded subtitles so which one?
+
+
+
         if(embedded)
         {
             currentSubtitle = extractor.extractSubtitle(mediaPlayer.source, subIndex)
@@ -814,13 +764,14 @@ ApplicationWindow {
         if(subtitleNo)
         {
             subtitle1Data.subtitle = Sub.parseSubtitle(currentSubtitle)
+            subtitle1Data.subfilePath=subPath
             if(subIndex>=0)//maybe loaded from somehwereelse
                 subtitle1Data.subIndex=subIndex
         }
-
         else
         {
             subtitle2Data.subtitle = Sub.parseSubtitle(currentSubtitle)
+            subtitle2Data.subfilePath=subPath
             if(subIndex>=0)//maybe loaded from somehwereelse
                 subtitle2Data.subIndex=subIndex
         }
@@ -890,9 +841,7 @@ ApplicationWindow {
         }
     }
 
-    ErrorPopup {
-        id: errorPopup
-    }
+
 
     Rectangle
     {
@@ -1026,11 +975,11 @@ ApplicationWindow {
         color:"transparent"
         property bool isMouseOnControl: false;
         HoverHandler {
-               acceptedDevices: PointerDevice.Mouse
-               onHoveredChanged: {
-                   parent.isMouseOnControl = hovered
-               }
-           }
+            acceptedDevices: PointerDevice.Mouse
+            onHoveredChanged: {
+                parent.isMouseOnControl = hovered
+            }
+        }
         Column
         {
             width: parent.width
@@ -1091,18 +1040,6 @@ ApplicationWindow {
                         // visible: !videoOutput.fullScreen
 
                         onFileOpened: (path) => openFile(path)
-
-                        // nameFilters : root.nameFilters
-                        // nameFilters: ["All Files (*)"]
-                        nameFilters:
-                            [
-                            "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm *.mp3 *.wav *.aac *.aiff)",
-                            "Music Files (*.mp3 *.wav *.aac *.aiff)",
-                            "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
-                            "GIF Files (*.gif)",
-                            "All Files (*)"
-                        ]
-                        selectedNameFilter : root.selectedNameFilter
                     }
                 }
                 Rectangle  //current media filename
@@ -1306,7 +1243,6 @@ ApplicationWindow {
     }
 
 
-
     function keyboardButtonsHandler(event)
     {
         if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ShiftModifier))
@@ -1493,9 +1429,255 @@ ApplicationWindow {
     }
 
 
+    // -------------------------- popups --------------------------
 
-    // -------------------------- ETC --------------------------
 
+
+    //to appear above all components and contorls (on click close overlays)
+    Rectangle
+    {
+        id:popupOverlay
+        anchors.fill: parent
+        color:"black"
+        opacity: 0.7
+        visible: playlistInfo.visible || settingsInfo.visible
+        MouseArea
+        {
+            anchors.fill: parent
+            onClicked: root.closeOverlays()
+        }
+    }
+
+
+    PlaylistInfo {
+        id: playlistInfo
+
+        anchors.right: parent.right
+        anchors.top: topControls.bottom
+        anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
+        anchors.topMargin: 10
+        anchors.rightMargin: 5
+
+        visible: false
+        isShuffled: playbackControl.isPlaylistShuffled
+
+        onVisibleChanged: showControls.start()
+
+        onPlaylistUpdated: {
+            if (mediaPlayer.playbackState == MediaPlayer.StoppedState && root.currentFile < playlistInfo.mediaCount - 1) {
+                ++root.currentFile
+                root.playMedia()
+            }
+        }
+
+        onPlaySelectedIndex:
+        {
+            root.playMedia();
+        }
+
+        onCurrentFileRemoved: {
+            mediaPlayer.stop()
+            if (root.currentFile < playlistInfo.mediaCount - 1) {
+                root.playMedia()
+            } else if (playlistInfo.mediaCount) {
+                --root.currentFile
+                root.playMedia()
+            }
+        }
+    }
+
+    SettingsInfo {
+        id: settingsInfo
+
+        anchors.right: parent.right
+        anchors.top: topControls.bottom
+        anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
+        anchors.topMargin: 10
+        anchors.rightMargin: 5
+
+        mediaPlayer: mediaPlayer
+        selectedAudioTrack: mediaPlayer.activeAudioTrack
+        selectedVideoTrack: mediaPlayer.activeVideoTrack
+        selectedSubtitleTrack: mediaPlayer.activeSubtitleTrack
+        visible: false
+
+        onVisibleChanged: showControls.start()
+
+    }
+
+
+    DropArea {
+        id:dropHandler
+        anchors.fill: parent
+        property string subPath;
+        function openDialog()
+        {
+            dropAreaOverlayClose.visible=true
+            applyForWhichSubtitle.visible=true
+            cancelApplSubtitleButton.visible=true
+        }
+
+        function closeDialog()
+        {
+            dropAreaOverlayClose.visible=false
+            applyForWhichSubtitle.visible=false
+            cancelApplSubtitleButton.visible=false
+            subPath=""
+        }
+        function applyForSubtitle1()
+        {
+            loadSubtitle(false,subPath,true)
+            closeDialog()
+        }
+
+        function applyForSubtitle2()
+        {
+            loadSubtitle(false,subPath,false)
+            closeDialog()
+        }
+
+        Rectangle
+        {
+            id:dropAreaOverlayClose
+            anchors.fill: parent
+            color:"black"
+            // opacity:0.0
+            visible: false
+            MouseArea
+            {
+                anchors.fill: parent
+                onClicked:
+                {
+                    // dropHandler.closeDialog()
+                    console.log("user must select one.")
+                }
+            }
+        }
+        Rectangle
+        {
+            id:cancelApplSubtitleButton
+            width:100
+            height:100
+            color:"red"
+            visible: false
+            anchors.horizontalCenter: parent.horizontalCenter
+            Label
+            {
+                text:"cancel"
+                wrapMode: "WrapAnywhere"
+                width: parent.width
+                height: parent.height
+                font.pixelSize: 20
+                color:"black"
+                anchors.centerIn: parent
+            }
+            MouseArea
+            {
+                anchors.fill: parent
+                onClicked: dropHandler.closeDialog()
+            }
+        }
+
+        Rectangle
+        {
+            id:applyForWhichSubtitle
+
+            visible:false
+            width: parent.width/2
+            height:parent.height/2
+            color:"transparent"
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+            radius: width
+
+            Row{
+                anchors.fill: parent
+                spacing: 20
+                Rectangle
+                {
+                    color:Config.highlightColor
+                    width: parent.width/2
+                    height: parent.height
+                    radius:20
+                    Label
+                    {
+                        text:"for subtitle 1" + "\n" + "current:" + subtitle1Data.subfilePath
+                        wrapMode: "WrapAnywhere"
+                        width: parent.width
+                        height: parent.height
+                        font.pixelSize: 20
+                        color:"black"
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea{
+                        anchors.fill: parent
+                        onClicked:
+                        {
+                            dropHandler.applyForSubtitle1()
+                        }
+                    }
+                }
+                Rectangle
+                {
+                    color:Config.highlightColor
+                    width: parent.width/2
+                    height: parent.height
+                    radius:20
+                    Label
+                    {
+                        text:"for subtitle 2" + "\n" + "current:" + subtitle2Data.subfilePath
+                        wrapMode: "WrapAnywhere"
+                        width: parent.width
+                        height: parent.height
+                        font.pixelSize: 20
+                        color:"black"
+                        anchors.centerIn: parent
+                    }
+                    MouseArea{
+                        anchors.fill: parent
+                        onClicked:
+                        {
+                            dropHandler.applyForSubtitle2()
+                        }
+                    }
+                }
+            }
+        }
+
+        // Accept common file-drop mimetypes
+        keys: ["text/uri-list"]
+        onEntered: (drag) => {
+            // console.log("Entered with:", drag.keys)
+            drag.acceptProposedAction() //tell OS drop is allowed/accepted
+        }
+
+
+        onDropped: (drop) => {
+                       // console.log("Dropped keys:", drop.keys)
+                       // console.log("Dropped urls:", drop.urls)
+                       let countFiles=drop.urls.length
+
+                       const fileFormat = Scripts.isSupportedFormat(drop.urls[0],true)
+                       if((fileFormat === ".srt" || fileFormat===".sub") &&
+                          countFiles===1)//if its single and foramt is subttile apply for subtitle
+                       {
+                           console.log("dropped file is single subtitle")
+                           dropHandler.openDialog()
+                           subPath=drop.urls[0]
+                       }
+                       else
+                        playlistInfo.addFiles(countFiles, drop.urls)
+
+                       drop.acceptProposedAction() //tell OS drop is done
+                   }
+    }
+
+
+
+    ErrorPopup {
+        id: errorPopup
+    }
 
 
     function callbycpp(name="empty")

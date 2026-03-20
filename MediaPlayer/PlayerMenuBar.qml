@@ -16,15 +16,13 @@ Item {
 
     property alias openFileMenu: fileDialog
     property alias openUrlPopup: urlPopup
-    property list<string> nameFilters
-    property int selectedNameFilter
     property bool isMenuOpened:false
 
     FileDialog {
         id: fileDialog
         currentFolder: StandardPaths.standardLocations(StandardPaths.MoviesLocation)[0]
-        nameFilters: root.nameFilters
-        selectedNameFilter.index: root.selectedNameFilter
+        nameFilters: Config.nameFilters
+        selectedNameFilter.index: Config.selectedNameFilter
         title: qsTr("Please choose a file")
         onAccepted: root.fileOpened(fileDialog.selectedFile)
     }

@@ -112,3 +112,37 @@ function asInt(value)
 
     return Number(value)
 }
+
+
+function isSubtitle(fileName)
+{
+    fileName=String(fileName)
+    const supportedSubtitleExtensions = [".srt", ".sub"];
+    const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+
+    return supportedSubtitleExtensions.includes(extension);
+}
+
+function isSupportedFormat(fileName,returnFormat=false)
+{
+    fileName=String(fileName)
+    const supportedVideoExtensions = [".mkv", ".mp4", ".gif", ".avi", ".mov", ".webm"];
+    const supportedAudioExtensions = [".mp3", ".wav", ".aac", ".aiff"];
+    const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    if(returnFormat)
+        return extension
+
+    return supportedVideoExtensions.includes(extension) || supportedAudioExtensions.includes(extension);
+}
+
+function isMovie(path) {
+    const paths = path.split('.')
+    const extension = paths[paths.length - 1]
+    const musicFormats = ["mp3", "wav", "aac", "aiff"]
+    for (const format of musicFormats) {
+        if (format === extension) {
+            return false
+        }
+    }
+    return true
+}

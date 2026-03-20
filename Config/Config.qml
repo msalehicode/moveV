@@ -11,6 +11,22 @@ QtObject {
         Light,
         Dark
     }
+
+
+    //supported formats for FileDialogs
+    readonly property list<string> nameFilters:
+    [
+        "All Supported Files (*.gif *.mp4 *.avi *.mkv *.mov *.webm *.mp3 *.wav *.aac *.aiff *.sub *.srt)",
+        "Music Files (*.mp3 *.wav *.aac *.aiff)",
+        "Video Files (*.mp4 *.avi *.mkv *.mov *.webm)",
+        "GIF Files (*.gif)",
+        "Subtitle Files (*.srt *.sub)",
+        "All Files (*)"
+    ]
+    property int selectedNameFilter: 0
+
+
+
     property int activeTheme : settings.value["App/theme"]==="dark" ? Config.Theme.Dark : Config.Theme.Light
     readonly property string defaultAudioLabel: "Default"
     property MediaDevices mediaDevicesPtr;

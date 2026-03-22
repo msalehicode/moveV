@@ -6,7 +6,8 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QMediaFormat>
-#include <QMimeType>#include <QGuiApplication>
+#include <QMimeType>
+#include <QGuiApplication>
 
 #include <algorithm>
 #include <QQmlContext>
@@ -98,7 +99,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     SettingsManager settings;
-    Backend backend(&settings);
+    Backend backend(&settings,&app);
     engine.rootContext()->setContextProperty("backend", &backend);
     engine.rootContext()->setContextProperty("settings", &settings);
 

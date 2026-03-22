@@ -1,12 +1,15 @@
-qt_add_library(MediaPlayer STATIC)
-
-set_source_files_properties(Images.qml
-    PROPERTIES
-        QT_QML_SINGLETON_TYPE true
-)
+# --- Desktop Specific ---
+if(NOT ANDROID)
+    qt_add_library(MediaPlayer STATIC) # Only static for desktop
+    set_source_files_properties(Images.qml
+        PROPERTIES
+            QT_QML_SINGLETON_TYPE true
+    )
+endif()
 
 qt_add_qml_module(MediaPlayer
     URI "MediaPlayer"
+    VERSION "1.0"
     QML_FILES
         "Main.qml"
         "Images.qml"
@@ -37,4 +40,12 @@ qt_add_qml_module(MediaPlayer
         "icons/Warning_Icon.svg"
         "icons/Rate_Icon.svg"
         "icons/Rate_Icon_Dark.svg"
+)
+
+
+target_link_libraries(MediaPlayer
+    PRIVATE
+        Qt6::Core
+        Qt6::Qml
+        Qt6::Quick
 )

@@ -1157,6 +1157,49 @@ ApplicationWindow {
 
                 }
 
+                Column
+                {
+                    Label
+                    {
+                        text: "Status: " + (function(status) {
+                            switch(status) {
+                                case -1: return "Unknown";
+                                case 10: return "Adaptor Not Found";
+                                case 11: return "Failed";
+                                case 20: return "Permission Denied";
+                                case 21: return "Asking Permission";
+                                case 22: return "Permission Granted";
+                                case 30: return "Inactive";
+                                case 31: return "Discoverable";
+                                case 32: return "Loading";
+                                case 33: return "Active";
+                                default: return "Unknown Status";
+                            }
+                        })(backend.btStatus)
+                    }
+
+                    //later adeptor list via RadioButton by Repeater
+
+                    // Button {
+                    //       text: "Refresh Adapters"
+                    //       onClicked: {
+                    //           backend.refreshBluetoothAdapters();
+                    //       }
+                    //   }
+
+
+                    CustomCheckbox
+                    {
+                        id:bluetoothHostStatus
+                        initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
+                        theText:"Bluetooth host"
+                        onStatusChangeAction:
+                        {
+                            backend.bluetoothServer(checked);
+                            settings.setSetting("App/bluetoothHostStatus",checked)
+                        }
+                    }
+                }
 
             }
 
@@ -1270,7 +1313,13 @@ ApplicationWindow {
             switch(event.key)
             {
 
-
+            case Qt.Key_Escape:
+            {
+                if(videoOutput.fullScreen)
+                {
+                    root.showNormal()
+                }
+            }break;
 
 
             case Qt.Key_VolumeMute:
@@ -1711,6 +1760,10 @@ ApplicationWindow {
 
 
         backend.setupCustomCursor(settings.value["App/customCursorIconPath"],20,20,10,10);
+
+
+        if(Scripts.asBool(settings.value["App/bluetoothHostStatus"]))
+            backend.bluetoothServer(true)
     }
 
     // Connections {

@@ -125,6 +125,13 @@ void ChatServer::sendMessage(const QString &message)
     for (QBluetoothSocket *socket : std::as_const(clientSockets))
         socket->write(text);
 }
+
+void ChatServer::sendMessage(QBluetoothSocket * receiver, const QString &message)
+{
+    QByteArray text = message.toUtf8() + '\n';
+
+    receiver->write(text);
+}
 //! [sendMessage]
 
 //! [clientConnected]
@@ -139,7 +146,7 @@ void ChatServer::clientConnected()
             this, QOverload<>::of(&ChatServer::clientDisconnected));
     clientSockets.append(socket);
     clientNames[socket] = socket->peerName();
-    emit clientConnected(socket->peerName());
+    emit clientConnected(socket);
 }
 //! [clientConnected]
 
@@ -150,7 +157,7 @@ void ChatServer::clientDisconnected()
     if (!socket)
         return;
 
-    emit clientDisconnected(clientNames[socket]);
+    emit clientDisconnected(socket);
 
     clientSockets.removeOne(socket);
     clientNames.remove(socket);
@@ -168,8 +175,13 @@ void ChatServer::readSocket()
 
     while (socket->canReadLine()) {
         QByteArray line = socket->readLine().trimmed();
-        emit messageReceived(clientNames[socket],
+        emit messageReceived(socket,
                              QString::fromUtf8(line.constData(), line.length()));
     }
+}
+
+QMap<QBluetoothSocket *, QString> ChatServer::getClientNames() const
+{
+    return clientNames;
 }
 //! [readSocket]

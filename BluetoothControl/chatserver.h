@@ -24,13 +24,16 @@ public:
     bool startServer(const QBluetoothAddress &localAdapter = QBluetoothAddress());
     void stopServer();
 
+    QMap<QBluetoothSocket *, QString> getClientNames() const;
+
 public slots:
     void sendMessage(const QString &message);
+    void sendMessage(QBluetoothSocket *receiver, const QString &message);
 
 signals:
-    void messageReceived(const QString &sender, const QString &message);
-    void clientConnected(const QString &name);
-    void clientDisconnected(const QString &name);
+    void messageReceived(QBluetoothSocket* sender, const QString &message);
+    void clientConnected( QBluetoothSocket*  sender);
+    void clientDisconnected( QBluetoothSocket*  sender);
 
 private slots:
     void clientConnected();

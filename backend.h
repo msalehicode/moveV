@@ -13,6 +13,7 @@
 //bluetooth server
 #include <QBluetoothHostInfo>
 #include <QPermissions>
+#include <QBluetoothSocket>
 #include <QBluetoothDeviceInfo>
 #include <QBluetoothLocalDevice>
 #include <QBluetoothUuid>
@@ -20,7 +21,7 @@
 
 using namespace Qt::StringLiterals;
 
-enum BtStatus
+enum BtStatus //host
 {
     Unknown=-1,
 
@@ -39,17 +40,46 @@ enum BtStatus
     Active
 };
 
+
+//clients
+enum class UserConnectionStatus
+{
+    UnknownStatus=-1,
+    Connected,
+    Disconnected
+};
+
+enum class UserAccess
+{
+    Admin,
+    Normal
+};
+
+struct RemoteUsers
+{
+    UserConnectionStatus status;
+    UserAccess access;
+    QBluetoothSocket* socket;
+
+    // RemoteUsers() : status(UserConnectionStatus::UnknownStatus), access(UserAccess::Normal), socket(nullptr)
+    // {
+
+    // }
+};
+
+
 class Backend : public QObject
 {
     Q_OBJECT
+
+    Q_PROPERTY(BtStatus btStatus READ btStatus WRITE setBtStatus NOTIFY btStatusChanged)
+    // Q_PROPERTY(QList<QBluetoothHostInfo> btLocalAdapters READ btLocalAdapters WRITE setBtLocalAdapters NOTIFY btLocalAdaptersChanged)
 
 
 public:
     explicit Backend(const SettingsManager* const settings,QGuiApplication* app, QObject *parent = nullptr);
 
 
-    Q_PROPERTY(BtStatus btStatus READ btStatus WRITE setBtStatus NOTIFY btStatusChanged)
-    // Q_PROPERTY(QList<QBluetoothHostInfo> btLocalAdapters READ btLocalAdapters WRITE setBtLocalAdapters NOTIFY btLocalAdaptersChanged)
 
     Q_INVOKABLE bool setupCustomCursor(const QUrl& imageUrl, int width, int height, int hotX, int hotY);
     Q_INVOKABLE bool restoreCursor();
@@ -66,18 +96,13 @@ public:
 
 
 
-    Q_INVOKABLE QVariantList btLocalAdapters() const
-    {
-        QVariantList qmlList;
-        for (const auto& adapterInfo : m_btLocalAdapters) {
-            QVariantMap map;
-            map.insert("name", adapterInfo.name());
-            map.insert("address", adapterInfo.address().toString());
-            qmlList.append(map);
-        }
-        return qmlList;
-    }
+    Q_INVOKABLE QVariantList btLocalAdapters() const;
 
+
+    QList<RemoteUsers*> users() const;
+    RemoteUsers* findUser(QBluetoothSocket* userSocket) const;
+    void setUsers(const QList<RemoteUsers*>& newUsers);
+    void addUser(RemoteUsers* newUser);
 
 signals:
     //properties
@@ -86,14 +111,17 @@ signals:
 
 
     void sendMessage(const QString &message);
+    void sendMessage(QBluetoothSocket *receiver, const QString &message);
 public slots:
-    void clientConnected(const QString &name);
-    void clientDisconnected(const QString &name);
-    void messageReceived(const QString &sender, const QString &message);
+    void clientConnected(QBluetoothSocket *  sender);
+    void clientDisconnected( QBluetoothSocket *  sender);
+    void messageReceived( QBluetoothSocket*  sender, const QString &message);
+
 
 
 private:
     void initBluetoothServer();
+    void processCommand(RemoteUsers* user,const QString& message);
 
     QGuiApplication* m_app;
     const SettingsManager* const m_settings;
@@ -106,6 +134,7 @@ private:
     BtStatus m_btStatus = BtStatus::Inactive;
     void setBtStatus(BtStatus status);
     int indexCurrentAdaptor = 0;
+    QList<RemoteUsers*> m_users;
 
 };
 

@@ -6,6 +6,8 @@ Backend::Backend(const SettingsManager* const settings, QGuiApplication *app, QO
     // QObject::connect(bt, &m_btServer::)
     // QObject::connect(m_bt)
 
+    ch.print("hellow");
+    ch.print("hellow2");
 
     //get saved setting from settings
 }
@@ -102,10 +104,10 @@ void Backend::messageReceived( QBluetoothSocket*  sender, const QString &message
 
     //who is this sender?!
     RemoteUsers* user = findUser(sender);
-    // if(user)
+    if(user)
         processCommand(user,message);
-    // else
-        // qInfo() << "undefined user!";
+    else
+        qInfo() << "user* is nullptr";
 
 }
 
@@ -233,6 +235,7 @@ void Backend::processCommand(RemoteUsers *user, const QString &message)
 {
     QString response = "default response";
     qInfo() << "processing command from:"<< user->socket->peerName() << "command:" << message;
+
     // switch (user->access)
     // {
     //     case UserAccess::Admin:
@@ -275,7 +278,7 @@ RemoteUsers* Backend::findUser(QBluetoothSocket *userSocket) const
     {
         if (user->socket == userSocket)
         {
-            qInfo() << "userFound from m_users";
+            // qInfo() << "userFound from m_users";
             return user;
         }
     }

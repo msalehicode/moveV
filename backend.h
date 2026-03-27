@@ -19,6 +19,9 @@
 #include <QBluetoothUuid>
 #include "BluetoothControl/chatserver.h"
 
+
+#include "commandhandler.h"
+
 using namespace Qt::StringLiterals;
 
 enum BtStatus //host
@@ -135,6 +138,8 @@ private:
     void setBtStatus(BtStatus status);
     int indexCurrentAdaptor = 0;
     QList<RemoteUsers*> m_users;
+
+    CommandHandler ch;
 
 };
 

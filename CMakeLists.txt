@@ -7,7 +7,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus)
 
-
 qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(MediaPlayerApp
@@ -34,6 +33,7 @@ add_subdirectory(MediaPlayer)
 add_subdirectory(MediaControls)
 add_subdirectory(Config)
 add_subdirectory(BluetoothControl)
+add_subdirectory(../CommandHandler ../../build/CommandHandler_build)
 
 
 target_link_libraries(MediaPlayerApp PRIVATE
@@ -48,6 +48,7 @@ target_link_libraries(MediaPlayerApp PRIVATE
     Configplugin
     BluetoothControl #bluetoothControl library (subDirectory)
     MediaPlayer #mediaPlayer library (subDirectory)
+    CommandHandler
 )
 
 install(TARGETS MediaPlayerApp

@@ -46,6 +46,7 @@ ApplicationWindow {
     property alias tracksInfo: settingsInfo.tracksInfo
 
     property bool spedupByHold: false //a flag to set when user hold mouse click to speedup
+    property bool spedupByHoldFromRemote: false
     property string currentSubtitle: "" //temp variable to hold subtitle
 
 
@@ -110,7 +111,7 @@ ApplicationWindow {
         videoOutput: videoOutput
         audioOutput: AudioOutput {
             id: audio
-            volume: root.volume
+            volume: Scripts.asBool(settings.value["Media/muted"])? 0 : root.volume
         }
         // source: new URL("https://download.qt.io/learning/videos/media-player-example/Qt_LogoMergeEffect.mp4")
 
@@ -535,13 +536,11 @@ ApplicationWindow {
                         subtitleText2.text =subtitle2Data.currentSubtitle
                 }
 
-
-
-
-                if(spedupByHold)//user held mouse click to spedup
+                if(spedupByHold || spedupByHoldFromRemote)//user held mouse click to spedup
                 {
                     mediaPlayer.playbackRate=settings.value["Media/speedHold"]
-                    showSpeeding("hold speed "+settings.value["Media/speedHold"] + "x")
+                    showSpeeding("hold speed "+settings.value["Media/speedHold"] + "x" +
+                                 (spedupByHoldFromRemote? " (by remote)" : ""))
                 }
                 else if (Scripts.asBool(settings.value["SNS/status"]))
                 {
@@ -843,13 +842,11 @@ ApplicationWindow {
 
 
 
-    Rectangle
+    Column
     {
-        id:speedingBox
-        width: rowSpeeding.implicitWidth
-        height: rowSpeeding.implicitHeight
-        visible: false
-        color:"transparent"
+        id:showingStatusBox
+        width: implicitWidth
+        height: implicitHeight
         anchors
         {
             verticalCenter: parent.verticalCenter
@@ -859,36 +856,88 @@ ApplicationWindow {
 
         Rectangle
         {
-            anchors.fill: parent
-            color:"black"
-            opacity: 0.1
-        }
+            id:speedingBox
+            width: rowSpeeding.implicitWidth
+            height: rowSpeeding.implicitHeight
+            visible: false
+            color:"transparent"
 
-        Row{
-            id:rowSpeeding
-            spacing: 10
-            anchors.fill: parent
-            Image {
-                source: Config.activeTheme === Config.Theme.Dark
-                        ? "icons/Rate_Icon_Dark.svg" : "icons/Rate_Icon.svg"
-                width: 25
-                height: 20
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Label
+            Rectangle
             {
-                id:speedingLabel
-                text:""
-                color: "yellow"
-                font.pixelSize: 30
-                z:0
+                anchors.fill: parent
+                color:"black"
+                opacity: 0.1
             }
+
+            Row{
+                id:rowSpeeding
+                spacing: 10
+                anchors.fill: parent
+                Image {
+                    source: Config.activeTheme === Config.Theme.Dark
+                            ? "icons/Rate_Icon_Dark.svg" : "icons/Rate_Icon.svg"
+                    width: 25
+                    height: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Label
+                {
+                    id:speedingLabel
+                    text:""
+                    color: "yellow"
+                    font.pixelSize: 30
+                    z:0
+                }
+            }
+
+
+
         }
 
 
+        Rectangle
+        {
+            id:muteBox
+            width: rowMute.implicitWidth
+            height: rowMute.implicitHeight
+            visible: Scripts.asBool(settings.value["Media/muted"])
+            color:"transparent"
+
+            Rectangle
+            {
+                anchors.fill: parent
+                color:"black"
+                opacity: 0.1
+            }
+
+            Row
+            {
+                id:rowMute
+                spacing: 10
+                anchors.fill: parent
+                Image {
+                    source: "icons/Warning_Icon.svg"
+                    width: 25
+                    height: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Label
+                {
+                    text:"Muted"
+                    color: "yellow"
+                    font.pixelSize: 30
+                    z:0
+                }
+            }
+
+
+
+        }
 
     }
+
 
 
     function showSpeeding(text="")
@@ -1160,9 +1209,41 @@ ApplicationWindow {
                 Column
                 {
                     id:bluetoothHostingBox
-                    Label
+                    Row
                     {
-                        text: "Status: " + (function(status) {
+                        spacing: 5
+                        Rectangle
+                        {
+                            id:bluetoothStateColor
+                            width:20
+                            height:20
+                            radius: 20
+                            color: (function(status) {
+                                switch(status) {
+                                    case 0: return "red";
+                                    case 3: return "yellow";
+                                    case 1:
+                                    case 2: return "green"
+                                    default: return "purple";
+                                }
+                                })(backend.bluetoothHostModeState)
+
+                        }
+                        Label
+                        {
+                            id:bluetoothDeviceNameOrErrorMessage
+                            text: backend.btLocalName
+                        }
+                    }
+
+
+                    //later adeptor list via RadioButton by Repeater
+
+                    CustomCheckbox
+                    {
+                        id:bluetoothHostStatus
+                        initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
+                        theText:"Bluetooth host (" + (function(status) {
                             switch(status) {
                                 case -1: return "Unknown";
                                 case 10: return "Adaptor Not Found";
@@ -1176,29 +1257,8 @@ ApplicationWindow {
                                 case 33: return "Active";
                                 default: return "Unknown Status";
                             }
-                        })(backend.btStatus)
-                    }
+                        })(backend.btStatus) +")"
 
-                    Label
-                    {
-                        text:"name:"+ backend.btLocalName
-                    }
-
-                    //later adeptor list via RadioButton by Repeater
-
-                    // Button {
-                    //       text: "Refresh Adapters"
-                    //       onClicked: {
-                    //           backend.refreshBluetoothAdapters();
-                    //       }
-                    //   }
-
-
-                    CustomCheckbox
-                    {
-                        id:bluetoothHostStatus
-                        initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
-                        theText:"Bluetooth host"
                         onStatusChangeAction:
                         {
                             backend.bluetoothServer(checked);
@@ -1490,11 +1550,11 @@ ApplicationWindow {
 
     function startHoldSpeeding()
     {
-        mediaPlayer.playbackRate=settings.value["Media/speedHold"]
+        spedupByHoldFromRemote=true
     }
     function stopHoldSpeeding()
     {
-        mediaPlayer.playbackRate=settings.value["Media/rate"]
+        spedupByHoldFromRemote=false
     }
 
     function brightnessUp(val=0.10)
@@ -1520,7 +1580,7 @@ ApplicationWindow {
     function muteUnmute()
     {
         settings.setSetting("Media/muted",
-                            Scripts.asBool(settings.value["Media/muted"]))
+                            !Scripts.asBool(settings.value["Media/muted"]))
     }
 
 

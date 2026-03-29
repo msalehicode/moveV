@@ -95,6 +95,10 @@ class Backend : public QObject
 
     Q_PROPERTY(QVariantList connectedUsersList READ connectedUsersAsVariantList NOTIFY connectedUsersListChanged)
     Q_PROPERTY(QString btLocalName READ btLocalName NOTIFY btLocalNameChanged) //current adapter name [ADDRESS] which is hosting now
+
+
+    Q_PROPERTY(QBluetoothLocalDevice::HostMode bluetoothHostModeState READ bluetoothHostModeState NOTIFY bluetoothHostModeStateChanged)
+
 public:
     explicit Backend(SettingsManager* settings,QGuiApplication* app, QObject *parent = nullptr);
 
@@ -131,13 +135,17 @@ public:
     QString btLocalName() const;
     void setBtLocalName(const QString &newBtLocalName);
 
+    QBluetoothLocalDevice::HostMode bluetoothHostModeState();
+    void setBluetoothHostModeState(QBluetoothLocalDevice::HostMode state);
+
+
 signals:
     //properties
     void btStatusChanged();
     void btLocalAdaptersChanged();
     void connectedUsersListChanged();
     void btLocalNameChanged();
-
+    void bluetoothHostModeStateChanged();
 
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
@@ -148,6 +156,7 @@ public slots:
     void clientDisconnected( QBluetoothSocket *  sender);
     void messageReceived( QBluetoothSocket*  sender, const QString &message);
 
+    void bluetoothStateChanged(QBluetoothLocalDevice::HostMode state);
 
 
 private:
@@ -166,6 +175,8 @@ private:
     void setBtStatus(BtStatus status);
     int indexCurrentAdaptor = 0;
     QList<RemoteUsers*> m_users;
+
+    QBluetoothLocalDevice::HostMode m_bluetoothHostModeState;
 
 
     CommandHandler m_commandHandler;

@@ -147,6 +147,30 @@ void Backend::messageReceived( QBluetoothSocket*  sender, const QString &message
 
 }
 
+void Backend::bluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
+{
+    qInfo() << "backend bluetoothStateChanged run.";
+    switch (state)
+    {
+        case QBluetoothLocalDevice::HostPoweredOff:
+            qInfo() << "hostMode state is powered off";
+            break;
+        case QBluetoothLocalDevice::HostConnectable:
+            qInfo() <<  "hostMode state is connectable";
+            break;
+        case QBluetoothLocalDevice::HostDiscoverable:
+            qInfo() << "hostMode state is discoverable";
+            break;
+        case QBluetoothLocalDevice::HostDiscoverableLimitedInquiry:
+            qInfo() <<  "hostMode state is discoveralbe limited inquiry";
+            break;
+        default:
+            qInfo() << "hostMode state is unkown hostmode state. state=" << state;
+            break;
+    }
+    setBluetoothHostModeState(state);
+}
+
 void Backend::initBluetoothServer()
 {
 
@@ -216,7 +240,13 @@ void Backend::initBluetoothServer()
             delete m_btServer;
         }
 
+
+
+
         m_btServer = new ChatServer(this);
+
+        connect(m_btServer, QOverload<QBluetoothLocalDevice::HostMode>::of(&ChatServer::btStateChanged),
+                this, &Backend::bluetoothStateChanged);
 
         connect(m_btServer, QOverload<QBluetoothSocket *>::of(&ChatServer::clientConnected),
                 this, &Backend::clientConnected);
@@ -235,6 +265,7 @@ void Backend::initBluetoothServer()
                 m_btServer, QOverload<QBluetoothSocket*, const QString &>::of(&ChatServer::sendMessage));
 
 
+
         if(m_btLocalAdapters.size() < indexCurrentAdaptor)
         {
             qInfo () << "invalid indexCurrentAdaptor (index isn't < localAdaptorsList.size)";
@@ -251,13 +282,16 @@ void Backend::initBluetoothServer()
             {
                 //! [Get local device name]
                 // setBtLocalName(QBluetoothLocalDevice().name());
-                setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name() +
-                               " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "]");
+
                 qInfo () << "bt started, local name= " << btLocalName();
                 //! [Get local device name]
 
                 setBtStatus(BtStatus::Active);
             }
+
+
+            //anyway we set (status, name) to show client what is status
+            setBluetoothHostModeState(m_btServer->btState());
         }
 
         //! [Create Chat Server]
@@ -295,14 +329,16 @@ void Backend::processCommand(RemoteUsers *user, const QString &message)
     if(cmd=="changeVolume")
     {
         // m_settings->setSetting("Media/volume",value);
-        runQmlFunction("changeVol",value*100);
-        response="set Media/volume:"+QString::number(value*100);
+        qInfo() << "change vol received value= (" << value;
+        runQmlFunction("changeVol",value);
+        response="set Media/volume:"+QString::number(value);
     }
     else if(cmd=="changeBrightness")
     {
         // m_settings->setSetting("Media/brightness",value);
-        runQmlFunction("changeBrightness",value*100);
-        response="set Media/brightness:"+QString::number(value*100);
+        qInfo() << "change brightness received value= (" << value;
+        runQmlFunction("changeBrightness",value);
+        response="set Media/brightness:"+QString::number(value);
     }
     else if(cmd=="rotate")
     {
@@ -326,12 +362,12 @@ void Backend::processCommand(RemoteUsers *user, const QString &message)
     else if(cmd=="speedUp")
     {
         // m_settings->setSetting("Media/rate","2");
-        runQmlFunction("speedUp");
+        runQmlFunction("speedUp",0.5);
     }
     else if(cmd=="speedDown")
     {
         // m_settings->setSetting("Media/rate","1");
-        runQmlFunction("speedDown");
+        runQmlFunction("speedDown",0.5);
     }
 
 
@@ -443,11 +479,43 @@ void Backend::setBtLocalName(const QString &newBtLocalName)
     emit btLocalNameChanged();
 }
 
+QBluetoothLocalDevice::HostMode Backend::bluetoothHostModeState()
+{
+    return m_bluetoothHostModeState;
+}
+
+void Backend::setBluetoothHostModeState(QBluetoothLocalDevice::HostMode state)
+{
+    m_bluetoothHostModeState = state;
+
+    //set lable (name of device or error message) for qml
+    switch(m_bluetoothHostModeState)
+    {
+        case 0:
+            setBtLocalName("Bluetooth is OFF");
+            break;
+        case 1:
+        case 2:
+            setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name() +
+                           " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "]");
+            break;
+        case 3:
+            setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name() +
+                           " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "] Limited inquiry");
+        default:
+            setBtLocalName("bluetooth state invalid");
+    }
+
+    emit bluetoothHostModeStateChanged();
+}
+
 void Backend::setBtStatus(BtStatus status)
 {
     m_btStatus = status;
     emit btStatusChanged();
 }
+
+
 
 QList<RemoteUsers *> Backend::users() const
 {

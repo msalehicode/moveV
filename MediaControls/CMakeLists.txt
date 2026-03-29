@@ -20,6 +20,7 @@ qt_add_qml_module(MediaControls
         "CustomButton.qml"
         "CustomRadioButton.qml"
         "CustomCheckbox.qml"
+        "CustomCollapsiblePanel.qml"
 
     RESOURCES
         "icons/Rate_Icon.svg"

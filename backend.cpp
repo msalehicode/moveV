@@ -1,15 +1,36 @@
 #include "backend.h"
 
-Backend::Backend(const SettingsManager* const settings, QGuiApplication *app, QObject *parent)
+Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *parent)
     : m_settings(settings), m_app(app), QObject{parent}
 {
     // QObject::connect(bt, &m_btServer::)
     // QObject::connect(m_bt)
 
-    ch.print("hellow");
-    ch.print("hellow2");
 
     //get saved setting from settings
+}
+
+void Backend::runQmlFunction(const QString &functionName)
+{
+    if(rootObject)
+        QMetaObject::invokeMethod(rootObject, functionName.toLatin1().data());
+    else
+        qInfo() <<"rootObject is null";
+}
+
+QVariant Backend::runQmlFunction(const QString &functionName, QVariant argum)
+{
+    if(rootObject)
+    {
+        QVariant returnedValue;
+        QMetaObject::invokeMethod(rootObject, functionName.toLatin1().data(),
+                                  Q_RETURN_ARG(QVariant, returnedValue),
+                                  Q_ARG(QVariant, argum));
+        // qDebug() << "runQmlFunction: Retuerend value: " << returnedValue.toString();
+        return returnedValue;
+    }
+    else
+        qInfo() <<"rootObject is null";
 }
 
 bool Backend::setupCustomCursor(const QUrl &imageUrl, int width, int height, int hotX, int hotY)
@@ -83,18 +104,33 @@ void Backend::bluetoothServer(const bool &status)
 
 void Backend::clientConnected( QBluetoothSocket*  sender)
 {
-    qInfo () <<  sender->peerName() << " has conncted to server.\n";
-
     //add him to our clinets list
-    RemoteUsers* usr = new RemoteUsers{UserConnectionStatus::Connected, UserAccess::Normal, sender};
+    RemoteUsers* usr = new RemoteUsers{
+                                       sender->peerName(),
+                                       UserConnectionStatus::Connected,
+                                       UserAccess::Normal,
+                                       sender,
+                                       QDateTime::currentDateTime(),
+                                       UserConnectionType::Bluetooth
+                                    };
     addUser(usr);
+    qInfo () <<  usr->name << " has conncted to server.\n";
     emit sendMessage("welcome");
 }
 
-void Backend::clientDisconnected( QBluetoothSocket *  sender)
+void Backend::clientDisconnected(QBluetoothSocket *  sender)
 {
-    qInfo () <<  sender->peerName() << " has disconnected from server.\n";
-    //remove him from our clinets list
+    RemoteUsers* user = findUser(sender);
+    if(user)
+    {
+        qInfo () <<  user->name <<  " (using " << user->convertConnectionType() <<  ") has disconnected from server.\n";
+
+        //delete that socket/user
+        m_users.removeOne(user);
+
+        emit connectedUsersListChanged();
+    }
+
 }
 
 void Backend::messageReceived( QBluetoothSocket*  sender, const QString &message)
@@ -165,12 +201,10 @@ void Backend::initBluetoothServer()
         }
 
 
-        // make discoverable
+        // make discoverable, we assume selecte device index is
         setBtStatus(BtStatus::Discoverable);
-        QBluetoothLocalDevice adapter(m_btLocalAdapters.at(0).address());
+        QBluetoothLocalDevice adapter(m_btLocalAdapters.at(indexCurrentAdaptor).address());
         adapter.setHostMode(QBluetoothLocalDevice::HostDiscoverable);
-
-
 
 
 
@@ -216,8 +250,10 @@ void Backend::initBluetoothServer()
             else
             {
                 //! [Get local device name]
-                m_btLocalName = QBluetoothLocalDevice().name();
-                qInfo () << "bt started, local name= " << m_btLocalName;
+                // setBtLocalName(QBluetoothLocalDevice().name());
+                setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name() +
+                               " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "]");
+                qInfo () << "bt started, local name= " << btLocalName();
                 //! [Get local device name]
 
                 setBtStatus(BtStatus::Active);
@@ -236,23 +272,175 @@ void Backend::processCommand(RemoteUsers *user, const QString &message)
     QString response = "default response";
     qInfo() << "processing command from:"<< user->socket->peerName() << "command:" << message;
 
-    // switch (user->access)
+
+    QString cmd;
+    float value;
+
+    bool ok=false;
+    if(message.contains(":"))
+    {
+        cmd = message.split(":").at(0);
+        value = message.split(":").at(1).toFloat(&ok);
+        if(!ok)
+        {
+            value=0.0;
+            qInfo() << "cuild not convert qstring to float (value)";
+        }
+    }
+    else //it doesnt have value
+        cmd = message;
+
+
+
+    if(cmd=="changeVolume")
+    {
+        // m_settings->setSetting("Media/volume",value);
+        runQmlFunction("changeVol",value*100);
+        response="set Media/volume:"+QString::number(value*100);
+    }
+    else if(cmd=="changeBrightness")
+    {
+        // m_settings->setSetting("Media/brightness",value);
+        runQmlFunction("changeBrightness",value*100);
+        response="set Media/brightness:"+QString::number(value*100);
+    }
+    else if(cmd=="rotate")
+    {
+        m_settings->setSetting("Media/rotationAngle",value);
+        response="set Media/rotationAngle:"+QString::number(value);
+    }
+    else if(cmd=="seeker")
+    {
+        runQmlFunction("changePosition",value);
+    }
+
+    //------------------------ each click +/-
+    else if(cmd=="seekBack")
+    {
+        runQmlFunction("seekBack");
+    }
+    else if(cmd=="seekForth")
+    {
+        runQmlFunction("seekForth");
+    }
+    else if(cmd=="speedUp")
+    {
+        // m_settings->setSetting("Media/rate","2");
+        runQmlFunction("speedUp");
+    }
+    else if(cmd=="speedDown")
+    {
+        // m_settings->setSetting("Media/rate","1");
+        runQmlFunction("speedDown");
+    }
+
+
+    //---- semi-toggle
+    else if(cmd=="heldSpeeding")
+    {
+        // showSpeeding
+        runQmlFunction("startHoldSpeeding");
+
+    }
+    else if(cmd=="releasedSpeeding")
+    {
+        runQmlFunction("stopHoldSpeeding");
+    }
+
+    //------------------------ toggle (on/off) (current=!current)
+    else if(cmd=="powerToggle")
+    {
+        qInfo() << "poweToggle received..";
+    }
+    else if(cmd=="snsToggle")
+    {
+        // m_settings->setSetting("SNS/status","true");
+        QVariant v = m_settings->getSetting("SNS/status","false");
+        if(v=="1" || v=="true")
+            m_settings->setSetting("SNS/status","false");
+        else
+            m_settings->setSetting("SNS/status","true");
+    }
+    else if(cmd=="muteToggle")
+    {
+        runQmlFunction("muteUnmute");
+        // m_settings->setSetting("Media/muted","true");
+    }
+    else if(cmd=="shuffleToggle")
+    {
+        runQmlFunction("shuffleToggle");
+    }
+    else if(cmd=="fullscreenToggle")
+    {
+        runQmlFunction("fullscreenToggle");
+    }
+    else if(cmd=="repeatToggle")
+    {
+        qInfo()<<"repeattoglle cmd received";
+    }
+    else if(cmd=="previousToggle")
+    {
+        runQmlFunction("previousVideo");
+    }
+    else if(cmd=="playToggle")
+    {
+        runQmlFunction("togglePlayPause");
+    }
+    else if(cmd=="nextToggle")
+    {
+        runQmlFunction("nextVideo");
+    }
+
+
+    //------------ ETC: open dialogs
+    // else if(cmd=="openSettings")
     // {
-    //     case UserAccess::Admin:
-    //     {
 
-    //     }break;
-    //     case UserAccess::Normal:
-    //     {
-
-    //     }break;
-    //     default: qInfo () << "invalid acecss";
-    //         break;
     // }
+    // else if(cmd=="openPlaylist")
+    // {
+
+    // }
+
+
+
+    // QByteArray data = message.toUtf8();
+
+    // switch(m_commandHandler.parse(&data,response))
+    // {
+    //     case CommandList::PlayRate:
+    //     {
+    //         m_settings->setSetting("Media/rate","1.0");//change playrate also QML will obey this beacuse it is synced with value (QPORPERTY)
+    //         response = m_commandHandler.generate<QString>("applied");
+    //     }break;
+    //     case CommandList::Play:
+    //     {
+    //         m_settings->setSetting("Media/play","false");
+    //     }break;
+    //     default:
+    //         qInfo()<<"unknown command..";
+
+    // }
+
+
+    //send response of that command/request if user is valid
     if(user)
         emit sendMessage(user->socket, response);
     else
         qInfo() << "user is nullptr";
+}
+
+QString Backend::btLocalName() const
+{
+    return m_btLocalName;
+}
+
+void Backend::setBtLocalName(const QString &newBtLocalName)
+{
+    if (m_btLocalName == newBtLocalName)
+        return;
+    m_btLocalName = newBtLocalName;
+    emit btLocalNameChanged();
 }
 
 void Backend::setBtStatus(BtStatus status)
@@ -294,7 +482,32 @@ void Backend::setUsers(const QList<RemoteUsers*> &newUsers)
 void Backend::addUser(RemoteUsers *newUser)
 {
     m_users.append(newUser);
+    emit connectedUsersListChanged();
 }
+
+QVariantList Backend::connectedUsersAsVariantList() const
+{
+    qInfo() << "running connectedUsersAsVariantList. User count:" << m_users.size();
+
+    QVariantList variantList;
+    for (const RemoteUsers* user : m_users)
+    {
+        if (!user)
+            continue;
+
+        QList<QString> userInfo = user->getAsStringList();
+        QVariantMap userMap;
+        userMap["name"] = userInfo.at(0);
+        userMap["address"] = userInfo.at(1);
+        userMap["status"] = userInfo.at(2);
+        userMap["access"] = userInfo.at(3);
+        userMap["connectedAt"] = userInfo.at(4);
+        userMap["using"] = userInfo.at(5);
+        variantList.append(userMap);
+    }
+    return variantList;
+}
+
 
 BtStatus Backend::btStatus() const
 {
@@ -328,4 +541,76 @@ void Backend::refreshBluetoothAdapters()
 {
     QList<QBluetoothHostInfo> currentAdapters = QBluetoothLocalDevice().allDevices();
     setBtLocalAdapters(currentAdapters);
+}
+
+QString RemoteUsers::convertUserAccess() const
+{
+    switch (access)
+    {
+    case UserAccess::Admin:
+        return "admin";
+    case UserAccess::Normal:
+        return "normal";
+    default:
+        return "invalid access";
+    }
+}
+
+QString RemoteUsers::convertConnectionType(bool shortForm) const
+{
+    switch(connectionType)
+    {
+    case UserConnectionType::Bluetooth:
+        return shortForm? "B" : "Bluetooth";
+    case UserConnectionType::Wifi:
+        return shortForm? "W" : "Wifi";
+    default:
+        return shortForm? "err" :"invalid connectionType";
+    }
+}
+
+QString RemoteUsers::convertConnectionStatus() const
+{
+    switch (status)
+    {
+    case UserConnectionStatus::UnknownStatus:
+        return "unknown";
+    case UserConnectionStatus::Connected:
+        return "connected";
+    case UserConnectionStatus::Disconnected:
+        return "disconnected";
+    default:
+        return "invalid status";
+    }
+}
+
+QString RemoteUsers::getAddressAsString() const
+{
+    switch (connectionType)
+    {
+    case UserConnectionType::Bluetooth:
+    {
+        return (socket->peerAddress().toString()
+                + " (p:" + QString::number(static_cast<int>(socket->peerPort())) + ")" );
+    }
+    case UserConnectionType::Wifi:
+    {
+        return "..wifi address..";
+    }
+    default:
+        return "unknown address";
+    }
+}
+
+QList<QString> RemoteUsers::getAsStringList() const
+{
+    QList<QString> list {
+        name,
+        getAddressAsString(),
+        convertConnectionStatus(),
+        convertUserAccess(),
+        QTime(connectedAt.time()).toString(),
+        convertConnectionType(true)
+    };
+    return list;
 }

@@ -19,7 +19,7 @@
 #include <QBluetoothUuid>
 #include "BluetoothControl/chatserver.h"
 
-
+#include <QDateTime>
 #include "commandhandler.h"
 
 using namespace Qt::StringLiterals;
@@ -58,16 +58,31 @@ enum class UserAccess
     Normal
 };
 
+enum UserConnectionType
+{
+    Bluetooth,
+    Wifi
+};
+
 struct RemoteUsers
 {
-    UserConnectionStatus status;
+    QString name;
+    UserConnectionStatus status;    
     UserAccess access;
     QBluetoothSocket* socket;
+    //QWifiSocket* wSocket;
+    QDateTime connectedAt;
+    UserConnectionType connectionType;
 
-    // RemoteUsers() : status(UserConnectionStatus::UnknownStatus), access(UserAccess::Normal), socket(nullptr)
-    // {
+    QString convertUserAccess() const;
 
-    // }
+    QString convertConnectionType(bool shortForm=false) const;
+
+    QString convertConnectionStatus() const;
+
+
+    QString getAddressAsString() const;
+    QList<QString> getAsStringList() const;
 };
 
 
@@ -78,12 +93,20 @@ class Backend : public QObject
     Q_PROPERTY(BtStatus btStatus READ btStatus WRITE setBtStatus NOTIFY btStatusChanged)
     // Q_PROPERTY(QList<QBluetoothHostInfo> btLocalAdapters READ btLocalAdapters WRITE setBtLocalAdapters NOTIFY btLocalAdaptersChanged)
 
-
+    Q_PROPERTY(QVariantList connectedUsersList READ connectedUsersAsVariantList NOTIFY connectedUsersListChanged)
+    Q_PROPERTY(QString btLocalName READ btLocalName NOTIFY btLocalNameChanged) //current adapter name [ADDRESS] which is hosting now
 public:
-    explicit Backend(const SettingsManager* const settings,QGuiApplication* app, QObject *parent = nullptr);
+    explicit Backend(SettingsManager* settings,QGuiApplication* app, QObject *parent = nullptr);
+
+
+    //------------------------ call qml functiosn
+    QObject *rootObject;//to be able call qml functions
+    void runQmlFunction(const QString& functionName);
+    QVariant runQmlFunction(const QString& functionName, QVariant argum);
 
 
 
+    //cursor
     Q_INVOKABLE bool setupCustomCursor(const QUrl& imageUrl, int width, int height, int hotX, int hotY);
     Q_INVOKABLE bool restoreCursor();
     Q_INVOKABLE void changeCursor(const QString& mode="");
@@ -94,27 +117,32 @@ public:
     Q_INVOKABLE void refreshBluetoothAdapters();
     BtStatus btStatus() const;
     // QList<QBluetoothHostInfo> btLocalAdapters() const;
-
     void setBtLocalAdapters(const QList<QBluetoothHostInfo>& list);
-
-
-
     Q_INVOKABLE QVariantList btLocalAdapters() const;
 
 
+    //bluetooth users
     QList<RemoteUsers*> users() const;
     RemoteUsers* findUser(QBluetoothSocket* userSocket) const;
     void setUsers(const QList<RemoteUsers*>& newUsers);
     void addUser(RemoteUsers* newUser);
+    QVariantList connectedUsersAsVariantList() const;//expose connected users (either bluetooth/wifi) to qml
+
+    QString btLocalName() const;
+    void setBtLocalName(const QString &newBtLocalName);
 
 signals:
     //properties
     void btStatusChanged();
     void btLocalAdaptersChanged();
+    void connectedUsersListChanged();
+    void btLocalNameChanged();
 
 
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
+
+
 public slots:
     void clientConnected(QBluetoothSocket *  sender);
     void clientDisconnected( QBluetoothSocket *  sender);
@@ -127,20 +155,20 @@ private:
     void processCommand(RemoteUsers* user,const QString& message);
 
     QGuiApplication* m_app;
-    const SettingsManager* const m_settings;
+    SettingsManager* m_settings;
     CustomCursor cc;
 
     //bluetooth host
     ChatServer* m_btServer = nullptr;
     QList<QBluetoothHostInfo> m_btLocalAdapters;
-    QString m_btLocalName = "empty!";
+    QString m_btLocalName = "empty";
     BtStatus m_btStatus = BtStatus::Inactive;
     void setBtStatus(BtStatus status);
     int indexCurrentAdaptor = 0;
     QList<RemoteUsers*> m_users;
 
-    CommandHandler ch;
 
+    CommandHandler m_commandHandler;
 };
 
 #endif // BACKEND_H

@@ -1159,6 +1159,7 @@ ApplicationWindow {
 
                 Column
                 {
+                    id:bluetoothHostingBox
                     Label
                     {
                         text: "Status: " + (function(status) {
@@ -1176,6 +1177,11 @@ ApplicationWindow {
                                 default: return "Unknown Status";
                             }
                         })(backend.btStatus)
+                    }
+
+                    Label
+                    {
+                        text:"name:"+ backend.btLocalName
                     }
 
                     //later adeptor list via RadioButton by Repeater
@@ -1199,7 +1205,43 @@ ApplicationWindow {
                             settings.setSetting("App/bluetoothHostStatus",checked)
                         }
                     }
+
                 }
+
+
+
+                CustomCollapsiblePanel
+                {
+                    setWidth: 350
+                    setHeight: 250
+                    setTitle: "Connected remote controls:"
+                    setBgColorButton:"black"
+                    setBgContent: "grey"
+                    setContentHeight: connectedUsers.count===0 ? 60+15 : (connectedUsers.count*(60+15)) //15spacing, 60height item
+                    ListView {
+                        id:connectedUsers
+                        anchors.fill: parent
+                        model: backend.connectedUsersList
+                        spacing: 15
+                        delegate: Rectangle
+                        {
+                            width: parent.width
+                            height: 60
+                            color:modelData.using==="B"? "blue" : "black"
+                            Text
+                            {
+                                width: parent.width
+                                height:implicitHeight
+                                color: "white"
+                                text: "Name: (" + modelData.name + ") - Status: (" + modelData.status +") - Access: (" + modelData.access + ")"
+                                 +"\nUsing: (" + modelData.using +") - Address: [" + modelData.address+ "]"
+                                +"\n - Connected at: ("+ modelData.connectedAt + ")"
+                                font.bold: true
+                            }
+                        }
+                    }
+                }
+
 
             }
 
@@ -1409,6 +1451,10 @@ ApplicationWindow {
     {
         mediaPlayer.position = Math.max(mediaPlayer.position - 15000, 0);
     }
+    function changePosition(val)
+    {
+        mediaPlayer.position = val
+    }
 
     function volUp(val=0.10)
     {
@@ -1420,6 +1466,12 @@ ApplicationWindow {
     {
         if(root.volume>0)
             root.volume-=val
+    }
+
+    function changeVol(val)
+    {
+        if(val>=0 && val<=1)
+            root.volume=val
     }
 
     function speedUp(val=0.5)
@@ -1436,6 +1488,15 @@ ApplicationWindow {
             settings.setSetting("Media/rate",temp-val)
     }
 
+    function startHoldSpeeding()
+    {
+        mediaPlayer.playbackRate=settings.value["Media/speedHold"]
+    }
+    function stopHoldSpeeding()
+    {
+        mediaPlayer.playbackRate=settings.value["Media/rate"]
+    }
+
     function brightnessUp(val=0.10)
     {
         if(root.brightness<100)
@@ -1446,6 +1507,14 @@ ApplicationWindow {
     {
         if(root.brightness>0)
             root.brightness-=val
+    }
+
+    function changeBrightness(val)
+    {
+        if(val<100 && val >0)
+        {
+            root.brightness=val
+        }
     }
 
     function muteUnmute()
@@ -1477,6 +1546,16 @@ ApplicationWindow {
         mediaPlayer.play()
     }
 
+
+    function shuffleToggle()
+    {
+        playlistInfo.isShuffled=!playlistInfo.isShuffled
+    }
+
+    function fullscreenToggle()
+    {
+        mediaPlayer.doFullscreen()
+    }
 
     // -------------------------- popups --------------------------
 
@@ -1729,17 +1808,16 @@ ApplicationWindow {
     }
 
 
-    function callbycpp(name="empty")
-    {
-        return "."+name+".";
-    }
 
-
-
-    function dosomething()
-    {
-        console.log("doing something...")
-    }
+    //test: call from C++ (code is on main.cpp)
+    // function callbycpp(name="empty")
+    // {
+    //     return "."+name+".";
+    // }
+    // function dosomething()
+    // {
+    //     console.log("doing something...")
+    // }
 
     Component.onCompleted: {
         if (source.toString().length > 0)

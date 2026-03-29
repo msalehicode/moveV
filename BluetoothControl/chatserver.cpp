@@ -15,6 +15,17 @@ static constexpr auto serviceUuid = "e8e10f95-1a70-4b27-9ccf-02010264e9c8"_L1;
 ChatServer::ChatServer(QObject *parent)
     :   QObject(parent)
 {
+    if (m_localDevice.isValid())
+    {
+        qDebug() << "Bluetooth adapter initialized.";
+        // Connect to the stateChanged signal
+        connect(&m_localDevice, &QBluetoothLocalDevice::hostModeStateChanged,
+                this, &ChatServer::onBluetoothStateChanged);
+
+        onBluetoothStateChanged(m_localDevice.hostMode());//
+    } else {
+        qDebug() << "Failed to initialize Bluetooth adapter.";
+    }
 }
 
 ChatServer::~ChatServer()
@@ -43,6 +54,7 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter)
         return false;
     }
     //! [Create the server]
+
 
 
     qInfo() << "trying to start server with serviceUuid=" << serviceUuid;
@@ -95,6 +107,7 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter)
     serviceInfo.setAttribute(QBluetoothServiceInfo::ProtocolDescriptorList,
                              protocolDescriptorList);
     //! [Protocol descriptor list]
+
 
     //! [Register service]
     return serviceInfo.registerService(localAdapter);
@@ -178,6 +191,19 @@ void ChatServer::readSocket()
         emit messageReceived(socket,
                              QString::fromUtf8(line.constData(), line.length()));
     }
+}
+
+void ChatServer::onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
+{
+    m_btState=state;
+
+    qDebug() << "Bluetooth HostMode changed to:" << m_btState;
+    emit btStateChanged(m_btState);
+}
+
+QBluetoothLocalDevice::HostMode ChatServer::btState() const
+{
+    return m_btState;
 }
 
 QMap<QBluetoothSocket *, QString> ChatServer::getClientNames() const

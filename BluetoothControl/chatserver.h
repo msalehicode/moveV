@@ -9,6 +9,8 @@
 #include <QBluetoothAddress>
 #include <QBluetoothServiceInfo>
 
+#include <QBluetoothLocalDevice> //to get device bluetooth is off or on
+
 QT_FORWARD_DECLARE_CLASS(QBluetoothServer)
 QT_FORWARD_DECLARE_CLASS(QBluetoothSocket)
 
@@ -26,6 +28,8 @@ public:
 
     QMap<QBluetoothSocket *, QString> getClientNames() const;
 
+    QBluetoothLocalDevice::HostMode btState() const;
+
 public slots:
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
@@ -35,16 +39,22 @@ signals:
     void clientConnected( QBluetoothSocket*  sender);
     void clientDisconnected( QBluetoothSocket*  sender);
 
+    void btStateChanged(QBluetoothLocalDevice::HostMode state);
+
 private slots:
     void clientConnected();
     void clientDisconnected();
     void readSocket();
 
+    void onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state);
 private:
     QBluetoothServer *rfcommServer = nullptr;
     QBluetoothServiceInfo serviceInfo;
     QList<QBluetoothSocket *> clientSockets;
     QMap<QBluetoothSocket *, QString> clientNames;
+
+    QBluetoothLocalDevice m_localDevice; //get blueooth state is on/off..
+    QBluetoothLocalDevice::HostMode m_btState; //store state, because on initial may not emit btStateChanged correctly. can read from this to know initial state.
 };
 //! [declaration]
 

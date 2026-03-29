@@ -152,29 +152,21 @@ int main(int argc, char *argv[])
     }
 
 
-    QVariant returnedValue;
-    QVariant name = "Qt User";
-    QMetaObject::invokeMethod(rootObject, "callbycpp",
-                              Q_RETURN_ARG(QVariant, returnedValue),
-                              Q_ARG(QVariant, name));
+
+    //pass root Object to backend because we need to call QML functions by c++
+    backend.rootObject=rootObject;
 
 
-    QMetaObject::invokeMethod(rootObject, "dosomething");
 
-    qDebug() << " qML Retuerend: " << returnedValue.toString();
+    //test call qml functions by C++, empty or with arguments
+    // QVariant returnedValue;
+    // QVariant name = "Qt User";
+    // QMetaObject::invokeMethod(rootObject, "callbycpp",
+    //                           Q_RETURN_ARG(QVariant, returnedValue),
+    //                           Q_ARG(QVariant, name));
 
-    //handle bluz
-    // BluezMediaPlayer *bluezPlayer = new BluezMediaPlayer(rootObject);
-
-    // QDBusConnection systemBus = QDBusConnection::systemBus();
-    // if (!systemBus.registerObject("/org/bluez/hci0/player0", rootObject, QDBusConnection::ExportAdaptors)) {
-    //     qWarning() << "Failed to register system-bus BlueZ MediaPlayer";
-    // }
-
-    // if (!systemBus.registerService("org.bluez")) {
-    //     qWarning() << "Failed to register system-bus BlueZ service";
-    // }
-
+    // QMetaObject::invokeMethod(rootObject, "dosomething");
+    // qDebug() << " qML Retuerend: " << returnedValue.toString();
 
 
 

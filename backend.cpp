@@ -1,7 +1,7 @@
 #include "backend.h"
 
 Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *parent)
-    : m_settings(settings), m_app(app), QObject{parent}
+    : m_settings(settings), m_app(app), QObject{parent}, m_btMaxConnectionUser(2), m_btAlwaysDiscoverable(true)
 {
     // QObject::connect(bt, &m_btServer::)
     // QObject::connect(m_bt)
@@ -31,6 +31,41 @@ QVariant Backend::runQmlFunction(const QString &functionName, QVariant argum)
     }
     else
         qInfo() <<"rootObject is null";
+}
+
+void Backend::btCheckPermission()
+{
+#if QT_CONFIG(permissions)
+    QBluetoothPermission permission{};
+    switch (m_app->checkPermission(permission))
+    {
+        case Qt::PermissionStatus::Undetermined:
+        {
+            qInfo () << "user hasn't been asked or hasn't responded to the permission request yet";
+            qInfo () << "lets ask for permission";
+            setBtStatus(BtStatus::AskingPermission);
+            m_app->requestPermission(permission, this, &Backend::initBluetoothServer); //permission requests are asynchronous.
+        }return;
+        case Qt::PermissionStatus::Denied:
+        {
+            qInfo () << "user has explicitly refused to grant the Bluetooth permission.";
+
+            qInfo() << "Permissions are needed to use Bluetooth. "
+                       "Please grant the permissions to this "
+                       "application in the system settings.";
+            setBtStatus(BtStatus::DeniedPermission);
+            // m_app->quit();
+        }return;
+        case Qt::PermissionStatus::Granted:
+        {
+            qInfo () <<"bluetooth permission is fine. we proceed to stuff";
+            setBtStatus(BtStatus::GrantedPermission);
+            initBluetoothServer();
+        }return;
+    }
+
+#endif // QT_CONFIG(permissions)
+    return;
 }
 
 bool Backend::setupCustomCursor(const QUrl &imageUrl, int width, int height, int hotX, int hotY)
@@ -87,7 +122,14 @@ void Backend::bluetoothServer(const bool &status)
     if(status)
     {
         qInfo() << "starting blutooth server.";
-        initBluetoothServer();
+
+        //a delay before starting, assuming server was last second on. to prevent any probelms..
+        setBtStatus(BtStatus::Starting);
+        QTimer::singleShot(2000, [this]()
+        {
+            btCheckPermission();
+        });
+
     }
     else
     {
@@ -174,38 +216,6 @@ void Backend::bluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 void Backend::initBluetoothServer()
 {
 
-#if QT_CONFIG(permissions)
-    QBluetoothPermission permission{};
-    switch (m_app->checkPermission(permission))
-    {
-        case Qt::PermissionStatus::Undetermined:
-        {
-            qInfo () << "user hasn't been asked or hasn't responded to the permission request yet";
-            qInfo () << "lets ask for permission";
-            setBtStatus(BtStatus::AskingPermission);
-            m_app->requestPermission(permission, this, &Backend::initBluetoothServer); //permission requests are asynchronous.
-        }return;
-        case Qt::PermissionStatus::Denied:
-        {
-            qInfo () << "user has explicitly refused to grant the Bluetooth permission.";
-
-            qInfo() << "Permissions are needed to use Bluetooth. "
-                       "Please grant the permissions to this "
-                       "application in the system settings.";
-            setBtStatus(BtStatus::DeniedPermission);
-            // m_app->quit();
-        }return;
-        case Qt::PermissionStatus::Granted:
-        {
-            qInfo () <<"bluetooth permission is fine. we proceed to stuff";
-            setBtStatus(BtStatus::GrantedPermission);
-        }break; // proceed to initialization
-    }
-#endif // QT_CONFIG(permissions)
-
-
-
-
     setBtLocalAdapters(QBluetoothLocalDevice::allDevices());
 
     if (m_btLocalAdapters.isEmpty())
@@ -220,21 +230,18 @@ void Backend::initBluetoothServer()
         for(const auto& item : m_btLocalAdapters)
         {
             qInfo() << "Name:" << item.name()
-                    << "Address=" << item.address().toString()
-                    << " (Raw Address Object:" << item.address() << ")";
+            << "Address=" << item.address().toString()
+            << " (Raw Address Object:" << item.address() << ")";
         }
 
 
         // make discoverable, we assume selecte device index is
-        setBtStatus(BtStatus::Discoverable);
         QBluetoothLocalDevice adapter(m_btLocalAdapters.at(indexCurrentAdaptor).address());
-        adapter.setHostMode(QBluetoothLocalDevice::HostDiscoverable);
-
+        adapter.setHostMode(QBluetoothLocalDevice::HostDiscoverable);//it's tempoerary as discoverable, will turn to Connectable after a while...
+        setBtStatus(BtStatus::Discoverable);
 
 
         //! [Create Chat Server]
-        setBtStatus(BtStatus::Loading);
-
         if(m_btServer) //user is trying to start again
         {
             delete m_btServer;
@@ -242,7 +249,7 @@ void Backend::initBluetoothServer()
 
 
 
-
+        setBtStatus(BtStatus::Loading);
         m_btServer = new ChatServer(this);
 
         connect(m_btServer, QOverload<QBluetoothLocalDevice::HostMode>::of(&ChatServer::btStateChanged),
@@ -273,7 +280,7 @@ void Backend::initBluetoothServer()
         }
         else
         {
-            if(!m_btServer->startServer(m_btLocalAdapters.at(indexCurrentAdaptor).address()))
+            if(!m_btServer->startServer(m_btLocalAdapters.at(indexCurrentAdaptor).address(), m_btMaxConnectionUser))
             {
                 qInfo() << "btServer starting failed.";
                 setBtStatus(BtStatus::Failed);
@@ -283,7 +290,7 @@ void Backend::initBluetoothServer()
                 //! [Get local device name]
                 // setBtLocalName(QBluetoothLocalDevice().name());
 
-                qInfo () << "bt started, local name= " << btLocalName();
+                // qInfo () << "bt started, local name= " << btLocalName();
                 //! [Get local device name]
 
                 setBtStatus(BtStatus::Active);
@@ -296,6 +303,8 @@ void Backend::initBluetoothServer()
 
         //! [Create Chat Server]
     }
+
+
 
 
     qInfo() << "btstatus=" << btStatus();
@@ -489,22 +498,27 @@ void Backend::setBluetoothHostModeState(QBluetoothLocalDevice::HostMode state)
     m_bluetoothHostModeState = state;
 
     //set lable (name of device or error message) for qml
+    QString hostModeInfo;
     switch(m_bluetoothHostModeState)
     {
-        case 0:
-            setBtLocalName("Bluetooth is OFF");
-            break;
-        case 1:
-        case 2:
-            setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name() +
-                           " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "]");
-            break;
-        case 3:
-            setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name() +
-                           " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "] Limited inquiry");
-        default:
-            setBtLocalName("bluetooth state invalid");
+    case QBluetoothLocalDevice::HostPoweredOff:
+        hostModeInfo= "Bluetooth is OFF";
+        break;
+    case QBluetoothLocalDevice::HostConnectable:
+        hostModeInfo="Only Direct Connections";
+        break;
+    case QBluetoothLocalDevice::HostDiscoverable:
+        hostModeInfo="Discoverable";
+        break;
+    case QBluetoothLocalDevice::HostDiscoverableLimitedInquiry:
+        hostModeInfo= "Limited inquiry";
+    default:
+        setBtLocalName("Unkown State: "+QString::number(state));
     }
+
+    setBtLocalName(m_btLocalAdapters.at(indexCurrentAdaptor).name()
+                   + " [" + m_btLocalAdapters.at(indexCurrentAdaptor).address().toString() + "]"
+                   + " (" + hostModeInfo + ")");
 
     emit bluetoothHostModeStateChanged();
 }
@@ -513,6 +527,44 @@ void Backend::setBtStatus(BtStatus status)
 {
     m_btStatus = status;
     emit btStatusChanged();
+}
+
+bool Backend::btAlwaysDiscoverable() const
+{
+    return m_btAlwaysDiscoverable;
+}
+
+void Backend::setBtAlwaysDiscoverable(bool newAlwaysDiscoverable)
+{
+    if (m_btAlwaysDiscoverable == newAlwaysDiscoverable)
+        return;
+    m_btAlwaysDiscoverable = newAlwaysDiscoverable;
+    if(m_btServer)
+        m_btServer->setAlwaysDiscoverable(m_btAlwaysDiscoverable);
+    emit btAlwaysDiscoverableChanged();
+}
+
+int Backend::btMaxConnectionUser() const
+{
+    return m_btMaxConnectionUser;
+}
+
+void Backend::setBtMaxConnectionUser(int newBtMaxConnectionUser)
+{
+    if (m_btMaxConnectionUser == newBtMaxConnectionUser)
+        return;
+
+    m_btMaxConnectionUser = newBtMaxConnectionUser;
+    qInfo()<< "bt maxConnection changed. server need to restart.";
+
+    //stop server
+    bluetoothServer(false);
+
+
+    //start server (has a delay no worries before start)
+    bluetoothServer(true);
+
+    emit btMaxConnectionUserChanged();
 }
 
 

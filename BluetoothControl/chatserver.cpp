@@ -13,7 +13,7 @@ static constexpr auto serviceUuid = "e8e10f95-1a70-4b27-9ccf-02010264e9c8"_L1;
 //! [Service UUID]
 
 ChatServer::ChatServer(QObject *parent)
-    :   QObject(parent)
+    :   QObject(parent) , m_alwaysDiscoverable(true)
 {
     if (m_localDevice.isValid())
     {
@@ -33,7 +33,7 @@ ChatServer::~ChatServer()
     stopServer();
 }
 
-bool ChatServer::startServer(const QBluetoothAddress& localAdapter)
+bool ChatServer::startServer(const QBluetoothAddress& localAdapter, int maxConnectionsCount)
 {
     //! [Create the server]
 
@@ -47,6 +47,10 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter)
 
     connect(rfcommServer, &QBluetoothServer::newConnection,
             this, QOverload<>::of(&ChatServer::clientConnected));
+
+    //set max before listening
+    rfcommServer->setMaxPendingConnections(maxConnectionsCount);
+
     bool result = rfcommServer->listen(localAdapter);
     if (!result)
     {
@@ -57,7 +61,10 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter)
 
 
 
+
     qInfo() << "trying to start server with serviceUuid=" << serviceUuid;
+    qInfo() << "server info: " << rfcommServer->serverAddress() << " P:" << rfcommServer->serverPort() << " , type: " << rfcommServer->serverType();
+    qInfo() << "max peding coonection: " << rfcommServer->maxPendingConnections() << " sec flags:" << rfcommServer->securityFlags();
 
     //serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceRecordHandle, (uint)0x00010010);
 
@@ -108,9 +115,16 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter)
                              protocolDescriptorList);
     //! [Protocol descriptor list]
 
+    bool res = serviceInfo.registerService(localAdapter);
 
+    qInfo() << " service info channel: " << serviceInfo.serverChannel() << "completed?: " << serviceInfo.isComplete()  <<
+        " Availability: " << serviceInfo.serviceAvailability();
+    qInfo() << " isvalid? " <<serviceInfo.isValid() << " registered?" << serviceInfo.isRegistered(); //<< "device:" << serviceInfo.device();
+    qInfo() << " protocol" << serviceInfo.serviceDescription() << " provider" << serviceInfo.serviceProvider();
+    qInfo() << " name:" << serviceInfo.serviceName() << " uuid" << serviceInfo.serviceUuid();
+    qInfo() << "socketprotocl" << serviceInfo.socketProtocol();
     //! [Register service]
-    return serviceInfo.registerService(localAdapter);
+    return res;
     //! [Register service]
 }
 
@@ -196,9 +210,39 @@ void ChatServer::readSocket()
 void ChatServer::onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 {
     m_btState=state;
+    qDebug() << QDateTime::currentDateTime().toString() <<" - Bluetooth HostMode changed to:" << m_btState;
 
-    qDebug() << "Bluetooth HostMode changed to:" << m_btState;
+    //try to turn on bluetooth. but on different platforms may fail.
+    // if(state==QBluetoothLocalDevice::HostMode::HostPoweredOff)
+    // {
+        // qInfo() << "bluetooth device is powered off . try to turn it on.";
+        // m_localDevice.powerOn();
+        // bool re = m_localDevice.hostMode()==QBluetoothLocalDevice::HostPoweredOff ? false : true;
+        // qInfo() << "could powere on? " << re;
+    // }
+
+    //check for discoverablity e.g on ubuntu 24.4 it turn to connectable (hidden) after approx 3 minutes being discoverable
+    if(m_btState==QBluetoothLocalDevice::HostConnectable && m_alwaysDiscoverable) //make it always discoverable
+    {
+        qInfo() << "hsot state is connectable lets try make it discoverable again..";
+        m_localDevice.setHostMode(QBluetoothLocalDevice::HostDiscoverable);
+        bool re = m_localDevice.hostMode()==QBluetoothLocalDevice::HostDiscoverable ? true : false;
+        qInfo() << "could make discoverable? " << re;
+    }
+
     emit btStateChanged(m_btState);
+}
+
+void ChatServer::setAlwaysDiscoverable(bool newAlwaysDiscoverable)
+{
+    //currenly is not discoverable make it discoverable
+    if(!m_alwaysDiscoverable)
+    {
+        m_localDevice.setHostMode(QBluetoothLocalDevice::HostDiscoverable);
+        qInfo() << "now device set to discoverable.";
+    }
+
+    m_alwaysDiscoverable = newAlwaysDiscoverable;
 }
 
 QBluetoothLocalDevice::HostMode ChatServer::btState() const

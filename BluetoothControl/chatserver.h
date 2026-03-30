@@ -10,6 +10,7 @@
 #include <QBluetoothServiceInfo>
 
 #include <QBluetoothLocalDevice> //to get device bluetooth is off or on
+#include <QDateTime>
 
 QT_FORWARD_DECLARE_CLASS(QBluetoothServer)
 QT_FORWARD_DECLARE_CLASS(QBluetoothSocket)
@@ -23,12 +24,14 @@ public:
     explicit ChatServer(QObject *parent = nullptr);
     ~ChatServer();
 
-    bool startServer(const QBluetoothAddress &localAdapter = QBluetoothAddress());
+    bool startServer(const QBluetoothAddress &localAdapter = QBluetoothAddress(), int maxConnectionsCount=1);
     void stopServer();
 
     QMap<QBluetoothSocket *, QString> getClientNames() const;
 
     QBluetoothLocalDevice::HostMode btState() const;
+
+    void setAlwaysDiscoverable(bool newAlwaysDiscoverable);
 
 public slots:
     void sendMessage(const QString &message);
@@ -55,6 +58,7 @@ private:
 
     QBluetoothLocalDevice m_localDevice; //get blueooth state is on/off..
     QBluetoothLocalDevice::HostMode m_btState; //store state, because on initial may not emit btStateChanged correctly. can read from this to know initial state.
+    bool m_alwaysDiscoverable; //after e.g 3min may device hostMode change from Discover to connectable, so would not list on scanned devices for users. if it's gone connectable we make it discoverable again.
 };
 //! [declaration]
 

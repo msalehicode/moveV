@@ -1221,18 +1221,18 @@ ApplicationWindow {
                             color: (function(status) {
                                 switch(status) {
                                     case 0: return "red";
-                                    case 3: return "yellow";
+                                    case 3: return "lime";
                                     case 1:
                                     case 2: return "green"
-                                    default: return "purple";
+                                    default: return "black";
                                 }
                                 })(backend.bluetoothHostModeState)
 
                         }
                         Label
                         {
-                            id:bluetoothDeviceNameOrErrorMessage
-                            text: backend.btLocalName
+                            id:bluetoothDeviceNameAddressAndState
+                            text: backend.btLocalName + " max:" + backend.btMaxConnectionUser
                         }
                     }
 
@@ -1241,11 +1241,45 @@ ApplicationWindow {
 
                     CustomCheckbox
                     {
+                        id:bluetoothHostAlwaysDiscoverable
+                        initialCheckedState:  backend.btAlwaysDiscoverable
+                        theText:"always discoverable";
+                        onStatusChangeAction:
+                        {
+                            backend.btAlwaysDiscoverable=checked
+                            // checked=backend.btAlwaysDiscoverable
+                            // settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
+                        }
+                    }
+                    Row
+                    {
+                        Text
+                        {
+                            text:"max connection:"
+                        }
+
+                        SpinBox
+                        {
+                            id:bluetoothHostMaxAllowedConnection
+                            value: backend.btMaxConnectionUser
+                            from: 1
+                            to:30
+                            onValueChanged:
+                            {
+                                console.log("bt max users changed to " + value)
+                                backend.btMaxConnectionUser=value
+                            }
+                        }
+                    }
+
+                    CustomCheckbox
+                    {
                         id:bluetoothHostStatus
                         initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
                         theText:"Bluetooth host (" + (function(status) {
                             switch(status) {
                                 case -1: return "Unknown";
+                                case 0:  return "Starting...";
                                 case 10: return "Adaptor Not Found";
                                 case 11: return "Failed";
                                 case 20: return "Permission Denied";
@@ -1255,7 +1289,7 @@ ApplicationWindow {
                                 case 31: return "Discoverable";
                                 case 32: return "Loading";
                                 case 33: return "Active";
-                                default: return "Unknown Status";
+                                default: return "Unknown Status: "+status;
                             }
                         })(backend.btStatus) +")"
 

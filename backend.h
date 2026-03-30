@@ -19,7 +19,10 @@
 #include <QBluetoothUuid>
 #include "BluetoothControl/chatserver.h"
 
+
 #include <QDateTime>
+#include <QTimer>
+
 #include "commandhandler.h"
 
 using namespace Qt::StringLiterals;
@@ -27,6 +30,8 @@ using namespace Qt::StringLiterals;
 enum BtStatus //host
 {
     Unknown=-1,
+
+    Starting=0,
 
     AdapterNotFound=10,
     Failed,
@@ -109,6 +114,8 @@ public:
     QVariant runQmlFunction(const QString& functionName, QVariant argum);
 
 
+    void btCheckPermission();
+
 
     //cursor
     Q_INVOKABLE bool setupCustomCursor(const QUrl& imageUrl, int width, int height, int hotX, int hotY);
@@ -139,6 +146,12 @@ public:
     void setBluetoothHostModeState(QBluetoothLocalDevice::HostMode state);
 
 
+    int btMaxConnectionUser() const;
+    void setBtMaxConnectionUser(int newBtMaxConnectionUser);
+
+    bool btAlwaysDiscoverable() const;
+    void setbtAlwaysDiscoverable(bool newAlwaysDiscoverable);
+
 signals:
     //properties
     void btStatusChanged();
@@ -150,6 +163,10 @@ signals:
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
 
+
+    void btMaxConnectionUserChanged();
+
+    void btAlwaysDiscoverableChanged();
 
 public slots:
     void clientConnected(QBluetoothSocket *  sender);
@@ -180,6 +197,11 @@ private:
 
 
     CommandHandler m_commandHandler;
+
+    bool m_btAlwaysDiscoverable;
+    int m_btMaxConnectionUser;
+    Q_PROPERTY(int btMaxConnectionUser READ btMaxConnectionUser WRITE setBtMaxConnectionUser NOTIFY btMaxConnectionUserChanged FINAL)
+    Q_PROPERTY(bool btAlwaysDiscoverable READ btAlwaysDiscoverable WRITE setBtAlwaysDiscoverable NOTIFY btAlwaysDiscoverableChanged FINAL)
 };
 
 #endif // BACKEND_H

@@ -150,7 +150,7 @@ public:
     void setBtMaxConnectionUser(int newBtMaxConnectionUser);
 
     bool btAlwaysDiscoverable() const;
-    void setbtAlwaysDiscoverable(bool newAlwaysDiscoverable);
+    void setBtAlwaysDiscoverable(bool newAlwaysDiscoverable);
 
 signals:
     //properties

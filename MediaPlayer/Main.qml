@@ -1293,6 +1293,7 @@ ApplicationWindow {
                             }
                         })(backend.btStatus) +")"
 
+                        enabled: backend.btStatus!==0//BtStatus::Starting ( disable it to make sure user dont spam start/stop button while backend is working on bluetooth server)
                         onStatusChangeAction:
                         {
                             backend.bluetoothServer(checked);
@@ -1308,7 +1309,7 @@ ApplicationWindow {
                 {
                     setWidth: 350
                     setHeight: 250
-                    setTitle: "Connected remote controls:"
+                    setTitle: "Connected remotes: (" + connectedUsers.count + ")"
                     setBgColorButton:"black"
                     setBgContent: "grey"
                     setContentHeight: connectedUsers.count===0 ? 60+15 : (connectedUsers.count*(60+15)) //15spacing, 60height item

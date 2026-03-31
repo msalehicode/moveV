@@ -131,6 +131,22 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter, int maxConne
 //! [stopServer]
 void ChatServer::stopServer()
 {
+    //disconnect all connected usrs;
+    for(QBluetoothSocket* socket : clientSockets)
+    {
+        socket->disconnectFromService();
+        // socket->waitForDisconnected();
+
+        emit clientDisconnected(socket);
+
+        socket->deleteLater();
+    }
+
+    //clear lists
+    clientSockets.clear();
+    clientNames.clear();
+
+
     // Unregister service
     serviceInfo.unregisterService();
 

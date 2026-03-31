@@ -121,12 +121,17 @@ void Backend::bluetoothServer(const bool &status)
 {
     if(status)
     {
-        qInfo() << "starting blutooth server.";
+        setBtStatus(BtStatus::Starting); //when status is starting, on QML start/stop button will be disabled untill we change it to something else
 
         //a delay before starting, assuming server was last second on. to prevent any probelms..
-        setBtStatus(BtStatus::Starting);
-        QTimer::singleShot(2000, [this]()
+        if(m_btServer)
         {
+            qInfo() << "blutooth server is on, stopping before statring....";
+            m_btServer->stopServer();
+        }
+        QTimer::singleShot(5000, [this]()
+        {
+            qInfo() << "starting blutooth server.";
             btCheckPermission();
         });
 
@@ -240,14 +245,7 @@ void Backend::initBluetoothServer()
         adapter.setHostMode(QBluetoothLocalDevice::HostDiscoverable);//it's tempoerary as discoverable, will turn to Connectable after a while...
         setBtStatus(BtStatus::Discoverable);
 
-
         //! [Create Chat Server]
-        if(m_btServer) //user is trying to start again
-        {
-            delete m_btServer;
-        }
-
-
 
         setBtStatus(BtStatus::Loading);
         m_btServer = new ChatServer(this);
@@ -272,7 +270,6 @@ void Backend::initBluetoothServer()
                 m_btServer, QOverload<QBluetoothSocket*, const QString &>::of(&ChatServer::sendMessage));
 
 
-
         if(m_btLocalAdapters.size() < indexCurrentAdaptor)
         {
             qInfo () << "invalid indexCurrentAdaptor (index isn't < localAdaptorsList.size)";
@@ -280,6 +277,7 @@ void Backend::initBluetoothServer()
         }
         else
         {
+            qInfo() << "c6:";
             if(!m_btServer->startServer(m_btLocalAdapters.at(indexCurrentAdaptor).address(), m_btMaxConnectionUser))
             {
                 qInfo() << "btServer starting failed.";
@@ -557,11 +555,7 @@ void Backend::setBtMaxConnectionUser(int newBtMaxConnectionUser)
     m_btMaxConnectionUser = newBtMaxConnectionUser;
     qInfo()<< "bt maxConnection changed. server need to restart.";
 
-    //stop server
-    bluetoothServer(false);
-
-
-    //start server (has a delay no worries before start)
+    //start server (has a delay e.g singleshot 5s so no worries before start) (if server is on will stop first)
     bluetoothServer(true);
 
     emit btMaxConnectionUserChanged();

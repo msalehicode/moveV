@@ -151,18 +151,30 @@ void Backend::bluetoothServer(const bool &status)
 
 void Backend::clientConnected( QBluetoothSocket*  sender)
 {
-    //add him to our clinets list
-    RemoteUsers* usr = new RemoteUsers{
-                                       sender->peerName(),
-                                       UserConnectionStatus::Connected,
-                                       UserAccess::Normal,
-                                       sender,
-                                       QDateTime::currentDateTime(),
-                                       UserConnectionType::Bluetooth
-                                    };
-    addUser(usr);
-    qInfo () <<  usr->name << " has conncted to server.\n";
-    emit sendMessage("welcome");
+    QString userAddress = sender->peerAddress().toString()+":"+QString::number(static_cast<int>(sender->peerPort()));
+    QString userName = sender->peerName();
+    if(!m_bannedUsers.contains(userAddress))
+    {
+        //add him to our clinets list
+        RemoteUsers* usr = new RemoteUsers{
+            userName,
+            userAddress,
+            UserConnectionStatus::Connected,
+            UserAccess::Normal,
+            sender,
+            QDateTime::currentDateTime(),
+            UserConnectionType::Bluetooth
+        };
+        addUser(usr);
+        qInfo () <<  userName << " has conncted to server.\n";
+        emit sendMessage("hello welcome");
+    }
+    else
+    {
+        qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (banned).";
+        emit sendMessage(sender, "you are banned.");
+        m_btServer->disconnectClient(sender);
+    }
 }
 
 void Backend::clientDisconnected(QBluetoothSocket *  sender)
@@ -190,7 +202,7 @@ void Backend::messageReceived( QBluetoothSocket*  sender, const QString &message
     if(user)
         processCommand(user,message);
     else
-        qInfo() << "user* is nullptr";
+        qInfo() << "user/sender not found (isnt valid)";
 
 }
 
@@ -542,6 +554,22 @@ void Backend::setBtAlwaysDiscoverable(bool newAlwaysDiscoverable)
     emit btAlwaysDiscoverableChanged();
 }
 
+QStringList Backend::bannedUsers() const
+{
+     return m_bannedUsers.values(); // convert QSet -> QStringList
+}
+
+void Backend::unbanUser(QString address)
+{
+    if(m_bannedUsers.contains(address))
+    {
+        m_bannedUsers.remove(address);
+        emit bannedUsersChanged();
+    }
+    else
+        qInfo()<<"this address is not banned.";
+}
+
 int Backend::btMaxConnectionUser() const
 {
     return m_btMaxConnectionUser;
@@ -588,6 +616,23 @@ RemoteUsers* Backend::findUser(QBluetoothSocket *userSocket) const
     return nullptr;
 }
 
+RemoteUsers *Backend::findUser(QString &address)
+{
+    if(address.isEmpty())
+        return nullptr;
+
+    for (RemoteUsers* user : m_users)
+    {
+        if (user->address == address)
+        {
+            // qInfo() << "userFound from m_users";
+            return user;
+        }
+    }
+
+    return nullptr;
+}
+
 void Backend::setUsers(const QList<RemoteUsers*> &newUsers)
 {
     m_users = newUsers;
@@ -620,6 +665,52 @@ QVariantList Backend::connectedUsersAsVariantList() const
         variantList.append(userMap);
     }
     return variantList;
+}
+
+void Backend::kickUser(QString address)
+{
+    RemoteUsers* user = findUser(address);
+    if(user)
+    {
+        if(user->connectionType==UserConnectionType::Bluetooth)
+        {
+            qInfo() << "user " << user->name << "(" << user->address << ") has been kicked.";
+            m_btServer->disconnectClient(user->socket);
+            //assuming bterver will run clientDisconnected and user would remove from m_users
+        }
+
+        else if(user->connectionType==UserConnectionType::Wifi)
+            qInfo()<<"soon kicking wifi user...";
+    }
+    else
+        qInfo() << "invalid user to kick";
+}
+
+void Backend::banUser(QString address)
+{
+    RemoteUsers* user = findUser(address);
+    if(user)
+    {
+        if(user->connectionType==UserConnectionType::Bluetooth)
+        {
+            //add user's address to banList
+            if(!m_bannedUsers.contains(user->address))
+            {
+                m_bannedUsers.insert(user->address);
+                emit bannedUsersChanged();
+                qInfo() << "user " << user->name << "(" << user->address << ") has been banned.";
+                //disconnect him
+                m_btServer->disconnectClient(user->socket);
+                //assuming bterver will run clientDisconnected and user would remove from m_users
+            }
+            else
+                qInfo() << "user has already banned.";
+        }
+        else if(user->connectionType==UserConnectionType::Wifi)
+            qInfo()<<"soon ban wifi user...";
+    }
+    else
+        qInfo() << "invalid user to kick";
 }
 
 
@@ -698,29 +789,13 @@ QString RemoteUsers::convertConnectionStatus() const
     }
 }
 
-QString RemoteUsers::getAddressAsString() const
-{
-    switch (connectionType)
-    {
-    case UserConnectionType::Bluetooth:
-    {
-        return (socket->peerAddress().toString()
-                + " (p:" + QString::number(static_cast<int>(socket->peerPort())) + ")" );
-    }
-    case UserConnectionType::Wifi:
-    {
-        return "..wifi address..";
-    }
-    default:
-        return "unknown address";
-    }
-}
+
 
 QList<QString> RemoteUsers::getAsStringList() const
 {
     QList<QString> list {
         name,
-        getAddressAsString(),
+        address,
         convertConnectionStatus(),
         convertUserAccess(),
         QTime(connectedAt.time()).toString(),

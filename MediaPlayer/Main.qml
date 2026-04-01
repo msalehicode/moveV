@@ -17,7 +17,6 @@ import "scripts.js" as Scripts
 import "../MediaControls/"
 import QtQuick.Dialogs
 
-
 ApplicationWindow {
 
     id: root
@@ -1293,7 +1292,7 @@ ApplicationWindow {
                             }
                         })(backend.btStatus) +")"
 
-                        enabled: backend.btStatus!==0//BtStatus::Starting ( disable it to make sure user dont spam start/stop button while backend is working on bluetooth server)
+                        enabled: (backend.btStatus!==0 && backend.btStatus!==32)//BtStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on bluetooth server)
                         onStatusChangeAction:
                         {
                             backend.bluetoothServer(checked);
@@ -1307,7 +1306,7 @@ ApplicationWindow {
 
                 CustomCollapsiblePanel
                 {
-                    setWidth: 350
+                    setWidth: 500
                     setHeight: 250
                     setTitle: "Connected remotes: (" + connectedUsers.count + ")"
                     setBgColorButton:"black"
@@ -1323,20 +1322,93 @@ ApplicationWindow {
                             width: parent.width
                             height: 60
                             color:modelData.using==="B"? "blue" : "black"
-                            Text
+                            Row
                             {
-                                width: parent.width
-                                height:implicitHeight
-                                color: "white"
-                                text: "Name: (" + modelData.name + ") - Status: (" + modelData.status +") - Access: (" + modelData.access + ")"
-                                 +"\nUsing: (" + modelData.using +") - Address: [" + modelData.address+ "]"
-                                +"\n - Connected at: ("+ modelData.connectedAt + ")"
-                                font.bold: true
+                                anchors.fill: parent
+                                Image
+                                {
+                                    width:20
+                                    height:20
+                                    source: modelData.using==="B"? "icons/bluetooth.png" : "icons/wifi.png"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Rectangle
+                                {
+                                    color:modelData.status==="connected"?"green":"red"
+                                    width:20
+                                    height:20
+                                    radius: 20
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text
+                                {
+                                    color: "white"
+                                    text:"name: ("+modelData.name+")" + "\n - Access: (" + modelData.access + ")" +" - Connected at: ("+ modelData.connectedAt + ")"
+                                    // text: "Name: (" + modelData.name + ") - Status: (" + modelData.status +") - Access: (" + modelData.access + ")"
+                                     // +"\nUsing: (" + modelData.using +") - Address: [" + modelData.address+ "]"
+                                    // +"\n - Connected at: ("+ modelData.connectedAt + ")"
+                                    font.bold: true
+                                }
+                                Button{
+                                    text:"kick"
+                                    onClicked:
+                                    {
+                                        backend.kickUser(modelData.address);
+                                    }
+                                }
+                                Button{
+                                    text:"ban"
+                                    onClicked:
+                                    {
+                                        backend.banUser(modelData.address);
+                                    }
+                                }
+
                             }
                         }
                     }
                 }
 
+
+                CustomCollapsiblePanel
+                {
+                    setWidth: 200
+                    setHeight: 200
+                    setTitle:"banned users:"
+
+                    ListView
+                    {
+                        id:listViewBannedUsers
+                        anchors.fill: parent
+                        model: backend.bannedUsers
+                        spacing: 10
+                        delegate: Rectangle
+                        {
+                            color:"black"
+                            width:parent.width/1.25
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            height:50
+                            Label
+                            {
+                                text:modelData
+                                font.pixelSize: 20
+                                color: "white"
+                                anchors.centerIn: parent
+                            }
+                            Button
+                            {
+                                text:"unban"
+                                onClicked:
+                                {
+                                    backend.unbanUser(modelData)
+                                }
+                            }
+                        }
+
+                    }
+
+                }
 
             }
 

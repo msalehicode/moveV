@@ -33,6 +33,8 @@ public:
 
     void setAlwaysDiscoverable(bool newAlwaysDiscoverable);
 
+    void disconnectClient(QBluetoothSocket *target);
+
 public slots:
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);

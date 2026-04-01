@@ -261,6 +261,14 @@ void ChatServer::setAlwaysDiscoverable(bool newAlwaysDiscoverable)
     m_alwaysDiscoverable = newAlwaysDiscoverable;
 }
 
+void ChatServer::disconnectClient(QBluetoothSocket *target)
+{
+    if(target)
+        target->disconnectFromService();
+    else
+        qInfo()<<"invalid client to disconnect";
+}
+
 QBluetoothLocalDevice::HostMode ChatServer::btState() const
 {
     return m_btState;

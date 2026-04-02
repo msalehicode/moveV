@@ -4,6 +4,7 @@ project(MediaPlayerApp LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+set(CM_MPRIS_IDENTITY "MyMediaPlayer")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus)
 
@@ -20,7 +21,7 @@ qt_add_qml_module(MediaPlayerApp
     SOURCES subtitleextractor.h subtitleextractor.cpp
     SOURCES subtitlefinder.h subtitlefinder.cpp
     SOURCES mprisadaptor.h mprisadaptor.cpp
-    SOURCES mprisrootadaptor.h mprisrootadaptor.cpp
+    SOURCES mprisrootadaptor.h
     SOURCES changeVolumeManually.cpp
     SOURCES backend.h backend.cpp
     SOURCES customcursor.h customcursor.cpp
@@ -56,6 +57,12 @@ install(TARGETS MediaPlayerApp
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+
+# announce cmake variables to Cpp side
+target_compile_definitions(MediaPlayerApp PRIVATE
+    MPRIS_IDENTITY="${CM_MPRIS_IDENTITY}"
+)
+
 
 qt_generate_deploy_qml_app_script(
     TARGET MediaPlayerApp

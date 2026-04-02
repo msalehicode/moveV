@@ -14,51 +14,91 @@
 #include <QVariant>
 
 
+struct ControlMpris
+{
+    bool canPlay;
+    bool canPause;
+    bool canControl;
+    bool canGoPrevious;
+    bool canGoNext;
+};
+
 class MprisAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.mpris.MediaPlayer2.Player")
 
-    Q_PROPERTY(QString PlaybackStatus READ PlaybackStatus NOTIFY PlaybackStatusChanged)
+    Q_PROPERTY(QVariantMap Metadata READ Metadata NOTIFY MetadataChanged)
     Q_PROPERTY(bool CanPlay READ CanPlay)
     Q_PROPERTY(bool CanPause READ CanPause)
     Q_PROPERTY(bool CanControl READ CanControl)
     Q_PROPERTY(bool CanGoNext READ CanGoNext)
     Q_PROPERTY(bool CanGoPrevious READ CanGoPrevious)
-    QVariantMap m_metadata;
-    Q_PROPERTY(QVariantMap Metadata READ Metadata NOTIFY MetadataChanged)
+    // Q_PROPERTY(QString PlaybackStatus READ PlaybackStatus NOTIFY PlaybackStatusChanged)
 
-    void updateMetadata(const QString &title, const QString &artist, const QString &trackId);
 
 public:
     explicit MprisAdaptor(QObject *parent, const QString &objectPath = "/org/mpris/MediaPlayer2");
 
+    //modify these by backend
+    ControlMpris control;
+    void updateMetadata(bool isPlaying, const QString &title,
+                        const QString &artist, const QString &trackId);
+
+
+    //mpris getters
     QVariantMap Metadata() const { return m_metadata; }
-    QString PlaybackStatus() const { return m_playbackStatus; }
-    bool CanPlay() const { return true; }
-    bool CanPause() const { return true; }
-    bool CanControl() const { return true; }
-    bool CanGoNext() const { return true; }
-    bool CanGoPrevious() const { return true; }
+    bool CanPlay() const
+    {
+        return control.canPlay;
+    }
+    bool CanPause() const
+    {
+        return control.canPause;
+    }
+    bool CanControl() const
+    {
+        return control.canControl;
+    }
+    bool CanGoNext() const
+    {
+        return control.canGoNext;
+    }
+    bool CanGoPrevious() const
+    {
+        return control.canGoPrevious;
+    }
+    // QString PlaybackStatus() const { return m_playbackStatus; }
+
+    // void setPlaybackStatus(const QString &newPlaybackStatus);
 
 public slots:
-    void Play();
-    void Pause();
-    void PlayPause();
-    void setPlaybackStatus(const QString &status);
-    void Next();
-    void Previous();
+    void Play() { emit sPlay(); }
+    void Pause() { emit sPause(); }
+    void PlayPause() { emit sPlayPause(); }
+    void Next() { emit sPlayNext(); }
+    void Previous() { emit sPlayPrevious(); }
 
 signals:
-    void PlaybackStatusChanged();
+    //to notify backend
+    void sPlayNext();
+    void sPlayPrevious();
+    void sPlay();
+    void sPause();
+    void sPlayPause();
 
     // D-Bus standard signal for property changes
-    void PropertiesChanged(const QVariantMap &changed, const QStringList &invalidated);
-
+    void PropertiesChanged(const QVariantMap &changed,
+                           const QStringList &invalidated);
     void MetadataChanged();
+    // void PlaybackStatusChanged();
 
 
 private:
-    QString m_playbackStatus = "Paused";
+    // QString m_playbackStatus = "Paused";
+    QVariantMap m_metadata;
     QString m_objectPath;
+    QDBusMessage m_msg;
+    QVariantMap m_changedProps;
+    QVariantMap m_changed;
 };

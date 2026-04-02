@@ -13,11 +13,19 @@ class MprisRootAdaptor : public QDBusAbstractAdaptor
     Q_PROPERTY(QString Identity READ Identity)
 
 public:
-    explicit MprisRootAdaptor(QObject *parent);
+    explicit MprisRootAdaptor(QObject *parent)
+        : QDBusAbstractAdaptor(parent)
+    {
+
+    }
 
     bool CanQuit() const { return false; }
     bool CanRaise() const { return false; }
-    QString Identity() const { return "MyPlayer"; }
+    QString Identity() const
+    {
+        return QString::fromUtf8(MPRIS_IDENTITY);
+        // return "splayer";
+    }
 
 public slots:
     void Raise() {}

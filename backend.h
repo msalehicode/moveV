@@ -25,6 +25,14 @@
 
 #include "commandhandler.h"
 
+
+//handle pause play... commands from handsfree, and gnome notification to manage media and show metadata of media
+#include <QDBusConnection>
+#include <QDBusError>
+#include "mprisadaptor.h"
+#include "mprisrootadaptor.h"
+
+
 using namespace Qt::StringLiterals;
 
 enum BtStatus //host
@@ -103,12 +111,16 @@ class Backend : public QObject
     Q_PROPERTY(QStringList bannedUsers READ bannedUsers NOTIFY bannedUsersChanged)
     Q_PROPERTY(QBluetoothLocalDevice::HostMode bluetoothHostModeState READ bluetoothHostModeState NOTIFY bluetoothHostModeStateChanged)
 
+    Q_PROPERTY(int btMaxConnectionUser READ btMaxConnectionUser WRITE setBtMaxConnectionUser NOTIFY btMaxConnectionUserChanged FINAL)
+    Q_PROPERTY(bool btAlwaysDiscoverable READ btAlwaysDiscoverable WRITE setBtAlwaysDiscoverable NOTIFY btAlwaysDiscoverableChanged FINAL)
+
 public:
     explicit Backend(SettingsManager* settings,QGuiApplication* app, QObject *parent = nullptr);
 
+    //to be able call qml functions and init MPRIS
+    void initMpris(QDBusConnection sessionBus);
 
     //------------------------ call qml functiosn
-    QObject *rootObject;//to be able call qml functions
     void runQmlFunction(const QString& functionName);
     QVariant runQmlFunction(const QString& functionName, QVariant argum);
 
@@ -159,6 +171,8 @@ public:
     Q_INVOKABLE void kickUser(QString address);
     Q_INVOKABLE void banUser(QString address);
 
+    void setRootObject(QObject *newRootObject);
+
 signals:
     //properties
     void btStatusChanged();
@@ -184,6 +198,13 @@ public slots:
     void bluetoothStateChanged(QBluetoothLocalDevice::HostMode state);
 
 
+    //handle mpris signals
+    void mprisPlayNext();
+    void mprisPlayPrevious();
+    void mprisPlay();
+    void mprisPause();
+    void mprisPlayPause();
+
 private:
     void initBluetoothServer();
     void processCommand(RemoteUsers* user,const QString& message);
@@ -193,12 +214,12 @@ private:
     CustomCursor cc;
 
     //bluetooth host
-    ChatServer* m_btServer = nullptr;
+    ChatServer* m_btServer;
     QList<QBluetoothHostInfo> m_btLocalAdapters;
-    QString m_btLocalName = "empty";
-    BtStatus m_btStatus = BtStatus::Inactive;
+    QString m_btLocalName;
+    BtStatus m_btStatus;
     void setBtStatus(BtStatus status);
-    int indexCurrentAdaptor = 0;
+    int indexCurrentAdaptor;
     QList<RemoteUsers*> m_users;
 
     QBluetoothLocalDevice::HostMode m_bluetoothHostModeState;
@@ -209,8 +230,11 @@ private:
 
     bool m_btAlwaysDiscoverable;
     int m_btMaxConnectionUser;
-    Q_PROPERTY(int btMaxConnectionUser READ btMaxConnectionUser WRITE setBtMaxConnectionUser NOTIFY btMaxConnectionUserChanged FINAL)
-    Q_PROPERTY(bool btAlwaysDiscoverable READ btAlwaysDiscoverable WRITE setBtAlwaysDiscoverable NOTIFY btAlwaysDiscoverableChanged FINAL)
+
+    QObject* m_rootObject;//to call qml functions and run mpris stuff
+    QDBusConnection* m_connection;
+
+    MprisAdaptor* m_mprisAdaptor;
 };
 
 #endif // BACKEND_H

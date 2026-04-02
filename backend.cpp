@@ -1,36 +1,82 @@
 #include "backend.h"
 
 Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *parent)
-    : m_settings(settings), m_app(app), QObject{parent}, m_btMaxConnectionUser(2), m_btAlwaysDiscoverable(true)
+    : m_settings(settings),
+    m_app(app),
+    QObject{parent},
+    m_btServer{nullptr},
+    m_btMaxConnectionUser(2),
+    m_btAlwaysDiscoverable(true),
+    m_btLocalName("empty"),
+    m_btStatus(BtStatus::Unknown),
+    indexCurrentAdaptor(0)
 {
-    // QObject::connect(bt, &m_btServer::)
-    // QObject::connect(m_bt)
+
+}
+
+void Backend::initMpris(QDBusConnection sessionBus)
+{
+    // Create BOTH adaptors
+    new MprisRootAdaptor(m_rootObject);
+    m_mprisAdaptor = new MprisAdaptor(m_rootObject, "/org/mpris/MediaPlayer2");
 
 
-    //get saved setting from settings
+    m_connection = &sessionBus;
+
+    m_connection->registerService("org.mpris.MediaPlayer2.myplayer");
+
+    m_connection->registerObject(
+        "/org/mpris/MediaPlayer2",
+        m_rootObject,
+        QDBusConnection::ExportAdaptors
+        );
+
+
+    if (!m_connection->registerService("org.mpris.MediaPlayer2.myplayer"))
+    {
+        qWarning() << "Failed to register D-Bus service:" << m_connection->lastError().message();
+    }
+
+
+    //connect mpris signals to back slots
+    connect(m_mprisAdaptor, &MprisAdaptor::sPlay,
+            this , &Backend::mprisPlay);
+
+    connect(m_mprisAdaptor, &MprisAdaptor::sPause,
+            this , &Backend::mprisPause);
+
+    connect(m_mprisAdaptor, &MprisAdaptor::sPlayNext,
+            this , &Backend::mprisPlayNext);
+
+    connect(m_mprisAdaptor, &MprisAdaptor::sPlayPause,
+            this , &Backend::mprisPlayPause);
+
+    connect(m_mprisAdaptor, &MprisAdaptor::sPlayPrevious,
+            this , &Backend::mprisPlayPrevious);
+
 }
 
 void Backend::runQmlFunction(const QString &functionName)
 {
-    if(rootObject)
-        QMetaObject::invokeMethod(rootObject, functionName.toLatin1().data());
+    if(m_rootObject)
+        QMetaObject::invokeMethod(m_rootObject, functionName.toLatin1().data());
     else
-        qInfo() <<"rootObject is null";
+        qInfo() <<"m_rootObject is null";
 }
 
 QVariant Backend::runQmlFunction(const QString &functionName, QVariant argum)
 {
-    if(rootObject)
+    if(m_rootObject)
     {
         QVariant returnedValue;
-        QMetaObject::invokeMethod(rootObject, functionName.toLatin1().data(),
+        QMetaObject::invokeMethod(m_rootObject, functionName.toLatin1().data(),
                                   Q_RETURN_ARG(QVariant, returnedValue),
                                   Q_ARG(QVariant, argum));
         // qDebug() << "runQmlFunction: Retuerend value: " << returnedValue.toString();
         return returnedValue;
     }
     else
-        qInfo() <<"rootObject is null";
+        qInfo() <<"m_rootObject is null";
 }
 
 void Backend::btCheckPermission()
@@ -230,6 +276,31 @@ void Backend::bluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
     setBluetoothHostModeState(state);
 }
 
+void Backend::mprisPlayNext()
+{
+    processCommand(nullptr,"nextToggle");
+}
+
+void Backend::mprisPlayPrevious()
+{
+    processCommand(nullptr,"previousToggle");
+}
+
+void Backend::mprisPlay()
+{
+    processCommand(nullptr,"playVideo");
+}
+
+void Backend::mprisPause()
+{
+    processCommand(nullptr,"pauseVideo");
+}
+
+void Backend::mprisPlayPause()
+{
+    processCommand(nullptr,"playToggle");
+}
+
 void Backend::initBluetoothServer()
 {
 
@@ -320,29 +391,37 @@ void Backend::initBluetoothServer()
     qInfo() << "btstatus=" << btStatus();
 }
 
+
+
 void Backend::processCommand(RemoteUsers *user, const QString &message)
 {
     QString response = "default response";
-    qInfo() << "processing command from:"<< user->socket->peerName() << "command:" << message;
-
-
     QString cmd;
     float value;
 
-    bool ok=false;
-    if(message.contains(":"))
+    if(user==nullptr) //its a command by mpris
     {
-        cmd = message.split(":").at(0);
-        value = message.split(":").at(1).toFloat(&ok);
-        if(!ok)
-        {
-            value=0.0;
-            qInfo() << "cuild not convert qstring to float (value)";
-        }
+        qInfo() << "processing from mpris";
+        cmd=message;
     }
-    else //it doesnt have value
-        cmd = message;
+    else
+    {
+        qInfo() << "processing command from:"<< user->socket->peerName() << "command:" << message;
 
+        bool ok=false;
+        if(message.contains(":"))
+        {
+            cmd = message.split(":").at(0);
+            value = message.split(":").at(1).toFloat(&ok);
+            if(!ok)
+            {
+                value=0.0;
+                qInfo() << "cuild not convert qstring to float (value)";
+            }
+        }
+        else //it doesnt have value
+            cmd = message;
+    }
 
 
     if(cmd=="changeVolume")
@@ -436,14 +515,62 @@ void Backend::processCommand(RemoteUsers *user, const QString &message)
     else if(cmd=="previousToggle")
     {
         runQmlFunction("previousVideo");
+        m_mprisAdaptor->control.canPlay=true;
+        m_mprisAdaptor->control.canPause=true;
+        m_mprisAdaptor->control.canGoNext=false;
+        m_mprisAdaptor->control.canGoPrevious=true;
+        m_mprisAdaptor->control.canControl=true;
+        m_mprisAdaptor->updateMetadata(true,"title playing previous media"
+                                       ,"artist is not"
+                                       ,"1");
     }
-    else if(cmd=="playToggle")
+    else if(cmd=="playToggle") //playPauseToggle
     {
         runQmlFunction("togglePlayPause");
+        m_mprisAdaptor->control.canPlay=true;
+        m_mprisAdaptor->control.canPause=true;
+        m_mprisAdaptor->control.canGoNext=false;
+        m_mprisAdaptor->control.canGoPrevious=true;
+        m_mprisAdaptor->control.canControl=true;
+        m_mprisAdaptor->updateMetadata(true,"title playing media"
+                                       ,"artist is not"
+                                       ,"1");
+    }
+    else if(cmd=="playVideo")
+    {
+        runQmlFunction("playVideo");
+        m_mprisAdaptor->control.canPlay=true;
+        m_mprisAdaptor->control.canPause=true;
+        m_mprisAdaptor->control.canGoNext=false;
+        m_mprisAdaptor->control.canGoPrevious=true;
+        m_mprisAdaptor->control.canControl=true;
+        m_mprisAdaptor->updateMetadata(true,"title playing media"
+                                       ,"artist is not"
+                                       ,"1");
+    }
+    else if(cmd=="pauseVideo")
+    {
+        runQmlFunction("pauseVideo");
+        m_mprisAdaptor->control.canPlay=true;
+        m_mprisAdaptor->control.canPause=true;
+        m_mprisAdaptor->control.canGoNext=false;
+        m_mprisAdaptor->control.canGoPrevious=true;
+        m_mprisAdaptor->control.canControl=true;
+        m_mprisAdaptor->updateMetadata(false,"title paused media"
+                                       ,"artist is not"
+                                       ,"1");
     }
     else if(cmd=="nextToggle")
     {
         runQmlFunction("nextVideo");
+        m_mprisAdaptor->control.canPlay=true;
+        m_mprisAdaptor->control.canPause=true;
+        m_mprisAdaptor->control.canGoNext=false;
+        m_mprisAdaptor->control.canGoPrevious=true;
+        m_mprisAdaptor->control.canControl=true;
+        m_mprisAdaptor->updateMetadata(true,"title playing next media"
+                                       ,"artist is not"
+                                       ,"1");
     }
 
 
@@ -537,6 +664,11 @@ void Backend::setBtStatus(BtStatus status)
 {
     m_btStatus = status;
     emit btStatusChanged();
+}
+
+void Backend::setRootObject(QObject *newRootObject)
+{
+    m_rootObject = newRootObject;
 }
 
 bool Backend::btAlwaysDiscoverable() const

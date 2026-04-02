@@ -11,19 +11,8 @@
 
 #include <algorithm>
 #include <QQmlContext>
-// #include "bluetoothserver.h"
 #include "subtitleextractor.h"
 #include "subtitlefinder.h"
-
-
-
-
-//handle pause play... commands from handsfree, and gnome notification to manage media and show metadata of media
-#include <QDBusConnection>
-#include "mprisadaptor.h"
-#include "mprisrootadaptor.h"
-#include <QDBusError>
-// #include "bluezmediaplayer.h"
 
 
 //to set media.role make sure app get foucs and attention from os
@@ -34,6 +23,12 @@
 
 #include "backend.h"
 #include "settingsmanager.h"
+
+
+
+//to pass session to backend
+#include <QDBusConnection>
+#include <QDBusError>
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -93,9 +88,6 @@ int main(int argc, char *argv[])
     qmlRegisterType<SubtitleFinder>("SubtitleFinder", 1, 0, "SubtitleFinder");
 
 
-
-
-
     QQmlApplicationEngine engine;
 
     SettingsManager settings;
@@ -122,53 +114,18 @@ int main(int argc, char *argv[])
 
 
 
-
-
-    //dbus
-
     if (engine.rootObjects().isEmpty())
         return -1;
 
     QObject *rootObject = engine.rootObjects().first();
 
-    // Create BOTH adaptors
-    new MprisRootAdaptor(rootObject);
-    new MprisAdaptor(rootObject, "/org/mpris/MediaPlayer2");
 
+    //pass engine's root Object to backend because we need to call QML functions by c++
+    //and mpris needs this rootObject
+    backend.setRootObject(rootObject);
 
-    QDBusConnection connection = QDBusConnection::sessionBus();
-
-    connection.registerService("org.mpris.MediaPlayer2.myplayer");
-
-    connection.registerObject(
-        "/org/mpris/MediaPlayer2",
-        rootObject,
-        QDBusConnection::ExportAdaptors
-        );
-
-
-    if (!connection.registerService("org.mpris.MediaPlayer2.myplayer")) {
-        qWarning() << "Failed to register D-Bus service:" << connection.lastError().message();
-    }
-
-
-
-    //pass root Object to backend because we need to call QML functions by c++
-    backend.rootObject=rootObject;
-
-
-
-    //test call qml functions by C++, empty or with arguments
-    // QVariant returnedValue;
-    // QVariant name = "Qt User";
-    // QMetaObject::invokeMethod(rootObject, "callbycpp",
-    //                           Q_RETURN_ARG(QVariant, returnedValue),
-    //                           Q_ARG(QVariant, name));
-
-    // QMetaObject::invokeMethod(rootObject, "dosomething");
-    // qDebug() << " qML Retuerend: " << returnedValue.toString();
-
-
+    //also handle mpris (bluetooth/keyboard media buttons/os media buttons,os notification dialog)
+    backend.initMpris(QDBusConnection::sessionBus());
 
 
     return app.exec();

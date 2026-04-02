@@ -8,41 +8,14 @@ MprisAdaptor::MprisAdaptor(QObject *parent, const QString &objectPath)
     : QDBusAbstractAdaptor(parent)
     , m_objectPath(objectPath)
 {
-    setPlaybackStatus("Paused");
+    // setPlaybackStatus("Paused");
 }
 
-void MprisAdaptor::setPlaybackStatus(const QString &status)
+void MprisAdaptor::updateMetadata(bool isPlaying,
+                                  const QString &title,
+                                  const QString &artist,
+                                  const QString &trackId)
 {
-    if (m_playbackStatus == status)
-        return;
-
-    m_playbackStatus = status;
-
-    QVariantMap changedProps;
-    changedProps.insert("PlaybackStatus", m_playbackStatus);
-
-    QDBusMessage msg = QDBusMessage::createSignal(
-        m_objectPath,  // <- use stored object path
-        "org.freedesktop.DBus.Properties",
-        "PropertiesChanged"
-        );
-    msg << "org.mpris.MediaPlayer2.Player" << changedProps << QStringList();
-    QDBusConnection::sessionBus().send(msg);
-
-    emit PlaybackStatusChanged();
-}
-
-void MprisAdaptor::Next()
-{
-    QMetaObject::invokeMethod(parent(), "nextVideo");
-    qInfo() << "next called";
-    setPlaybackStatus("Playing");
-
-    updateMetadata("Next Video", "Artist Name", "/org/mpris/MediaPlayer2/track/1");
-
-}
-
-void MprisAdaptor::updateMetadata(const QString &title, const QString &artist, const QString &trackId) {
     m_metadata.clear();
     m_metadata["mpris:trackid"] = trackId;
     m_metadata["xesam:title"] = title;
@@ -54,63 +27,36 @@ void MprisAdaptor::updateMetadata(const QString &title, const QString &artist, c
     emit MetadataChanged();
 
     // Also notify via PropertiesChanged for MPRIS clients
-    QVariantMap changed;
-    changed["Metadata"] = m_metadata;
-    changed["PlaybackStatus"] = m_playbackStatus;
-    emit PropertiesChanged(changed, {});
+    m_changed.clear();
+    m_changed["Metadata"] = m_metadata;
+    m_changed["PlaybackStatus"] = (isPlaying? "Playing" : "Paused");
+    emit PropertiesChanged(m_changed, {});
 
 
 
     //force
-    QVariantMap changedProps;
-    changedProps.insert("Metadata", m_metadata);
-    changedProps.insert("PlaybackStatus", m_playbackStatus);
-    changedProps.insert("CanGoNext", true);
-    changedProps.insert("CanGoPrevious", true);
-    changedProps.insert("CanControl", true);
+    m_changedProps.clear();
+    m_changedProps.insert("Metadata", m_metadata);
+    m_changedProps.insert("PlaybackStatus", (isPlaying? "Playing" : "Paused"));
+    m_changedProps.insert("CanGoNext", control.canGoNext);
+    m_changedProps.insert("CanGoPrevious", control.canGoPrevious);
+    m_changedProps.insert("CanControl", control.canControl);
+    m_changedProps.insert("CanPlay", control.canPlay);
+    m_changedProps.insert("CanPause", control.canPause);
 
-    QDBusMessage msg = QDBusMessage::createSignal(
+    m_msg = QDBusMessage::createSignal(
         m_objectPath,
         "org.freedesktop.DBus.Properties",
         "PropertiesChanged"
         );
-    msg << "org.mpris.MediaPlayer2.Player" << changedProps << QStringList();
-    QDBusConnection::sessionBus().send(msg);
-
+    m_msg << "org.mpris.MediaPlayer2.Player" << m_changedProps << QStringList();
+    QDBusConnection::sessionBus().send(m_msg);
 }
 
-void MprisAdaptor::Previous()
-{
-    QMetaObject::invokeMethod(parent(), "previousVideo");
-    setPlaybackStatus("Playing");
-
-    qInfo() << "previous called";
-    updateMetadata("Previ Video", "Artist Name", "/org/mpris/MediaPlayer2/track/1");
-
-}
-
-
-void MprisAdaptor::Play()
-{
-    qDebug() << "MPRIS Play called";
-    QMetaObject::invokeMethod(parent(), "playVideo");
-    setPlaybackStatus("Playing");
-
-    updateMetadata("My Video", "Artist Name", "/org/mpris/MediaPlayer2/track/1");
-
-}
-
-void MprisAdaptor::Pause()
-{
-    qDebug() << "MPRIS Pause called";
-    QMetaObject::invokeMethod(parent(), "pauseVideo");
-    setPlaybackStatus("Paused");
-
-}
-
-void MprisAdaptor::PlayPause()
-{
-    qDebug() << "MPRIS PlayPause called";
-    QMetaObject::invokeMethod(parent(), "togglePlayPause");
-    setPlaybackStatus((m_playbackStatus == "Playing") ? "Paused" : "Playing");
-}
+// void MprisAdaptor::setPlaybackStatus(const QString &newPlaybackStatus)
+// {
+//     if (m_playbackStatus == newPlaybackStatus)
+//         return;
+//     m_playbackStatus = newPlaybackStatus;
+//     emit PlaybackStatusChanged();
+// }

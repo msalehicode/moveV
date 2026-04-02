@@ -16,8 +16,14 @@ class FileNameProvider: public QObject
     QML_SINGLETON
 
 public:
-    explicit FileNameProvider(QObject* parent = nullptr): QObject(parent) {}
-    Q_INVOKABLE static QString getFileName(const QString &p) { return QFileInfo(p).fileName(); }
+    explicit FileNameProvider(QObject* parent = nullptr): QObject(parent)
+    {
+
+    }
+    Q_INVOKABLE static QString getFileName(const QString &p)
+    {
+        return QFileInfo(p).fileName();
+    }
 };
 
 #endif // FILENAMEPROVIDER_H

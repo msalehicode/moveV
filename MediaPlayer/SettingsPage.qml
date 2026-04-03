@@ -125,6 +125,38 @@ Item {
             }
 
             Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
+
+            Row
+            {
+                Label {
+                    text: "mpris Control:"
+                    font.bold: true
+                    font.pixelSize: 15
+                }
+                CustomCheckbox
+                {
+                    id:mprisControlStatus
+                    initialCheckedState:  Scripts.asBool(settings.value["App/mprisControl"])
+                    theText:"mpris control"
+                    // enabled: backend.IsDBusConnectionOk
+                    visible: backend.IsDBusConnectionOk
+                    onStatusChangeAction:
+                    {
+                        backend.mprisControl=checked
+                        settings.setSetting("App/mprisControl",checked)
+                    }
+                }
+                Label {
+                    text: " D-Bus connection failed."
+                    color: "red"
+                    visible: !backend.IsDBusConnectionOk
+                    font.bold: true
+                    font.pixelSize: 15
+                }
+            }
+
+
+            Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
             Label {
                 text: "Audio Output device:"
                 font.bold: true

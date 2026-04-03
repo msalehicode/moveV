@@ -87,13 +87,15 @@ int main(int argc, char *argv[])
     qmlRegisterType<SubtitleExtractor>("CustomMedia", 1, 0, "SubtitleExtractor");
     qmlRegisterType<SubtitleFinder>("SubtitleFinder", 1, 0, "SubtitleFinder");
 
-
     QQmlApplicationEngine engine;
+
+
 
     SettingsManager settings;
     Backend backend(&settings,&app);
     engine.rootContext()->setContextProperty("backend", &backend);
     engine.rootContext()->setContextProperty("settings", &settings);
+
 
 
     QObject::connect(&engine, &QQmlApplicationEngine::quit, &app, &QGuiApplication::quit);
@@ -125,7 +127,7 @@ int main(int argc, char *argv[])
     backend.setRootObject(rootObject);
 
     //also handle mpris (bluetooth/keyboard media buttons/os media buttons,os notification dialog)
-    backend.initMpris(QDBusConnection::sessionBus());
+    backend.initMpris();
 
 
     return app.exec();

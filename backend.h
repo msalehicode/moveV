@@ -118,7 +118,7 @@ public:
     explicit Backend(SettingsManager* settings,QGuiApplication* app, QObject *parent = nullptr);
 
     //to be able call qml functions and init MPRIS
-    void initMpris(QDBusConnection sessionBus);
+    void initMpris();
 
     //------------------------ call qml functiosn
     void runQmlFunction(const QString& functionName);
@@ -173,6 +173,12 @@ public:
 
     void setRootObject(QObject *newRootObject);
 
+    bool mprisControl() const;
+    void setMprisControl(bool newMprisControl);
+
+    bool IsDBusConnectionOk() const;
+    void setIsDBusConnectionOk(bool newIsDBusConnectionOk);
+
 signals:
     //properties
     void btStatusChanged();
@@ -190,10 +196,14 @@ signals:
 
     void btAlwaysDiscoverableChanged();
 
+    void mprisControlChanged();
+
+    void IsDBusConnectionOkChanged();
+
 public slots:
     void clientConnected(QBluetoothSocket *  sender);
     void clientDisconnected( QBluetoothSocket *  sender);
-    void messageReceived( QBluetoothSocket*  sender, const QString &message);
+    void messageReceived(QBluetoothSocket* sender, QByteArray data);
 
     void bluetoothStateChanged(QBluetoothLocalDevice::HostMode state);
 
@@ -207,7 +217,8 @@ public slots:
 
 private:
     void initBluetoothServer();
-    void processCommand(RemoteUsers* user,const QString& message);
+    void processCommand(RemoteUsers *user, QByteArray *data,
+                            CommandHandler::Command mprisCommand=CommandHandler::Command::CurrentMediaName);
 
     QGuiApplication* m_app;
     SettingsManager* m_settings;
@@ -231,10 +242,15 @@ private:
     bool m_btAlwaysDiscoverable;
     int m_btMaxConnectionUser;
 
+
     QObject* m_rootObject;//to call qml functions and run mpris stuff
-    QDBusConnection* m_connection;
 
     MprisAdaptor* m_mprisAdaptor;
+
+    bool m_mprisControl;
+    bool m_IsDBusConnectionOk;//status of dbus connection if failed dont allow user to change mprisControl status
+    Q_PROPERTY(bool mprisControl READ mprisControl WRITE setMprisControl NOTIFY mprisControlChanged FINAL)
+    Q_PROPERTY(bool IsDBusConnectionOk READ IsDBusConnectionOk WRITE setIsDBusConnectionOk NOTIFY IsDBusConnectionOkChanged FINAL)
 };
 
 #endif // BACKEND_H

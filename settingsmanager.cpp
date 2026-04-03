@@ -27,6 +27,7 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("App/steadyAudioDevice")) m_settings.setValue("App/steadyAudioDevice",false);
     if(!m_settings.contains("App/currentAudioOutput")) m_settings.setValue("App/currentAudioOutput","");
     if(!m_settings.contains("App/bluetoothHostStatus")) m_settings.setValue("App/bluetoothHostStatus",false);
+    if(!m_settings.contains("App/mprisControl")) m_settings.setValue("App/mprisControl",false);
 
 
     //speedup and stop (SNS)
@@ -88,6 +89,8 @@ void SettingsManager::loadSettings()
     m_value["App/steadyAudioDevice"] = m_settings.value("App/steadyAudioDevice",false);
     m_value["App/currentAudioOutput"] = m_settings.value("App/currentAudioOutput","");
     m_value["App/bluetoothHostStatus"] = m_settings.value("App/bluetoothHostStatus",false);
+    m_value["App/mprisControl"] = m_settings.value("App/mprisControl",false);
+
 
     //speedup and stop (SNS)
     m_value["SNS/secBeforeSpeedup"] = m_settings.value("SNS/secBeforeSpeedup",1);

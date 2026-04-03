@@ -8,6 +8,13 @@ MprisAdaptor::MprisAdaptor(QObject *parent, const QString &objectPath)
     : QDBusAbstractAdaptor(parent)
     , m_objectPath(objectPath)
 {
+    //initial to avoid return neither 0 nor 1 to dbus (this can cause crash!)
+    control.canControl = true;
+    control.canGoNext = true;
+    control.canGoPrevious = true;
+    control.canPause = true;
+    control.canPlay = true;
+
     // setPlaybackStatus("Paused");
 }
 

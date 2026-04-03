@@ -23,8 +23,8 @@ public:
     bool CanRaise() const { return false; }
     QString Identity() const
     {
-        return QString::fromUtf8(MPRIS_IDENTITY);
-        // return "splayer";
+        // return QString::fromUtf8(MPRIS_IDENTITY);
+        return "myplayer";
     }
 
 public slots:

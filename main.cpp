@@ -30,6 +30,9 @@
 #include <QDBusConnection>
 #include <QDBusError>
 
+
+#include "logger.h"
+
 using namespace Qt::Literals::StringLiterals;
 
 struct NameFilters
@@ -83,6 +86,18 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
     parser.addPositionalArgument("url", QCoreApplication::translate("main", "The URL(s) to open."));
     parser.process(app);
+
+
+    //win: c/users/username/appdata/roaming/org/app/
+    //lin: ~/.local/share/org/app/
+    //mac: ~/library/application support/app/
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    QDir().mkpath(logDir);
+    QString logPath = logDir + "/app.log";
+    qInfo() << " logger filepath = " << logPath;
+    Logger::install(logPath);
+
+
 
     qmlRegisterType<SubtitleExtractor>("CustomMedia", 1, 0, "SubtitleExtractor");
     qmlRegisterType<SubtitleFinder>("SubtitleFinder", 1, 0, "SubtitleFinder");

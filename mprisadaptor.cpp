@@ -57,7 +57,10 @@ void MprisAdaptor::updateMetadata(bool isPlaying,
         "PropertiesChanged"
         );
     m_msg << "org.mpris.MediaPlayer2.Player" << m_changedProps << QStringList();
-    QDBusConnection::sessionBus().send(m_msg);
+    if(QDBusConnection::sessionBus().send(m_msg))
+        qInfo() << "updated mprisMetaData has sent to QDBUS successfully.";
+    else
+        qWarning() << "failed to send updated mprisMetaData to QDBUS.";
 }
 
 // void MprisAdaptor::setPlaybackStatus(const QString &newPlaybackStatus)

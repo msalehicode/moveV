@@ -85,22 +85,24 @@ void Backend::runQmlFunction(const QString &functionName)
     if(m_rootObject)
         QMetaObject::invokeMethod(m_rootObject, functionName.toLatin1().data());
     else
-        qInfo() <<"m_rootObject is null";
+        qCritical() <<"m_rootObject is null can't run qml function";
 }
 
 QVariant Backend::runQmlFunction(const QString &functionName, QVariant argum)
 {
+    QVariant returnedValue;
     if(m_rootObject)
     {
-        QVariant returnedValue;
+
         QMetaObject::invokeMethod(m_rootObject, functionName.toLatin1().data(),
                                   Q_RETURN_ARG(QVariant, returnedValue),
                                   Q_ARG(QVariant, argum));
-        // qDebug() << "runQmlFunction: Retuerend value: " << returnedValue.toString();
-        return returnedValue;
+        //qDebug() << "runQmlFunction: Retuerend value: " << returnedValue.toString();
     }
     else
-        qInfo() <<"m_rootObject is null";
+        qCritical() <<"m_rootObject is null can't run qml function";
+
+    return returnedValue;
 }
 
 void Backend::btCheckPermission()
@@ -111,16 +113,15 @@ void Backend::btCheckPermission()
     {
         case Qt::PermissionStatus::Undetermined:
         {
-            qInfo () << "user hasn't been asked or hasn't responded to the permission request yet";
-            qInfo () << "lets ask for permission";
+            qInfo() << "user hasn't been asked or hasn't responded to the permission request yet";
+            qDebug() << "lets ask for permission";
             setBtStatus(BtStatus::AskingPermission);
             m_app->requestPermission(permission, this, &Backend::initBluetoothServer); //permission requests are asynchronous.
         }return;
         case Qt::PermissionStatus::Denied:
         {
-            qInfo () << "user has explicitly refused to grant the Bluetooth permission.";
-
-            qInfo() << "Permissions are needed to use Bluetooth. "
+            qInfo() << "user has explicitly refused to grant the Bluetooth permission.";
+            qDebug() << "Permissions are needed to use Bluetooth. "
                        "Please grant the permissions to this "
                        "application in the system settings.";
             setBtStatus(BtStatus::DeniedPermission);
@@ -128,7 +129,7 @@ void Backend::btCheckPermission()
         }return;
         case Qt::PermissionStatus::Granted:
         {
-            qInfo () <<"bluetooth permission is fine. we proceed to stuff";
+            qInfo() <<"bluetooth permission is fine. we proceed to stuff";
             setBtStatus(BtStatus::GrantedPermission);
             initBluetoothServer();
         }return;
@@ -199,9 +200,10 @@ void Backend::bluetoothServer(const bool &status)
             qInfo() << "blutooth server is on, stopping before statring....";
             m_btServer->stopServer();
         }
+        qInfo() << "bluetooth server will try to start next 2s.";
         QTimer::singleShot(2000, [this]()
         {
-            qInfo() << "starting blutooth server.";
+            qInfo() << "starting blutooth server...";
             btCheckPermission();
         });
 
@@ -236,7 +238,7 @@ void Backend::clientConnected( QBluetoothSocket*  sender)
             UserConnectionType::Bluetooth
         };
         addUser(usr);
-        qInfo () <<  userName << " has conncted to server.\n";
+        qInfo() <<  userName << " has conncted to server.\n";
         emit sendMessage("hello welcome");
     }
     else
@@ -252,7 +254,7 @@ void Backend::clientDisconnected(QBluetoothSocket *  sender)
     RemoteUsers* user = findUser(sender);
     if(user)
     {
-        qInfo () <<  user->name <<  " (using " << user->convertConnectionType() <<  ") has disconnected from server.\n";
+        qInfo() <<  user->name <<  " (using " << user->convertConnectionType() <<  ") has disconnected from server.\n";
 
         //delete that socket/user
         m_users.removeOne(user);
@@ -265,7 +267,7 @@ void Backend::clientDisconnected(QBluetoothSocket *  sender)
 
 void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
 {
-    qInfo() << "message received from("  << sender->peerName() << "): "
+    qDebug() << "message received from("  << sender->peerName() << "): "
             << data;
 
     //who is this sender?!
@@ -273,40 +275,27 @@ void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
     if(user)
         processCommand(user,&data);
     else
-        qInfo() << "user/sender not found (isnt valid)";
+        qInfo() << "coult not pass received message to process due to user/sender isn't valid (not found)";
 }
-
-// void Backend::messageReceived( QBluetoothSocket*  sender, const QString &message)
-// {
-//     qInfo() << "message received from("  << sender->peerName() << "): "
-//             << message;
-//     //who is this sender?!
-//     RemoteUsers* user = findUser(sender);
-//     if(user)
-//         processCommand(user,message);
-//     else
-//         qInfo() << "user/sender not found (isnt valid)";
-// }
 
 void Backend::bluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 {
-    qInfo() << "backend bluetoothStateChanged run.";
     switch (state)
     {
         case QBluetoothLocalDevice::HostPoweredOff:
-            qInfo() << "hostMode state is powered off";
+            qDebug() << "hostMode state is powered off";
             break;
         case QBluetoothLocalDevice::HostConnectable:
-            qInfo() <<  "hostMode state is connectable";
+            qDebug() <<  "hostMode state is connectable";
             break;
         case QBluetoothLocalDevice::HostDiscoverable:
-            qInfo() << "hostMode state is discoverable";
+            qDebug() << "hostMode state is discoverable";
             break;
         case QBluetoothLocalDevice::HostDiscoverableLimitedInquiry:
-            qInfo() <<  "hostMode state is discoveralbe limited inquiry";
+            qDebug() <<  "hostMode state is discoveralbe limited inquiry";
             break;
         default:
-            qInfo() << "hostMode state is unkown hostmode state. state=" << state;
+            qCritical() << "hostMode state is unkown hostmode state. state=" << state;
             break;
     }
     setBluetoothHostModeState(state);
@@ -355,10 +344,10 @@ void Backend::initBluetoothServer()
     else
     {
         //print adapters
-        qInfo()<<"adaptor list:";
+        qDebug()<<"adaptor list:";
         for(const auto& item : m_btLocalAdapters)
         {
-            qInfo() << "Name:" << item.name()
+            qDebug() << "Name:" << item.name()
             << "Address=" << item.address().toString()
             << " (Raw Address Object:" << item.address() << ")";
         }
@@ -396,25 +385,18 @@ void Backend::initBluetoothServer()
 
         if(m_btLocalAdapters.size() < indexCurrentAdaptor)
         {
-            qInfo () << "invalid indexCurrentAdaptor (index isn't < localAdaptorsList.size)";
+            qWarning () << "invalid indexCurrentAdaptor (index isn't < localAdaptorsList.size)";
             setBtStatus(BtStatus::AdapterNotFound);
         }
         else
         {
-            qInfo() << "c6:";
             if(!m_btServer->startServer(m_btLocalAdapters.at(indexCurrentAdaptor).address(), m_btMaxConnectionUser))
             {
-                qInfo() << "btServer starting failed.";
+                qWarning() << "btServer starting failed.";
                 setBtStatus(BtStatus::Failed);
             }
             else
             {
-                //! [Get local device name]
-                // setBtLocalName(QBluetoothLocalDevice().name());
-
-                // qInfo () << "bt started, local name= " << btLocalName();
-                //! [Get local device name]
-
                 setBtStatus(BtStatus::Active);
             }
 
@@ -427,9 +409,7 @@ void Backend::initBluetoothServer()
     }
 
 
-
-
-    qInfo() << "btstatus=" << btStatus();
+    qDebug() << "init bluetooth server finished, status=" << btStatus();
 }
 
 
@@ -444,7 +424,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
 
     if(user==nullptr || data==nullptr) //its a command by mpris
     {
-        qInfo() << "processing from mpris cmd:" << mprisCommand;
+        qDebug() << "processing from mpris, command=" << mprisCommand;
         cmd=mprisCommand;
 
         /*
@@ -466,7 +446,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         QByteArray ba = *data;
         cmd = m_commandHandler.unpack(ba,value);
 
-        qInfo() << "processing command from:"<< user->socket->peerName() << "cmd=" << cmd << "val="
+        qDebug() << "processing command from:"<< user->socket->peerName() << "cmd=" << cmd << "val="
                 << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
     }
 
@@ -583,7 +563,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         // }break;
 
         default:
-            qInfo()<<"undefined command = " << cmd << " value=" << value;
+            qInfo()<<"Can't process undefined command. cmd=" << cmd << " value=" << value;
             break;
     }
 
@@ -592,7 +572,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
     if(user)
         emit sendMessage(user->socket, response);//maybe broadcast  to all connected users.
     else
-        qInfo() << "user is nullptr";
+        qCritical() << "cant send response to nullptr user";
 }
 
 QString Backend::btLocalName() const
@@ -712,7 +692,7 @@ void Backend::unbanUser(QString address)
         emit bannedUsersChanged();
     }
     else
-        qInfo()<<"this address is not banned.";
+        qInfo()<<"invalid address to unban.";
 }
 
 int Backend::btMaxConnectionUser() const
@@ -753,7 +733,7 @@ RemoteUsers* Backend::findUser(QBluetoothSocket *userSocket) const
     {
         if (user->socket == userSocket)
         {
-            // qInfo() << "userFound from m_users";
+            // qDebug() << "userFound from m_users";
             return user;
         }
     }
@@ -770,7 +750,7 @@ RemoteUsers *Backend::findUser(QString &address)
     {
         if (user->address == address)
         {
-            // qInfo() << "userFound from m_users";
+            // qDebug() << "userFound from m_users";
             return user;
         }
     }
@@ -791,7 +771,7 @@ void Backend::addUser(RemoteUsers *newUser)
 
 QVariantList Backend::connectedUsersAsVariantList() const
 {
-    qInfo() << "running connectedUsersAsVariantList. User count:" << m_users.size();
+    qDebug() << "running connectedUsersAsVariantList. User count:" << m_users.size();
 
     QVariantList variantList;
     for (const RemoteUsers* user : m_users)
@@ -855,7 +835,7 @@ void Backend::banUser(QString address)
             qInfo()<<"soon ban wifi user...";
     }
     else
-        qInfo() << "invalid user to kick";
+        qInfo() << "invalid user to ban";
 }
 
 

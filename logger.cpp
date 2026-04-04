@@ -6,7 +6,8 @@ QMutex Logger::mutex;
 void Logger::install(const QString &filePath)
 {
     logFile.setFileName(filePath);
-    logFile.open(QIODevice::Append | QIODevice::Text);
+    if(!logFile.open(QIODevice::Append | QIODevice::Text))
+        qWarning() << "could not open logFile.";
     qInstallMessageHandler(Logger::messageHandler);
 }
 
@@ -15,7 +16,11 @@ void Logger::messageHandler(QtMsgType type, const QMessageLogContext &ctx, const
     QMutexLocker locker(&mutex);
 
     if(!logFile.isOpen())
+    {
+        qWarning() << "could not open logFile to write log message..";
         return;
+    }
+
 
     QString level;
     switch(type)
@@ -25,10 +30,11 @@ void Logger::messageHandler(QtMsgType type, const QMessageLogContext &ctx, const
         case QtWarningMsg: level="WARNING"; break;
         case QtCriticalMsg: level="CRITICAL"; break;
         case QtFatalMsg: level="FATAL"; break;
+        default: level="Unknown QtMsg";
     }
 
 
-    QString line = QString("[%1] [%2] (%3:%4) %5\n")
+    QString line = QString("[%1] [%2] (%3:%4):\n%5\n\n")
                        .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz"))
                        .arg(level)
                        .arg(ctx.file ? ctx.file : "")

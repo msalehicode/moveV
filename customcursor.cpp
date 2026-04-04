@@ -17,6 +17,13 @@ bool CustomCursor::setupCustomCursor(const QUrl &imageUrl, int width, int height
         m_cursorImage.load(imageUrl.toLocalFile());
         if(!m_cursorImage.isNull())
         {
+            //check for image size if its too large show error dont proceed
+            if(m_cursorImage.height()>64 || m_cursorImage.width()>64)
+            {
+                qWarning()<< "selected image is too large to set for custom cursor!";
+                return false;
+            }
+
             //make sure no memory leak from previous call this function
             if(m_customCursor!=nullptr)
                 delete m_customCursor;
@@ -44,6 +51,7 @@ bool CustomCursor::setCursor(int cursor)
     }
 
     //invalid cursor
+    qWarning() << "invalid cursor id to set.";
     return false;
 }
 

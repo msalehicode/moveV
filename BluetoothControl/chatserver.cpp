@@ -17,14 +17,14 @@ ChatServer::ChatServer(QObject *parent)
 {
     if (m_localDevice.isValid())
     {
-        qDebug() << "Bluetooth adapter initialized.";
+        qInfo() << "Bluetooth adapter initialized.";
         // Connect to the stateChanged signal
         connect(&m_localDevice, &QBluetoothLocalDevice::hostModeStateChanged,
                 this, &ChatServer::onBluetoothStateChanged);
 
         onBluetoothStateChanged(m_localDevice.hostMode());//
     } else {
-        qDebug() << "Failed to initialize Bluetooth adapter.";
+        qWarning() << "Failed to initialize Bluetooth adapter.";
     }
 }
 
@@ -39,7 +39,7 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter, int maxConne
 
     if (rfcommServer)
     {
-        qDebug() << "startServer called, but rfcommServer already exists.";
+        qWarning() << "startServer called, but rfcommServer already exists.";
         return false;
     }
 
@@ -62,9 +62,9 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter, int maxConne
 
 
 
-    qInfo() << "trying to start server with serviceUuid=" << serviceUuid;
-    qInfo() << "server info: " << rfcommServer->serverAddress() << " P:" << rfcommServer->serverPort() << " , type: " << rfcommServer->serverType();
-    qInfo() << "max peding coonection: " << rfcommServer->maxPendingConnections() << " sec flags:" << rfcommServer->securityFlags();
+    qDebug() << "trying to start server with serviceUuid=" << serviceUuid;
+    qDebug() << "server info: " << rfcommServer->serverAddress() << " P:" << rfcommServer->serverPort() << " , type: " << rfcommServer->serverType();
+    qDebug() << "max peding coonection: " << rfcommServer->maxPendingConnections() << " sec flags:" << rfcommServer->securityFlags();
 
     //serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceRecordHandle, (uint)0x00010010);
 
@@ -117,12 +117,12 @@ bool ChatServer::startServer(const QBluetoothAddress& localAdapter, int maxConne
 
     bool res = serviceInfo.registerService(localAdapter);
 
-    qInfo() << " service info channel: " << serviceInfo.serverChannel() << "completed?: " << serviceInfo.isComplete()  <<
+    qDebug() << " service info channel: " << serviceInfo.serverChannel() << "completed?: " << serviceInfo.isComplete()  <<
         " Availability: " << serviceInfo.serviceAvailability();
-    qInfo() << " isvalid? " <<serviceInfo.isValid() << " registered?" << serviceInfo.isRegistered(); //<< "device:" << serviceInfo.device();
-    qInfo() << " protocol" << serviceInfo.serviceDescription() << " provider" << serviceInfo.serviceProvider();
-    qInfo() << " name:" << serviceInfo.serviceName() << " uuid" << serviceInfo.serviceUuid();
-    qInfo() << "socketprotocl" << serviceInfo.socketProtocol();
+    qDebug() << " isvalid? " <<serviceInfo.isValid() << " registered?" << serviceInfo.isRegistered(); //<< "device:" << serviceInfo.device();
+    qDebug() << " protocol" << serviceInfo.serviceDescription() << " provider" << serviceInfo.serviceProvider();
+    qDebug() << " name:" << serviceInfo.serviceName() << " uuid" << serviceInfo.serviceUuid();
+    qDebug() << "socketprotocl" << serviceInfo.socketProtocol();
     //! [Register service]
     return res;
     //! [Register service]
@@ -228,7 +228,7 @@ void ChatServer::readSocket()
 void ChatServer::onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 {
     m_btState=state;
-    qDebug() << QDateTime::currentDateTime().toString() <<" - Bluetooth HostMode changed to:" << m_btState;
+    qDebug() << "Bluetooth HostMode changed to:" << m_btState;
 
     //try to turn on bluetooth. but on different platforms may fail.
     // if(state==QBluetoothLocalDevice::HostMode::HostPoweredOff)
@@ -242,10 +242,10 @@ void ChatServer::onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
     //check for discoverablity e.g on ubuntu 24.4 it turn to connectable (hidden) after approx 3 minutes being discoverable
     if(m_btState==QBluetoothLocalDevice::HostConnectable && m_alwaysDiscoverable) //make it always discoverable
     {
-        qInfo() << "hsot state is connectable lets try make it discoverable again..";
+        qDebug() << "hsot state is connectable lets try make it discoverable again..";
         m_localDevice.setHostMode(QBluetoothLocalDevice::HostDiscoverable);
         bool re = m_localDevice.hostMode()==QBluetoothLocalDevice::HostDiscoverable ? true : false;
-        qInfo() << "could make discoverable? " << re;
+        qDebug() << "could make discoverable? " << re;
     }
 
     emit btStateChanged(m_btState);

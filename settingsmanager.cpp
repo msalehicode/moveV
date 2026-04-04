@@ -4,7 +4,7 @@
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
 {
-    qDebug() << "Settings file location:" << m_settings.fileName();
+    qInfo() << "Settings file location:" << m_settings.fileName();
     loadSettings();
 }
 
@@ -15,7 +15,7 @@ SettingsManager::~SettingsManager()
 
 void SettingsManager::loadSettings()
 {
-    qDebug() << "Loading settings...";
+    qInfo() << "Loading settings...";
     m_value.clear();
 
     // Default values if keys are not found

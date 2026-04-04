@@ -15,6 +15,7 @@ import SubtitleFinder 1.0
 import "SubtitleUtils.js" as Sub
 import "scripts.js" as Scripts
 import "../MediaControls/"
+import "../MediaControls/MyComponents/"
 import QtQuick.Dialogs
 
 ApplicationWindow {
@@ -151,18 +152,18 @@ ApplicationWindow {
 
             //encounter subtitle files
             let matches = subtitleFinder.findMatchingSubtitles(mediaPlayer.source)
-            // console.log("matches.length=",matches.length, "matches",matches )
+            // console.debug("matches.length=",matches.length, "matches",matches )
             if (matches.length > 0) {
-                // console.log("Possible subtitles found:")
+                // console.debug("Possible subtitles found:")
                 for (let i = 0; i < matches.length; ++i)
                 {
-                    // console.log("sub: " + matches[i])
+                    // console.debug("sub: " + matches[i])
                     subtitleModel.append({"text":  matches[(i)] , "index": (i+1), "path": matches[i]})
                 }
             }
             else
             {
-                console.log("No matching subtitles found.")
+                console.info("subtitle file doesnt match (living directory subtitle files are not matching for current media)")
             }
 
 
@@ -172,7 +173,7 @@ ApplicationWindow {
 
             if (Scripts.asBool(settings.value["Media/autoLoadSubtitles"]))
             {
-                console.log("autoLoadSubtitles..")
+                // console.debug("autoLoadSubtitles..")
                 var path=subtitleModel.get(0).path
                 loadSubtitle(path==="embedded"?true:false,path,false,0)
 
@@ -184,8 +185,8 @@ ApplicationWindow {
             for (let i = 0; i < audioTracks.length; ++i)
             {
                 let track = audioTracks[i];
-                console.log("track=", track.stringValue(6))
-                // console.log("audiotracks:",audioTracks)
+                console.debug("track=", track.stringValue(6))
+                // console.debug("audiotracks:",audioTracks)
             }
             */
 
@@ -496,7 +497,7 @@ ApplicationWindow {
 
                 if (Scripts.asBool(settings.value["Subtitle1/status"]))
                 {
-                    // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+                    // console.debug("subtitle2Data.subtitle=",subtitle2Data.subtitle)
                     subtitle1Data.currentSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + settings.value["Subtitle1/offset"]*1000)
 
                     //clean stage
@@ -517,7 +518,7 @@ ApplicationWindow {
 
                 if (Scripts.asBool(settings.value["Subtitle2/status"]))
                 {
-                    // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+                    // console.debug("subtitle2Data.subtitle=",subtitle2Data.subtitle)
                     subtitle2Data.currentSubtitle = Sub.getSubtitleForTime(subtitle2Data.subtitle, mediaPlayer.position + settings.value["Subtitle2/offset"]*1000)
 
                     //clean stage
@@ -576,7 +577,7 @@ ApplicationWindow {
                         }
                         else
                         {
-                            // console.log("subtitle is not empty for speedup. subtitle1Data.preSubtitle=",subtitle1Data.preSubtitle,"subtitle2Data.preSubtitle=",subtitle2Data.preSubtitle)
+                            // console.debug("subtitle is not empty for speedup. subtitle1Data.preSubtitle=",subtitle1Data.preSubtitle,"subtitle2Data.preSubtitle=",subtitle2Data.preSubtitle)
                             mediaPlayer.playbackRate=settings.value["Media/rate"]
                             showSpeeding("")
                         }
@@ -748,7 +749,7 @@ ApplicationWindow {
         if(embedded)
         {
             currentSubtitle = extractor.extractSubtitle(mediaPlayer.source, subIndex)
-            // console.log("extract subtitle from video=", currentSubtitle)
+            // console.debug("extract subtitle from video=", currentSubtitle)
         }
         else
         {
@@ -756,7 +757,7 @@ ApplicationWindow {
                 subPath = subPath.slice(7)
 
             currentSubtitle = extractor.loadSrtFile(subPath)
-            // console.log("loaded subtitle beside video=", currentSubtitle)
+            // console.debug("loaded subtitle beside video=", currentSubtitle)
         }
 
         if(subtitleNo)
@@ -774,8 +775,8 @@ ApplicationWindow {
                 subtitle2Data.subIndex=subIndex
         }
 
-        // console.log("subtitle1Data.subtitle=",subtitle1Data.subtitle)
-        // console.log("subtitle2Data.subtitle=",subtitle2Data.subtitle)
+        // console.debug("subtitle1Data.subtitle=",subtitle1Data.subtitle)
+        // console.debug("subtitle2Data.subtitle=",subtitle2Data.subtitle)
 
         currentSubtitle=""
     }
@@ -1265,7 +1266,7 @@ ApplicationWindow {
                             to:30
                             onValueChanged:
                             {
-                                console.log("bt max users changed to " + value)
+                                // console.debug("bt max users changed to " + value)
                                 backend.btMaxConnectionUser=value
                             }
                         }
@@ -1312,6 +1313,8 @@ ApplicationWindow {
                     setBgColorButton:"black"
                     setBgContent: "grey"
                     setContentHeight: connectedUsers.count===0 ? 60+15 : (connectedUsers.count*(60+15)) //15spacing, 60height item
+                    setIconArrow: "icons/back.png"
+                    pathFromComponentDire:false
                     ListView {
                         id:connectedUsers
                         anchors.fill: parent
@@ -1321,48 +1324,83 @@ ApplicationWindow {
                         {
                             width: parent.width
                             height: 60
-                            color:modelData.using==="B"? "blue" : "black"
+                            color:(function(status) {
+                                switch(status) {
+                                    case "Connected": return "#256b00"; //dark green
+                                    case "ConnectionLost": return "#c76400"; //dark orange
+                                    case "Disconnected": return "#950500"; //dark red
+                                    default: return "purple";
+                                }})(modelData.status) //connection status
                             Row
                             {
                                 anchors.fill: parent
+                                spacing: 10
                                 Image
                                 {
-                                    width:20
-                                    height:20
+                                    width:50
+                                    height:50
                                     source: modelData.using==="B"? "icons/bluetooth.png" : "icons/wifi.png"
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Rectangle
                                 {
-                                    color:modelData.status==="connected"?"green":"red"
-                                    width:20
-                                    height:20
-                                    radius: 20
+                                    color:"black"
+                                    width:35
+                                    height:35
+                                    radius: 35
                                     anchors.verticalCenter: parent.verticalCenter
+                                    Label
+                                    {
+                                        text: modelData.ping==="-1" ? "?" : modelData.ping
+                                        color:"white"
+                                        anchors.centerIn: parent
+                                        font.pixelSize: 15
+                                    }
                                 }
+
 
                                 Text
                                 {
+                                    /*
+                                       modelData.access
+                                       .connectedAt
+                                       .address
+                                       .status
+                                       .name
+                                       .using
+                                       .ping
+                                    */
+                                    text:"name: ("+modelData.name+") @ ["+modelData.address+"]"
+                                    width: 200
                                     color: "white"
-                                    text:"name: ("+modelData.name+")" + "\n - Access: (" + modelData.access + ")" +" - Connected at: ("+ modelData.connectedAt + ")"
-                                    // text: "Name: (" + modelData.name + ") - Status: (" + modelData.status +") - Access: (" + modelData.access + ")"
-                                     // +"\nUsing: (" + modelData.using +") - Address: [" + modelData.address+ "]"
-                                    // +"\n - Connected at: ("+ modelData.connectedAt + ")"
+                                    font.pixelSize: 15
                                     font.bold: true
+                                    anchors.verticalCenter: parent.verticalCenter
                                 }
-                                Button{
-                                    text:"kick"
-                                    onClicked:
-                                    {
-                                        backend.kickUser(modelData.address);
-                                    }
+
+                                MyButton
+                                {
+                                    setWidth:60
+                                    setHeight:40
+                                    setButtonBackColor: "black"
+                                    setButtonBorderColor: "transparent"
+                                    setButtonFontColor: "white"
+                                    setButtonFontsize: 13
+                                    setButtonText: "Kick"
+                                    onButtonClicked:  backend.kickUser(modelData.address);
+                                    anchors.verticalCenter: parent.verticalCenter
                                 }
-                                Button{
-                                    text:"ban"
-                                    onClicked:
-                                    {
-                                        backend.banUser(modelData.address);
-                                    }
+                                MyButton
+                                {
+                                    setWidth:60
+                                    setHeight:40
+                                    setButtonBackColor: "black"
+                                    setButtonBorderColor: "transparent"
+                                    setButtonFontColor: "white"
+                                    setButtonFontsize: 13
+                                    setButtonText: "Ban"
+                                    onButtonClicked: backend.banUser(modelData.address);
+                                    anchors.verticalCenter: parent.verticalCenter
                                 }
 
                             }
@@ -1373,37 +1411,53 @@ ApplicationWindow {
 
                 CustomCollapsiblePanel
                 {
-                    setWidth: 200
+                    setWidth: 250
                     setHeight: 200
-                    setTitle:"banned users:"
+                    setTitle:"banned users: (" + listViewBannedUsers.count + ")"
+                    setBgColorButton: "black"
+                    setTextColor: "white"
+                    setIconArrow: "icons/back.png"
+                    pathFromComponentDire:false
 
+                    setContentHeight: listViewBannedUsers.count===0 ? 60+15 : (listViewBannedUsers.count*(60+15)) //15spacing, 60height item
                     ListView
                     {
                         id:listViewBannedUsers
                         anchors.fill: parent
                         model: backend.bannedUsers
-                        spacing: 10
+                        spacing: 15
                         delegate: Rectangle
                         {
                             color:"black"
-                            width:parent.width/1.25
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            height:50
-                            Label
+                            width:parent.width/1.20
+                            height:60
+                            anchors.horizontalCenter:parent.horizontalCenter
+
+                            Row
                             {
-                                text:modelData
-                                font.pixelSize: 20
-                                color: "white"
-                                anchors.centerIn: parent
-                            }
-                            Button
-                            {
-                                text:"unban"
-                                onClicked:
+                                anchors.fill: parent
+                                Label
                                 {
-                                    backend.unbanUser(modelData)
+                                    text:modelData
+                                    font.pixelSize: 15
+                                    color: "white"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                MyButton
+                                {
+                                    setWidth:60
+                                    setHeight:40
+                                    setButtonBackColor: "green"
+                                    setButtonBorderColor: "transparent"
+                                    setButtonFontColor: "black"
+                                    setButtonFontsize: 13
+                                    setButtonText: "Unban"
+                                    onButtonClicked: backend.unbanUser(modelData) //pass banned address
+                                    anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
+
+
                         }
 
                     }
@@ -1844,7 +1898,7 @@ ApplicationWindow {
                 onClicked:
                 {
                     // dropHandler.closeDialog()
-                    console.log("user must select one.")
+                    console.info("user must select one subtitle OR cancel.")
                 }
             }
         }
@@ -1943,21 +1997,21 @@ ApplicationWindow {
         // Accept common file-drop mimetypes
         keys: ["text/uri-list"]
         onEntered: (drag) => {
-            // console.log("Entered with:", drag.keys)
+            // console.debug("Entered with:", drag.keys)
             drag.acceptProposedAction() //tell OS drop is allowed/accepted
         }
 
 
         onDropped: (drop) => {
-                       // console.log("Dropped keys:", drop.keys)
-                       // console.log("Dropped urls:", drop.urls)
+                       // console.debug("Dropped keys:", drop.keys)
+                       // console.debug("Dropped urls:", drop.urls)
                        let countFiles=drop.urls.length
 
                        const fileFormat = Scripts.isSupportedFormat(drop.urls[0],true)
                        if((fileFormat === ".srt" || fileFormat===".sub") &&
                           countFiles===1)//if its single and foramt is subttile apply for subtitle
                        {
-                           console.log("dropped file is single subtitle")
+                           // console.debug("dropped file is single subtitle")
                            dropHandler.openDialog()
                            subPath=drop.urls[0]
                        }
@@ -1974,17 +2028,6 @@ ApplicationWindow {
         id: errorPopup
     }
 
-
-
-    //test: call from C++ (code is on main.cpp)
-    // function callbycpp(name="empty")
-    // {
-    //     return "."+name+".";
-    // }
-    // function dosomething()
-    // {
-    //     console.log("doing something...")
-    // }
 
     Component.onCompleted: {
         if (source.toString().length > 0)
@@ -2010,13 +2053,5 @@ ApplicationWindow {
         if(Scripts.asBool(settings.value["App/bluetoothHostStatus"]))
             backend.bluetoothServer(true)
     }
-
-    // Connections {
-    //         target: settings
-    //         function onValueChanged()
-    //         {
-    //             console.log("Settings changed")
-    //         }
-    //     }
 }
 

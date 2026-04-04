@@ -53,7 +53,7 @@ Rectangle {
                 })
             }
             else
-                console.log("file format not supported, file:",file)
+                console.warn("file format not supported, file:",file)
 
         })
 
@@ -75,7 +75,7 @@ Rectangle {
                 })
         }
         else
-            console.log("file format not supported, file:",selectedFile)
+            console.warn("file format not supported, file:",selectedFile)
     }
 
 

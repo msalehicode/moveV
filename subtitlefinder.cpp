@@ -106,10 +106,10 @@ QStringList SubtitleFinder::findMatchingSubtitles(const QString &videoPath)
     {
         foundSubs.append({samenameSub, 100});
         result.append(samenameSub);
-        qDebug() << "subtitle with same name found."<<samenameSub;
+        // qDebug() << "subtitle with same name found."<<samenameSub;
     }
     else
-        qDebug() << "subtitle with same name not found." << samenameSub;
+        // qDebug() << "subtitle with same name not found." << samenameSub;
 
 
     // Check for subtitles that contain the movie/show name (fuzzy match)
@@ -135,7 +135,7 @@ QStringList SubtitleFinder::findMatchingSubtitles(const QString &videoPath)
                 int score = computeMatchScore(f.fileName(), fileName, QString());
                 foundSubs.append({f.absoluteFilePath(), score});
                 result.append(f.absoluteFilePath());
-                qDebug() << "Subtitle name-based match:" << f.absoluteFilePath() << "score=" << score;
+                // qDebug() << "Subtitle name-based match:" << f.absoluteFilePath() << "score=" << score;
             }
         }
     }

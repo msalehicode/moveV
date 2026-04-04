@@ -1,0 +1,14 @@
+module MyComponents
+MyButton 1.0 MyButton.qml
+MyButtonWithIcon 1.0 MyButtonWithIcon.qml
+MyCombobox 1.0 MyCombobox.qml
+MyComboboxWithIcon 1.0 MyComboboxWithIcon.qml
+MyPopupMessage 1.0 MyPopupMessage.qml
+MyProccessBar 1.0 MyProccessBar.qml
+MySwitch 1.0 MySwitch.qml
+MySwitchText 1.0 MySwitchText.qml
+MyTextInput 1.0 MyTextInput.qml
+MyTimer 1.0 MyTimer.qml
+MyPopupMenu 1.0 MyPopupMenu.qml
+MyCollapsiblePanel 1.0 MyCollapsiblePanel.qml
+MyCheckBox 1.0 MyCheckBox.qml

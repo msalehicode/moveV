@@ -42,7 +42,7 @@ Item {
             if(currentlyCheckedButton.text === Config.defaultAudioLabel)
             {
                 refreshAudioOutput()
-                console.log("device is on default. system default audioDevice changed lets obey.")
+                console.info("device is on default. system default audioDevice changed lets obey.")
                 return;
             }
             else //selected device is not default
@@ -57,10 +57,10 @@ Item {
                     for(var i = 0; i < audioOutputs.length; i++)
                     {
                         var device = audioOutputs[i];
-                        console.log("Device (", i ,"): desc:" + device.description + " id:" + device.id + ")");
+                        // console.debug("Device (", i ,"): desc:" + device.description + " id:" + device.id + ")");
                         if(device.description === settings.value["App/currentAudioOutput"])
                         {
-                            console.log("currentAudioOuput Found: " + device.description);
+                            // console.debug("currentAudioOuput Found: " + device.description);
                             currentDeviceFound=true;
                             break; // Stop searching once found
                         }
@@ -69,20 +69,20 @@ Item {
 
                     if(currentDeviceFound)
                     {
-                       console.log("current device found. no worries.")
+                       console.info("current device found. no worries.")
                     }
                     else
                     {
-                        console.log("current device didn't found...")
+                        console.info("current device didn't found...")
                         if(Scripts.asBool(settings.value["App/steadyAudioDevice"]))
                         {
-                            console.log("a change on devices has been happened video paused due to steadyAudioDevice is ON.");
+                            console.info("a change on devices has been happened video paused due to steadyAudioDevice is ON.");
                             Config.mediaPlayerPtr.pause()
                             return;
                         }
                         else
                         {
-                            console.log("steadyAudiodeie is off, switching to default")
+                            console.info("steadyAudiodeie is off, switching to default")
                             refreshAudioOutput()
                         }
 
@@ -90,7 +90,7 @@ Item {
                 }
                 else
                 {
-                    console.log("MediaDevices or audioOutputs not available.");
+                    console.warn("MediaDevices or audioOutputs not available.");
                 }
             }
         }
@@ -189,7 +189,7 @@ Item {
                     ButtonGroup.group: groupAudioOutputDevice
                     onClicked:
                     {
-                        console.log("custom audio output selected.")
+                        // console.debug("custom audio output selected.")
                         settings.setSetting("App/currentAudioOutput","")
                     }
                 }
@@ -205,7 +205,7 @@ Item {
                         ButtonGroup.group: groupAudioOutputDevice
                         onClicked: {
                             settings.setSetting("App/currentAudioOutput",modelData.description)
-                            console.log("device selected=",modelData.description)
+                            // console.debug("device selected=",modelData.description)
                             Config.mediaPlayerPtr.audioOutput.device = modelData
                         }
                     }
@@ -365,7 +365,7 @@ Item {
                     property string key;
                     onAccepted:
                     {
-                        console.log("color accepted key=",key, "selectedColor=",selectedColor)
+                        // console.debug("color accepted key=",key, "selectedColor=",selectedColor)
                         settings.setSetting(key,selectedColor)
                     }
                 }
@@ -385,9 +385,9 @@ Item {
                             if (currentIndex !== -1) {
                                 // Get the data of the selected item from the ListModel
                                 var selectedItem = subtitleModel.get(currentIndex);
-                                console.log("Selected Index:", selectedItem.index);
-                                console.log("Selected Text:", selectedItem.text);
-                                console.log("Selected Path:", selectedItem.path);
+                                // console.debug("Selected Index:", selectedItem.index);
+                                // console.debug("Selected Text:", selectedItem.text);
+                                // console.debug("Selected Path:", selectedItem.path);
 
 
 

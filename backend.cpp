@@ -16,6 +16,10 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     QVariant settingVariant = m_settings->getSetting("App/mprisControl",false);
     bool status = settingVariant.value<bool>();
     setMprisControl(status);
+
+    m_pingUsersTimer.setInterval(SERVER_PING_USERS_TIMER_INTERVAL);
+    connect(&m_pingUsersTimer, &QTimer::timeout,
+            this, &Backend::sendPingToAllUsers);
 }
 
 void Backend::initMpris()
@@ -225,26 +229,42 @@ void Backend::clientConnected( QBluetoothSocket*  sender)
 {
     QString userAddress = sender->peerAddress().toString()+":"+QString::number(static_cast<int>(sender->peerPort()));
     QString userName = sender->peerName();
+
+    //check if user exists refuse connetion
+    if(findUser(userAddress))
+    {
+        qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (address exists!).";
+        emit sendMessage("duplicated user userAddress. connection refused..");
+        m_btServer->disconnectClient(sender);
+        return;
+    }
+
     if(!m_bannedUsers.contains(userAddress))
     {
         //add him to our clinets list
-        RemoteUsers* usr = new RemoteUsers{
-            userName,
-            userAddress,
-            UserConnectionStatus::Connected,
-            UserAccess::Normal,
-            sender,
-            QDateTime::currentDateTime(),
-            UserConnectionType::Bluetooth
-        };
-        addUser(usr);
+        RemoteUsers* user = new RemoteUsers(userName,userAddress, sender,UserConnectionType::Bluetooth);
+        addUser(user);
+
+
+
+        //check for connection lost
+        user->connectionLostTimer.setInterval(CLIENT_CONNECTIONLOST_TIMER_INTERVAL);
+        connect(&(user->connectionLostTimer), &QTimer::timeout,
+                [user]()
+        {
+                    // qInfo() << "user connetionlost timer timeout . counter:" << user->connectionLostCounter;
+                    if(user->pingMs==DEFAULT_CLIENT_PING)
+                        user->connectionLostCounter++;
+        });
+
         qInfo() <<  userName << " has conncted to server.\n";
         emit sendMessage("hello welcome");
     }
     else
     {
         qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (banned).";
-        emit sendMessage(sender, "you are banned.");
+        QString msg = "you are banned.";
+        emit sendMessage(sender, msg);
         m_btServer->disconnectClient(sender);
     }
 }
@@ -273,9 +293,32 @@ void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
     //who is this sender?!
     RemoteUsers* user = findUser(sender);
     if(user)
-        processCommand(user,&data);
+    {
+        //check if its pong message or not
+        if(data==CommandHandler::PONG_DATA)
+        {
+            if(user->pingTimer.isValid())
+            {
+                user->pingMs = user->pingTimer.elapsed();
+
+                //set proper status for user
+                user->status = UserConnectionStatus::Connected;
+
+                //reset connection lost counter and timer.
+                user->connectionLostCounter=0;
+                user->connectionLostTimer.stop();
+
+                emit connectedUsersListChanged();//tell qml data changed
+            }
+            else
+                qDebug() << "user pingTimer is not valid.";
+        }
+        else
+            processCommand(user,&data);
+    }
     else
         qInfo() << "coult not pass received message to process due to user/sender isn't valid (not found)";
+
 }
 
 void Backend::bluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
@@ -382,6 +425,11 @@ void Backend::initBluetoothServer()
         connect(this, QOverload<QBluetoothSocket*, const QString &>::of(&Backend::sendMessage),
                 m_btServer, QOverload<QBluetoothSocket*, const QString &>::of(&ChatServer::sendMessage));
 
+        //send qbytearray directly to receiver.
+        connect(this, QOverload<QBluetoothSocket*, const QByteArray &>::of(&Backend::sendMessage),
+                m_btServer, QOverload<QBluetoothSocket*, const QByteArray &>::of(&ChatServer::sendMessage));
+
+
 
         if(m_btLocalAdapters.size() < indexCurrentAdaptor)
         {
@@ -422,6 +470,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
     CommandHandler::Command cmd;
     QString value;
 
+
     if(user==nullptr || data==nullptr) //its a command by mpris
     {
         qDebug() << "processing from mpris, command=" << mprisCommand;
@@ -447,7 +496,8 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         cmd = m_commandHandler.unpack(ba,value);
 
         qDebug() << "processing command from:"<< user->socket->peerName() << "cmd=" << cmd << "val="
-                << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
+                 << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
+
     }
 
     switch (cmd)
@@ -573,6 +623,54 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         emit sendMessage(user->socket, response);//maybe broadcast  to all connected users.
     else
         qCritical() << "cant send response to nullptr user";
+}
+
+void Backend::sendPingToAllUsers()
+{
+    if(m_users.isEmpty())
+    {
+        m_pingUsersTimer.stop();
+        qDebug() << "no user found. stoppping timer for now.";
+        return;
+    }
+
+    //send ping
+    qDebug() << "Sending pings to all connected clients...";
+    for (RemoteUsers* user : m_users)
+    {
+        // Check if user is actually connected and has a socket
+        if (user->connectionType == UserConnectionType::Bluetooth &&
+                user->socket != nullptr) //this socket means bluetooth socket.
+        {
+            user->pingTimer.restart();
+
+            user->pingMs = DEFAULT_CLIENT_PING;
+
+            //to find out wether user is connection lost or not.
+            if(user->connectionLostCounter==0)
+                user->connectionLostTimer.start();
+            else //user is on connecton lost stage!
+            {
+                //set proper status for user
+                user->status = UserConnectionStatus::ConnectionLost;
+
+                //check if user connection lost counter exceed from MAX or not
+                if(user->connectionLostCounter>CLIENT_MAX_CONNECTIONLOST_COUNT)
+                {
+                    qInfo() << "user exceed max connection lost count. disconencting him...";
+                    user->connectionLostTimer.stop();
+                    m_btServer->disconnectClient(user->socket);
+                }
+            }
+
+
+            emit connectedUsersListChanged();
+
+            emit sendMessage(user->socket,CommandHandler::PING_DATA);
+            qDebug() << "Sent PING_DATA to" << user->name << " (" << user->address << ")";
+        }
+    }
+
 }
 
 QString Backend::btLocalName() const
@@ -766,6 +864,14 @@ void Backend::setUsers(const QList<RemoteUsers*> &newUsers)
 void Backend::addUser(RemoteUsers *newUser)
 {
     m_users.append(newUser);
+
+    if(!m_pingUsersTimer.isActive())
+    {
+        qDebug() << "a user found, starting ping timer.";
+        m_pingUsersTimer.start();
+    }
+
+
     emit connectedUsersListChanged();
 }
 
@@ -787,6 +893,7 @@ QVariantList Backend::connectedUsersAsVariantList() const
         userMap["access"] = userInfo.at(3);
         userMap["connectedAt"] = userInfo.at(4);
         userMap["using"] = userInfo.at(5);
+        userMap["ping"] = userInfo.at(6);
         variantList.append(userMap);
     }
     return variantList;
@@ -906,9 +1013,11 @@ QString RemoteUsers::convertConnectionStatus() const
     case UserConnectionStatus::UnknownStatus:
         return "unknown";
     case UserConnectionStatus::Connected:
-        return "connected";
+        return "Connected";
+    case UserConnectionStatus::ConnectionLost:
+        return "ConnectionLost";
     case UserConnectionStatus::Disconnected:
-        return "disconnected";
+        return "Disconnected";
     default:
         return "invalid status";
     }
@@ -924,7 +1033,8 @@ QList<QString> RemoteUsers::getAsStringList() const
         convertConnectionStatus(),
         convertUserAccess(),
         QTime(connectedAt.time()).toString(),
-        convertConnectionType(true)
+        convertConnectionType(true),
+        QString::number(pingMs)
     };
     return list;
 }

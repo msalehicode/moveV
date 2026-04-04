@@ -134,12 +134,7 @@ void ChatServer::stopServer()
     //disconnect all connected usrs;
     for(QBluetoothSocket* socket : clientSockets)
     {
-        socket->disconnectFromService();
-        // socket->waitForDisconnected();
-
-        emit clientDisconnected(socket);
-
-        socket->deleteLater();
+        disconnectClient(socket);
     }
 
     //clear lists
@@ -174,6 +169,11 @@ void ChatServer::sendMessage(QBluetoothSocket * receiver, const QString &message
     QByteArray text = message.toUtf8() + '\n';
 
     receiver->write(text);
+}
+
+void ChatServer::sendMessage(QBluetoothSocket *receiver, const QByteArray& data)
+{
+    receiver->write(data);
 }
 //! [sendMessage]
 
@@ -266,7 +266,14 @@ void ChatServer::setAlwaysDiscoverable(bool newAlwaysDiscoverable)
 void ChatServer::disconnectClient(QBluetoothSocket *target)
 {
     if(target)
+    {
         target->disconnectFromService();
+        // target->waitForDisconnected();
+
+        emit clientDisconnected(target);
+
+        target->deleteLater();
+    }
     else
         qInfo()<<"invalid client to disconnect";
 }

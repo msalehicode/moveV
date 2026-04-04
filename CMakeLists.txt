@@ -27,6 +27,7 @@ qt_add_qml_module(MediaPlayerApp
     SOURCES customcursor.h customcursor.cpp
     SOURCES settingsmanager.h settingsmanager.cpp
     SOURCES logger.h logger.cpp
+    SOURCES config.h
 )
 
 qt_add_ios_ffmpeg_libraries(MediaPlayerApp)

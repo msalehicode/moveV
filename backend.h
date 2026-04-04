@@ -32,6 +32,9 @@
 #include "mprisadaptor.h"
 #include "mprisrootadaptor.h"
 
+#include <QElapsedTimer>
+
+#include "config.h"
 
 using namespace Qt::StringLiterals;
 
@@ -62,6 +65,7 @@ enum class UserConnectionStatus
 {
     UnknownStatus=-1,
     Connected,
+    ConnectionLost, //will way some seconds and if not retunred/responsed will disconnect him.
     Disconnected
 };
 
@@ -87,6 +91,21 @@ struct RemoteUsers
     //QWifiSocket* wSocket;
     QDateTime connectedAt;
     UserConnectionType connectionType;
+    qint64 pingMs;
+
+    short connectionLostCounter;
+    QElapsedTimer pingTimer;
+    QTimer connectionLostTimer;
+
+    RemoteUsers(QString uName, QString uAddressPort, QBluetoothSocket* btSocket,UserConnectionType connType)
+        : name(uName) , address(uAddressPort), socket(btSocket), connectionType(connType)
+        , status(UserConnectionStatus::Connected), pingMs(0) , connectionLostCounter(0)
+        , access(UserAccess::Normal), connectedAt(QDateTime::currentDateTime())
+    {
+
+
+    }
+
 
     QString convertUserAccess() const;
 
@@ -189,6 +208,7 @@ signals:
 
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
+    void sendMessage(QBluetoothSocket *receiver, const QByteArray& data);
 
     void bannedUsersChanged();
 
@@ -219,6 +239,7 @@ private:
     void initBluetoothServer();
     void processCommand(RemoteUsers *user, QByteArray *data,
                             CommandHandler::Command mprisCommand=CommandHandler::Command::CurrentMediaName);
+    void sendPingToAllUsers();
 
     QGuiApplication* m_app;
     SettingsManager* m_settings;
@@ -243,6 +264,7 @@ private:
     int m_btMaxConnectionUser;
 
 
+    QTimer m_pingUsersTimer;
     QObject* m_rootObject;//to call qml functions and run mpris stuff
 
     MprisAdaptor* m_mprisAdaptor;

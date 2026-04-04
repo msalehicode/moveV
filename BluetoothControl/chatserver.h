@@ -38,6 +38,7 @@ public:
 public slots:
     void sendMessage(const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
+    void sendMessage(QBluetoothSocket *receiver, const QByteArray& data);
 
 signals:
     // void messageReceived(QBluetoothSocket* sender, const QString &message);

@@ -1251,26 +1251,6 @@ ApplicationWindow {
                             // settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
                         }
                     }
-                    Row
-                    {
-                        Text
-                        {
-                            text:"max connection:"
-                        }
-
-                        SpinBox
-                        {
-                            id:bluetoothHostMaxAllowedConnection
-                            value: backend.btMaxConnectionUser
-                            from: 1
-                            to:30
-                            onValueChanged:
-                            {
-                                // console.debug("bt max users changed to " + value)
-                                backend.btMaxConnectionUser=value
-                            }
-                        }
-                    }
 
                     CustomCheckbox
                     {
@@ -1300,6 +1280,53 @@ ApplicationWindow {
                             settings.setSetting("App/bluetoothHostStatus",checked)
                         }
                     }
+
+
+
+                    Rectangle
+                    {
+                        width: 200
+                        height: 60
+                        color:"transparent"
+                        Row
+                        {
+                            Label
+                            {
+                                text:"Max Connection:"
+                                color: "white"
+                            }
+                            MySlider
+                            {
+                                id:bluetoothHostMaxAllowedConnection
+                                setWidth: 200
+                                setHeight: 10
+                                setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                                setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                                setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                                intialValue: backend.btMaxConnectionUser
+                                setFilledLeftRadius: 30
+                                setRadius: 30
+                                setFrom: 1
+                                setTo: 5
+                                onModified: //value changed
+                                {
+                                    // console.debug("bt max users changed to " + value)
+                                    backend.btMaxConnectionUser=value
+                                }
+                                onHovered:
+                                {
+                                    if(isHovered)
+                                        backend.changeCursor("hand")
+                                    else
+                                        backend.changeCursor()
+                                }
+                            }
+
+                        }
+
+
+                    }
+
 
                 }
 

@@ -1,54 +1,136 @@
-// Copyright (C) 2023 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 import QtQuick
 import QtQuick.Controls.Fusion
-// import Config
 
-Slider {
-    id: slider
+Item
+{
+    id:root;
+    width:setWidth
+    height:setHeight
+    visible: setVisible
+    anchors.top:parent.top
+    anchors.topMargin: setHandleHeight/2 //because hight of handle. make sure it would show whole handle
 
-    property alias backgroundColor: backgroundRec.color
-    property alias backgroundOpacity: backgroundRec.opacity
+    property string setColor: "green"
+    property int setRadius: 0
+    property int setWidth: 300
+    property int setHeight: 5
+    property real setOpacity: 1
+    property bool setVisible: true
 
-    background: Rectangle {
-        id: backgroundRec
-        x: slider.leftPadding
-        y: slider.topPadding + slider.availableHeight / 2 - height / 2
-        implicitWidth: 120
-        implicitHeight: 8
-        width: slider.availableWidth
-        height: implicitHeight
-        radius: 10
-        color: "#41CD52"//Config.highlightColor
-        opacity: 0.2
-        border.color: "#41CD52"//Config.highlightColor
-        border.width: 1
-    }
+    property int setFrom: 0
+    property int setTo: 10
+    property real setSteps: 1
+    property int value:0
+    property int intialValue:0
 
-    handle: Rectangle {
-        x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
-        y: slider.topPadding + slider.availableHeight / 2 - height / 2
-        implicitWidth: 20
-        implicitHeight: 25
-        radius: 15
 
-        color: "green"
-    }
-    onHoveredChanged:
-    {
-        // if(hovered)
-            // backend.changeCursor("hand")
-        // else
-            // backend.changeCursor()
-    }
+    //handle
+    property int setHandleWidth: 20
+    property int setHandleHeight: 20
+    property int setHandleRadius: 20
+    property string setHandleColor: "red"
 
-    Rectangle {
-        width: slider.visualPosition * slider.availableWidth
-        x: slider.leftPadding
-        y: slider.topPadding + slider.availableHeight / 2 - height / 2
-        height: 8
-        color:  "darkgreen"//"#41CD52"// Config.highlightColor
-        radius: 10
+    //background steps:
+    property bool setStepVisible: true
+    property int setStepHeight: 10
+    property int setStepWidth: 10
+    property int setStepRadius: 10
+    property string setStepColor: "lime"
+
+    //
+    property int setFilledHeight: 11
+    property int setFilledLeftRadius: 0
+    property int setFilledRightRadius: 0
+    property string setFilledColor: "black"
+
+
+    property bool isHovered: false
+    signal modified;
+    signal hovered;
+
+    Slider {
+        id: slider
+
+        width: parent.width
+        height: parent.height
+        property alias backgroundColor: backgroundRec.color
+        property alias backgroundOpacity: backgroundRec.opacity
+
+        stepSize: root.setSteps
+
+        snapMode: Slider.SnapAlways
+        value: root.intialValue
+        from: root.setFrom
+        to: root.setTo
+
+        background: Rectangle {
+            id: backgroundRec
+            x: slider.leftPadding
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            width: slider.availableWidth
+            height:slider.availableHeight
+            radius: root.setRadius
+            color: root.setColor
+            opacity: setOpacity
+        }
+
+
+
+        handle: Rectangle {
+            x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            width: root.setHandleWidth
+            height: root.setHandleHeight
+            radius: root.setHandleRadius
+            color: root.setHandleColor
+        }
+        onValueChanged:
+        {
+            root.value=value
+            root.modified()
+        }
+
+
+
+        Repeater {
+            id: stepRepeater
+            model: (slider.to - slider.from) / slider.stepSize + 1
+
+            Rectangle {
+                visible: root.setStepVisible
+                width: root.setStepWidth
+                height: root.setStepHeight
+                radius: root.setStepRadius
+                color: root.setStepColor
+
+                x: slider.leftPadding
+                   + (index / (stepRepeater.count - 1)) * (slider.availableWidth - slider.handle.width)
+                   + slider.handle.width / 2
+                   - width / 2
+                y: backgroundRec.height / 2 - height / 2
+            }
+        }
+
+        Rectangle {
+            id:filledValue
+            width: slider.visualPosition * slider.availableWidth
+            x: slider.leftPadding
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            height: root.setFilledHeight
+            color: root.setFilledColor
+            radius: root.setFilledRadius
+            bottomLeftRadius: root.setFilledLeftRadius
+            topLeftRadius: root.setFilledLeftRadius
+            topRightRadius: root.setFilledRightRadius
+            bottomRightRadius: root.setFilledRightRadius
+        }
+        HoverHandler
+        {
+            onHoveredChanged:
+            {
+                root.isHovered=hovered
+                root.hovered()
+            }
+        }
     }
 }

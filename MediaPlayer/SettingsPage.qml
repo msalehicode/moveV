@@ -9,6 +9,7 @@ import MediaControls
 import Config
 import QtQuick.Dialogs
 import "scripts.js" as Scripts
+import "../MediaControls/MyComponents/"
 
 Item {
     id: root
@@ -409,45 +410,128 @@ Item {
                     }
 
                     Label {
-                        text: "Subtitle 1 wordByWord Chunks:"
+                        text: "wordByWord Chunks: (" + settings.value["Subtitle1/wordByWordChunks"] + ")"
                         font.pixelSize: 12
                         visible: wordByWordSubtitle1Checkbox.checked
                     }
 
-                    SpinBox {
-                        value: Scripts.asInt(settings.value["Subtitle1/wordByWordChunks"])
-                        visible: wordByWordSubtitle1Checkbox.checked
-                        onValueChanged: {
-                            settings.setSetting("Subtitle1/wordByWordChunks", value)
+
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asInt(settings.value["Subtitle1/wordByWordChunks"])
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: 1
+                            setTo: 10
+                            setStepVisible: true
+                            setVisible: wordByWordSubtitle1Checkbox.checked
+                            onModified: //value changed
+                            {
+                                settings.setSetting("Subtitle1/wordByWordChunks", value)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
                         }
+
                     }
 
+
+
                     Label {
-                        text: "Subtitle 1 font size:"
+                        text: "Subtitle 1 font size: (" + settings.value["Subtitle1/textSize"] + ")"
                         font.pixelSize: 12
                     }
 
-                    SpinBox {
-                        value: settings.value["Subtitle1/textSize"]
-                        onValueChanged: {
-                            settings.setSetting("Subtitle1/textSize", value)
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asInt(settings.value["Subtitle1/textSize"])
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: 1
+                            setTo: 200
+                            setStepVisible: false
+                            onModified: //value changed
+                            {
+                                settings.setSetting("Subtitle1/textSize",value)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
                         }
+
                     }
+
+
 
 
                     Label {
-                        text: "Subtitle 1 offset:"
+                        text: "Subtitle 1 offset: (" + settings.value["Subtitle1/offset"] + ")"
                         font.pixelSize: 12
                     }
 
-                    SpinBox {
-                        value: settings.value["Subtitle1/offset"]
-                        from: -100
-                        to: 100
-                        onValueChanged: {
-                            settings.setSetting("Subtitle1/offset", value)
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asInt(settings.value["Subtitle1/offset"])
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: -50
+                            setTo: 50
+                            setStepVisible: false
+                            onModified: //value changed
+                            {
+                                settings.setSetting("Subtitle1/offset",value)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
                         }
+
                     }
+
+
 
                     Row
                     {
@@ -524,45 +608,125 @@ Item {
                     }
 
                     Label {
-                        text: "wordByWord Chunks:"
+                        text: "wordByWord Chunks: (" + settings.value["Subtitle2/wordByWordChunks"] + ")"
                         font.pixelSize: 12
                         visible: wordByWordSubtitle2Checkbox.checked
                     }
 
-                    SpinBox {
-                        value: Scripts.asInt(settings.value["Subtitle2/wordByWordChunks"])
-                        visible: wordByWordSubtitle2Checkbox.checked
-                        onValueChanged: {
-                            settings.setSetting("Subtitle2/wordByWordChunks",value)
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asInt(settings.value["Subtitle2/wordByWordChunks"])
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: 1
+                            setTo: 10
+                            setStepVisible: true
+                            setVisible: wordByWordSubtitle2Checkbox.checked
+                            onModified: //value changed
+                            {
+                                settings.setSetting("Subtitle2/wordByWordChunks", value)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
                         }
+
                     }
 
+
+
                     Label {
-                        text: "text size:"
+                        text: "text size: (" + settings.value["Subtitle2/textSize"] + ")"
                         font.pixelSize: 12
                     }
 
-                    SpinBox {
-                        value: settings.value["Subtitle2/textSize"]
-                        onValueChanged: {
-                            settings.setSetting("Subtitle2/textSize",value)
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asInt(settings.value["Subtitle2/textSize"])
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: 1
+                            setTo: 200
+                            setStepVisible: false
+                            onModified: //value changed
+                            {
+                                settings.setSetting("Subtitle2/textSize",value)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
                         }
+
                     }
+
 
 
                     Label {
-                        text: "offset:"
+                        text: "Subtitle 2 offset: (" + settings.value["Subtitle2/offset"] + ")"
                         font.pixelSize: 12
                     }
 
-                    SpinBox {
-                        value: settings.value["Subtitle2/offset"]
-                        from: -100
-                        to: 100
-                        onValueChanged: {
-                            settings.setSetting("Subtitle2/offset",value)
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asInt(settings.value["Subtitle2/offset"])
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: -50
+                            setTo: 50
+                            setStepVisible: false
+                            onModified: //value changed
+                            {
+                                settings.setSetting("Subtitle2/offset",value)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
                         }
+
                     }
+
 
 
                     Row

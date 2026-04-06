@@ -22,9 +22,8 @@ qt_add_qml_module(MediaControls
         "CustomCheckbox.qml"
         "CustomCollapsiblePanel.qml"
 
-
         RESOURCES MyComponents/qmldir
-        QML_FILES MyComponents/MyButton.qml MyComponents/MyButtonWithIcon.qml MyComponents/MyCheckBox.qml MyComponents/MyCollapsiblePanel.qml MyComponents/MyCombobox.qml MyComponents/MyComboboxWithIcon.qml MyComponents/MyPopupMenu.qml MyComponents/MyPopupMessage.qml MyComponents/MyProccessBar.qml MyComponents/MySlider.qml MyComponents/MySwitch.qml MyComponents/MySwitchText.qml MyComponents/MyTextInput.qml MyComponents/MyTextInputForMacAddress.qml MyComponents/MyTextInputWithMask.qml MyComponents/MyTimer.qml
+        QML_FILES MyComponents/MyButton.qml MyComponents/MyButtonWithIcon.qml MyComponents/MyCheckBox.qml MyComponents/MyCollapsiblePanel.qml MyComponents/MyCombobox.qml MyComponents/MyComboboxWithIcon.qml MyComponents/MyPopupMenu.qml MyComponents/MyPopupMessage.qml MyComponents/MyProccessBar.qml MyComponents/MySlider.qml MyComponents/MySwitch.qml MyComponents/MySwitchText.qml MyComponents/MyTextInput.qml MyComponents/MyTextInputForMacAddress.qml MyComponents/MyTextInputWithMask.qml MyComponents/MyTimer.qml MyComponents/MySpinBox.qml
 
     RESOURCES
         "icons/Rate_Icon.svg"
@@ -67,3 +66,4 @@ qt_add_qml_module(MediaControls
         "icons/back.png"
 
 )
+

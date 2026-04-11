@@ -6,17 +6,27 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     QObject{parent},
     m_btServer{nullptr},
     m_btMaxConnectionUser(2),
-    m_btAlwaysDiscoverable(true),
     m_btLocalName("empty"),
     m_btStatus(BtStatus::Unknown),
     indexCurrentAdaptor(0),
-    m_IsDBusConnectionOk(false)
+    m_IsDBusConnectionOk(false),
+    m_netServer(nullptr),
+    m_ntStatus(NetStatus::Unknown),
+    m_netLocalName("empty")
 {
     //read mprisControl status from settings
     QVariant settingVariant = m_settings->getSetting("App/mprisControl",false);
     bool status = settingVariant.value<bool>();
     setMprisControl(status);
 
+    //load bluetooth always disoverable
+    settingVariant = m_settings->getSetting("App/bluetoothHostAlwaysDiscoverable",false);
+    status = settingVariant.value<bool>();
+    m_btAlwaysDiscoverable=status;
+
+
+
+    //setup ping users
     m_pingUsersTimer.setInterval(SERVER_PING_USERS_TIMER_INTERVAL);
     connect(&m_pingUsersTimer, &QTimer::timeout,
             this, &Backend::sendPingToAllUsers);
@@ -192,6 +202,60 @@ void Backend::changeCursor(const QString &mode)
     }
 }
 
+void Backend::netServer(const bool &status)
+{
+    if(status)
+    {
+        setNtStatus(NetStatus::Starting); //when status is starting, on QML start/stop button will be disabled untill we change it to something else
+
+        //a delay before starting, assuming server was last second on. to prevent any probelms..
+        if(m_netServer)
+        {
+            qInfo() << "net tcp server is on, stopping before statring....";
+            m_netServer->stopServer();
+        }
+        qInfo() << "net tcp server will try to start next 2s.";
+        QTimer::singleShot(2000, [this]()
+                           {
+                               qInfo() << "starting net tcp server...";
+                               initNetServer();
+                           });
+
+    }
+    else
+    {
+        if(m_netServer)
+        {
+            qInfo() << "stopping net tcp server.";
+            m_netServer->stopServer();
+
+
+            //disconnect signal slots. to avoid duplicate call
+            disconnect(m_netServer, &NetServer::clientConnected,
+                    this, QOverload<QTcpSocket *>::of(&Backend::clientConnected));
+
+            disconnect(m_netServer, &NetServer::clientDisconnected,
+                    this,  QOverload<QTcpSocket *>::of(&Backend::clientDisconnected));
+
+            disconnect(m_netServer, &NetServer::messageReceived,
+                    this,   QOverload<QTcpSocket *, QByteArray>::of(&Backend::messageReceived));
+
+
+            disconnect(this, QOverload<QTcpSocket*, const QString &>::of(&Backend::sendMessage),
+                    m_netServer, QOverload<QTcpSocket*, const QString &>::of(&NetServer::sendMessage));
+
+            disconnect(this, QOverload<QTcpSocket*, const QByteArray &>::of(&Backend::sendMessage),
+                    m_netServer, QOverload<QTcpSocket*, const QByteArray &>::of(&NetServer::sendMessage));
+
+
+
+            setNtStatus(NetStatus::Inactive);
+        }
+
+    }
+}
+
+
 void Backend::bluetoothServer(const bool &status)
 {
     if(status)
@@ -218,6 +282,34 @@ void Backend::bluetoothServer(const bool &status)
         {
             qInfo() << "stopping blutooth server.";
             m_btServer->stopServer();
+
+            //disconnect signal slots. to avoid duplicate call
+            disconnect(m_btServer, QOverload<QBluetoothLocalDevice::HostMode>::of(&ChatServer::btStateChanged),
+                    this, &Backend::bluetoothStateChanged);
+
+            disconnect(m_btServer, QOverload<QBluetoothSocket *>::of(&ChatServer::clientConnected),
+                    this, QOverload<QBluetoothSocket *>::of(&Backend::clientConnected));
+
+            disconnect(m_btServer, QOverload<QBluetoothSocket *>::of(&ChatServer::clientDisconnected),
+                    this,  QOverload<QBluetoothSocket *>::of(&Backend::clientDisconnected));
+
+
+            disconnect(m_btServer, &ChatServer::messageReceived,
+                    this,  QOverload<QBluetoothSocket *,QByteArray >::of(&Backend::messageReceived));
+
+
+            disconnect(this, QOverload<const QString &>::of(&Backend::sendMessage),
+                    m_btServer, QOverload<const QString &>::of(&ChatServer::sendMessage));
+
+            // Connection for sending a message to a specific client
+            disconnect(this, QOverload<QBluetoothSocket*, const QString &>::of(&Backend::sendMessage),
+                    m_btServer, QOverload<QBluetoothSocket*, const QString &>::of(&ChatServer::sendMessage));
+
+            //send qbytearray directly to receiver.
+            disconnect(this, QOverload<QBluetoothSocket*, const QByteArray &>::of(&Backend::sendMessage),
+                    m_btServer, QOverload<QBluetoothSocket*, const QByteArray &>::of(&ChatServer::sendMessage));
+
+
             setBtStatus(BtStatus::Inactive);
         }
 
@@ -234,7 +326,6 @@ void Backend::clientConnected( QBluetoothSocket*  sender)
     if(findUser(userAddress))
     {
         qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (address exists!).";
-        emit sendMessage("duplicated user userAddress. connection refused..");
         m_btServer->disconnectClient(sender);
         return;
     }
@@ -242,29 +333,19 @@ void Backend::clientConnected( QBluetoothSocket*  sender)
     if(!m_bannedUsers.contains(userAddress))
     {
         //add him to our clinets list
-        RemoteUsers* user = new RemoteUsers(userName,userAddress, sender,UserConnectionType::Bluetooth);
+        RemoteUsers* user = new RemoteUsers(userName,userAddress,
+                                            UserConnectionType::Bluetooth,nullptr,sender);
         addUser(user);
 
 
+        initConnectionLost(user);
 
-        //check for connection lost
-        user->connectionLostTimer.setInterval(CLIENT_CONNECTIONLOST_TIMER_INTERVAL);
-        connect(&(user->connectionLostTimer), &QTimer::timeout,
-                [user]()
-        {
-                    // qInfo() << "user connetionlost timer timeout . counter:" << user->connectionLostCounter;
-                    if(user->pingMs==DEFAULT_CLIENT_PING)
-                        user->connectionLostCounter++;
-        });
 
         qInfo() <<  userName << " has conncted to server.\n";
-        emit sendMessage("hello welcome");
     }
     else
     {
         qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (banned).";
-        QString msg = "you are banned.";
-        emit sendMessage(sender, msg);
         m_btServer->disconnectClient(sender);
     }
 }
@@ -284,7 +365,24 @@ void Backend::clientDisconnected(QBluetoothSocket *  sender)
 
 }
 
+void Backend::doProcessPing(RemoteUsers* user)
+{
+    if(user->pingTimer.isValid())
+    {
+        user->pingMs = user->pingTimer.elapsed();
 
+        //set proper status for user
+        user->status = UserConnectionStatus::Connected;
+
+        //reset connection lost counter and timer.
+        user->connectionLostCounter=0;
+        user->connectionLostTimer.stop();
+
+        emit connectedUsersListChanged();//tell qml data changed
+    }
+    else
+        qDebug() << "user pingTimer is not valid.";
+}
 void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
 {
     qDebug() << "message received from("  << sender->peerName() << "): "
@@ -296,23 +394,7 @@ void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
     {
         //check if its pong message or not
         if(data==CommandHandler::PONG_DATA)
-        {
-            if(user->pingTimer.isValid())
-            {
-                user->pingMs = user->pingTimer.elapsed();
-
-                //set proper status for user
-                user->status = UserConnectionStatus::Connected;
-
-                //reset connection lost counter and timer.
-                user->connectionLostCounter=0;
-                user->connectionLostTimer.stop();
-
-                emit connectedUsersListChanged();//tell qml data changed
-            }
-            else
-                qDebug() << "user pingTimer is not valid.";
-        }
+            doProcessPing(user);
         else
             processCommand(user,&data);
     }
@@ -320,6 +402,93 @@ void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
         qInfo() << "coult not pass received message to process due to user/sender isn't valid (not found)";
 
 }
+
+
+void Backend::clientConnected(QTcpSocket *sender)
+{
+    QString userAddress = sender->peerAddress().toString()+":"+QString::number(static_cast<int>(sender->peerPort()));
+    QString userName = sender->peerName();
+
+    //check if user exists refuse connetion
+    if(findUser(userAddress))
+    {
+        qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (address exists!).";
+        m_netServer->disconnectClient(sender);
+        return;
+    }
+
+    if(!m_bannedUsers.contains(userAddress))
+    {
+        //add him to our clinets list
+        RemoteUsers* user = new RemoteUsers(userName,userAddress,
+                                            UserConnectionType::Network,sender,nullptr);
+        addUser(user);
+
+        initConnectionLost(user);
+
+        qInfo() <<  userName << " has conncted to server.\n";
+    }
+    else
+    {
+        qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (banned).";
+        m_netServer->disconnectClient(sender);
+    }
+}
+void Backend::initConnectionLost(RemoteUsers* user)
+{
+    if(user)
+    {
+        user->connectionLostTimer.setInterval(CLIENT_CONNECTIONLOST_TIMER_INTERVAL);
+        connect(&(user->connectionLostTimer), &QTimer::timeout,
+                [user]()
+                {
+                    // qInfo() << "user connetionlost timer timeout . counter:" << user->connectionLostCounter;
+                    if(user->pingMs==DEFAULT_CLIENT_PING)
+                        user->connectionLostCounter++;
+                });
+    }
+    else
+        qInfo()<< "failed to ini connection lost for nullptr user.";
+}
+
+void Backend::clientDisconnected(QTcpSocket *sender)
+{
+    RemoteUsers* user = findUser(sender);
+    if(user)
+    {
+        qInfo() <<  user->name <<  " (using " << user->convertConnectionType() <<  ") has disconnected from server.\n";
+
+        //delete that socket/user
+        m_users.removeOne(user);
+
+        emit connectedUsersListChanged();
+    }
+
+}
+
+void Backend::messageReceived(QTcpSocket *sender, QByteArray data)
+{
+    qDebug() << "message received from("  << sender->peerName() << "): "
+             << data;
+
+    //who is this sender?!
+    RemoteUsers* user = findUser(sender);
+    if(user)
+    {
+        //check if its pong message or not
+        if(data==CommandHandler::PONG_DATA)
+            doProcessPing(user);
+        else
+            processCommand(user,&data);
+    }
+    else
+        qInfo() << "coult not pass received message to process due to user/sender isn't valid (not found)";
+
+}
+
+
+
+
 
 void Backend::bluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 {
@@ -410,13 +579,15 @@ void Backend::initBluetoothServer()
                 this, &Backend::bluetoothStateChanged);
 
         connect(m_btServer, QOverload<QBluetoothSocket *>::of(&ChatServer::clientConnected),
-                this, &Backend::clientConnected);
+                this, QOverload<QBluetoothSocket *>::of(&Backend::clientConnected));
 
         connect(m_btServer, QOverload<QBluetoothSocket *>::of(&ChatServer::clientDisconnected),
                 this,  QOverload<QBluetoothSocket *>::of(&Backend::clientDisconnected));
 
+
         connect(m_btServer, &ChatServer::messageReceived,
-                this,  &Backend::messageReceived);
+                this,  QOverload<QBluetoothSocket *,QByteArray >::of(&Backend::messageReceived));
+
 
         connect(this, QOverload<const QString &>::of(&Backend::sendMessage),
                 m_btServer, QOverload<const QString &>::of(&ChatServer::sendMessage));
@@ -460,6 +631,50 @@ void Backend::initBluetoothServer()
     qDebug() << "init bluetooth server finished, status=" << btStatus();
 }
 
+void Backend::initNetServer()
+{
+
+    setNtStatus(NetStatus::Loading);
+    m_netServer = new NetServer(this);
+
+    //later net status
+    // connect(m_netServer, QOverload<QBluetoothLocalDevice::HostMode>::of(&NetServer::netStateChanged),
+    //         this, &Backend::bluetoothStateChanged);
+
+    connect(m_netServer, &NetServer::clientConnected,
+            this, QOverload<QTcpSocket *>::of(&Backend::clientConnected));
+
+    connect(m_netServer, &NetServer::clientDisconnected,
+            this,  QOverload<QTcpSocket *>::of(&Backend::clientDisconnected));
+
+    connect(m_netServer, &NetServer::messageReceived,
+            this,   QOverload<QTcpSocket *, QByteArray>::of(&Backend::messageReceived));
+
+
+    connect(this, QOverload<QTcpSocket*, const QString &>::of(&Backend::sendMessage),
+            m_netServer, QOverload<QTcpSocket*, const QString &>::of(&NetServer::sendMessage));
+
+    connect(this, QOverload<QTcpSocket*, const QByteArray &>::of(&Backend::sendMessage),
+            m_netServer, QOverload<QTcpSocket*, const QByteArray &>::of(&NetServer::sendMessage));
+
+
+
+    if(!m_netServer->startServer(SERVER_NETWORK_HOST_PORT))
+    {
+        qWarning() << "net tcp server starting failed.";
+        setNtStatus(NetStatus::Failed);
+    }
+    else
+    {
+        qInfo() <<"net tcp server started fine.";
+        setNtStatus(NetStatus::Active);
+    }
+
+    //we set (server ip: server port) to show client what is ip:port
+    //if server failed to start will set LocalName to (ip:port)
+    setNetLocalName(m_netServer->getServerIpPort());
+}
+
 
 
 // void Backend::processCommand(RemoteUsers *user, const QString &message)
@@ -495,8 +710,17 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         QByteArray ba = *data;
         cmd = m_commandHandler.unpack(ba,value);
 
-        qDebug() << "processing command from:"<< user->socket->peerName() << "cmd=" << cmd << "val="
-                 << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
+        if(user->connectionType == UserConnectionType::Bluetooth)
+        {
+            qDebug() << "processing command using bluetooth, from:"<< user->btSocket->peerName() << "cmd=" << cmd << "val="
+                     << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
+        }
+        else if(user->connectionType == UserConnectionType::Network)
+        {
+            qDebug() << "processing command using network, from:"<< user->netSocket->peerName() << "cmd=" << cmd << "val="
+                     << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
+        }
+
 
     }
 
@@ -620,7 +844,18 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
 
     //send response of that command/request if user is valid
     if(user)
-        emit sendMessage(user->socket, response);//maybe broadcast  to all connected users.
+    {
+        qInfo()<< "sending reponse to user from processCommand.";
+        if(user->connectionType == UserConnectionType::Bluetooth)
+        {
+            emit sendMessage(user->btSocket, response);//maybe later broadcast  to all connected users.
+        }
+        else if(user->connectionType == UserConnectionType::Network)
+        {
+            emit sendMessage(user->netSocket, response);//maybe later broadcast  to all connected users.
+        }
+    }
+
     else
         qCritical() << "cant send response to nullptr user";
 }
@@ -639,8 +874,7 @@ void Backend::sendPingToAllUsers()
     for (RemoteUsers* user : m_users)
     {
         // Check if user is actually connected and has a socket
-        if (user->connectionType == UserConnectionType::Bluetooth &&
-                user->socket != nullptr) //this socket means bluetooth socket.
+        if(user->btSocket != nullptr || user->netSocket != nullptr)
         {
             user->pingTimer.restart();
 
@@ -659,18 +893,48 @@ void Backend::sendPingToAllUsers()
                 {
                     qInfo() << "user exceed max connection lost count. disconencting him...";
                     user->connectionLostTimer.stop();
-                    m_btServer->disconnectClient(user->socket);
+
+                    if(user->connectionType == UserConnectionType::Bluetooth)
+                        m_btServer->disconnectClient(user->btSocket);
+                    else if(user->connectionType == UserConnectionType::Network)
+                        m_netServer->disconnectClient(user->netSocket);
+
                 }
             }
 
 
             emit connectedUsersListChanged();
 
-            emit sendMessage(user->socket,CommandHandler::PING_DATA);
-            qDebug() << "Sent PING_DATA to" << user->name << " (" << user->address << ")";
+            if(user->connectionType == UserConnectionType::Bluetooth)
+            {
+                qDebug()<< "sending ping for bluetooth.";
+                emit sendMessage(user->btSocket,CommandHandler::PING_DATA);
+            }
+
+            else if(user->connectionType == UserConnectionType::Network)
+            {
+                qDebug()<< "sending ping for network.";
+                emit sendMessage(user->netSocket,CommandHandler::PING_DATA);
+            }
+
+
+            qDebug() << "Sent ping to" << user->name << " (" << user->address << ") PING_DATA=(" << CommandHandler::PING_DATA << ")";
         }
     }
 
+}
+
+QString Backend::netLocalName() const
+{
+    return m_netLocalName;
+}
+
+void Backend::setNetLocalName(const QString &newNetLocalName)
+{
+    if (m_netLocalName == newNetLocalName)
+        return;
+    m_netLocalName = newNetLocalName;
+    emit netLocalNameChanged();
 }
 
 QString Backend::btLocalName() const
@@ -738,6 +1002,19 @@ void Backend::setIsDBusConnectionOk(bool newIsDBusConnectionOk)
         return;
     m_IsDBusConnectionOk = newIsDBusConnectionOk;
     emit IsDBusConnectionOkChanged();
+}
+
+NetStatus Backend::ntStatus() const
+{
+    return m_ntStatus;
+}
+
+void Backend::setNtStatus(NetStatus newNetStatus)
+{
+    if(m_ntStatus==newNetStatus)
+        return;
+    m_ntStatus=newNetStatus;
+    emit ntStatusChanged();
 }
 
 bool Backend::mprisControl() const
@@ -819,6 +1096,28 @@ QList<RemoteUsers *> Backend::users() const
     return m_users;
 }
 
+RemoteUsers* Backend::findUser(QTcpSocket* userSocket) const
+{
+    if (!userSocket)
+    {
+        qInfo() << "unable to findUser socket is nullptr";
+        return nullptr;
+    }
+
+    for (RemoteUsers* user : m_users)
+    {
+        if (user->netSocket == userSocket)
+        {
+            // qDebug() << "userFound from m_users";
+            return user;
+        }
+    }
+
+    return nullptr;
+}
+
+
+
 RemoteUsers* Backend::findUser(QBluetoothSocket *userSocket) const
 {
     if (!userSocket)
@@ -829,7 +1128,7 @@ RemoteUsers* Backend::findUser(QBluetoothSocket *userSocket) const
 
     for (RemoteUsers* user : m_users)
     {
-        if (user->socket == userSocket)
+        if (user->btSocket == userSocket)
         {
             // qDebug() << "userFound from m_users";
             return user;
@@ -877,7 +1176,7 @@ void Backend::addUser(RemoteUsers *newUser)
 
 QVariantList Backend::connectedUsersAsVariantList() const
 {
-    qDebug() << "running connectedUsersAsVariantList. User count:" << m_users.size();
+    // qDebug() << "running connectedUsersAsVariantList. User count:" << m_users.size();
 
     QVariantList variantList;
     for (const RemoteUsers* user : m_users)
@@ -904,15 +1203,18 @@ void Backend::kickUser(QString address)
     RemoteUsers* user = findUser(address);
     if(user)
     {
+        qInfo() << "user " << user->name << "(" << user->address << ") has been kicked.";
         if(user->connectionType==UserConnectionType::Bluetooth)
         {
-            qInfo() << "user " << user->name << "(" << user->address << ") has been kicked.";
-            m_btServer->disconnectClient(user->socket);
+            m_btServer->disconnectClient(user->btSocket);
             //assuming bterver will run clientDisconnected and user would remove from m_users
         }
 
-        else if(user->connectionType==UserConnectionType::Wifi)
-            qInfo()<<"soon kicking wifi user...";
+        else if(user->connectionType==UserConnectionType::Network)
+        {
+            m_netServer->disconnectClient(user->netSocket);
+            //assuming m_netServer will run clientDisconnected and user would remove from m_users
+        }
     }
     else
         qInfo() << "invalid user to kick";
@@ -932,14 +1234,27 @@ void Backend::banUser(QString address)
                 emit bannedUsersChanged();
                 qInfo() << "user " << user->name << "(" << user->address << ") has been banned.";
                 //disconnect him
-                m_btServer->disconnectClient(user->socket);
+                m_btServer->disconnectClient(user->btSocket);
                 //assuming bterver will run clientDisconnected and user would remove from m_users
             }
             else
                 qInfo() << "user has already banned.";
         }
-        else if(user->connectionType==UserConnectionType::Wifi)
-            qInfo()<<"soon ban wifi user...";
+        else if(user->connectionType==UserConnectionType::Network)
+        {
+            //add user's address to banList
+            if(!m_bannedUsers.contains(user->address))
+            {
+                m_bannedUsers.insert(user->address);
+                emit bannedUsersChanged();
+                qInfo() << "user " << user->name << "(" << user->address << ") has been banned.";
+                //disconnect him
+                m_netServer->disconnectClient(user->netSocket);
+                //assuming m_netServer will run clientDisconnected and user would remove from m_users
+            }
+            else
+                qInfo() << "user has already banned.";
+        }
     }
     else
         qInfo() << "invalid user to ban";
@@ -999,8 +1314,8 @@ QString RemoteUsers::convertConnectionType(bool shortForm) const
     {
     case UserConnectionType::Bluetooth:
         return shortForm? "B" : "Bluetooth";
-    case UserConnectionType::Wifi:
-        return shortForm? "W" : "Wifi";
+    case UserConnectionType::Network:
+        return shortForm? "N" : "Network";
     default:
         return shortForm? "err" :"invalid connectionType";
     }

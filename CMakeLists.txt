@@ -36,6 +36,7 @@ add_subdirectory(MediaPlayer)
 add_subdirectory(MediaControls)
 add_subdirectory(Config)
 add_subdirectory(BluetoothControl)
+add_subdirectory(NetworkControl)
 add_subdirectory(../CommandHandler ../../build/CommandHandler_build)
 
 
@@ -50,6 +51,7 @@ target_link_libraries(MediaPlayerApp PRIVATE
     MediaPlayerplugin
     Configplugin
     BluetoothControl #bluetoothControl library (subDirectory)
+    NetworkControl
     MediaPlayer #mediaPlayer library (subDirectory)
     CommandHandler
 )

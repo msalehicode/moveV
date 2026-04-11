@@ -1242,13 +1242,12 @@ ApplicationWindow {
                     CustomCheckbox
                     {
                         id:bluetoothHostAlwaysDiscoverable
-                        initialCheckedState:  backend.btAlwaysDiscoverable
+                        initialCheckedState: backend.btAlwaysDiscoverable
                         theText:"always discoverable";
                         onStatusChangeAction:
                         {
                             backend.btAlwaysDiscoverable=checked
-                            // checked=backend.btAlwaysDiscoverable
-                            // settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
+                            settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
                         }
                     }
 
@@ -1330,6 +1329,45 @@ ApplicationWindow {
 
                 }
 
+
+                Column
+                {
+                    id:networkHostingBox
+                    Label
+                    {
+                        id:networkHostName
+                        text:"network name:" + backend.netLocalName
+                    }
+
+                    CustomCheckbox
+                    {
+                        id:networkHostStatus
+                        initialCheckedState:  Scripts.asBool(settings.value["App/networkHostStatus"])
+                        theText:"Network host (" + (function(status) {
+                            switch(status) {
+                                case -1: return "Unknown";
+                                case 0:  return "Starting...";
+                                case 10: return "Adaptor Not Found";
+                                case 11: return "Failed";
+                                case 30: return "Inactive";
+                                case 31: return "Loading";
+                                case 32: return "Active";
+                                default: return "Unknown Status: "+status;
+                            }
+                        })(backend.ntStatus) +")"
+
+                        enabled: (backend.ntStatus!==0 && backend.ntStatus!==31)
+                        //NetStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on network server)
+                        onStatusChangeAction:
+                        {
+                            backend.netServer(checked);
+                            settings.setSetting("App/networkHostStatus",checked)
+                        }
+                    }
+
+
+
+                }
 
 
                 CustomCollapsiblePanel
@@ -2079,6 +2117,9 @@ ApplicationWindow {
 
         if(Scripts.asBool(settings.value["App/bluetoothHostStatus"]))
             backend.bluetoothServer(true)
+
+        if(Scripts.asBool(settings.value["App/networkHostStatus"]))
+            backend.netServer(true)
     }
 }
 

@@ -18,7 +18,7 @@
 #include <QBluetoothLocalDevice>
 #include <QBluetoothUuid>
 #include "BluetoothControl/chatserver.h"
-
+#include "NetworkControl/netserver.h"
 
 #include <QDateTime>
 #include <QTimer>
@@ -37,6 +37,20 @@
 #include "config.h"
 
 using namespace Qt::StringLiterals;
+
+enum class NetStatus
+{
+    Unknown=-1,
+
+    Starting=0,
+
+    AdapterNotFound=10,
+    Failed,
+
+    Inactive=30,
+    Loading,
+    Active
+};
 
 enum BtStatus //host
 {
@@ -78,7 +92,7 @@ enum class UserAccess
 enum UserConnectionType
 {
     Bluetooth,
-    Wifi
+    Network
 };
 
 struct RemoteUsers
@@ -87,8 +101,8 @@ struct RemoteUsers
     QString address;
     UserConnectionStatus status;    
     UserAccess access;
-    QBluetoothSocket* socket;
-    //QWifiSocket* wSocket;
+    QBluetoothSocket* btSocket;
+    QTcpSocket* netSocket;
     QDateTime connectedAt;
     UserConnectionType connectionType;
     qint64 pingMs;
@@ -97,8 +111,11 @@ struct RemoteUsers
     QElapsedTimer pingTimer;
     QTimer connectionLostTimer;
 
-    RemoteUsers(QString uName, QString uAddressPort, QBluetoothSocket* btSocket,UserConnectionType connType)
-        : name(uName) , address(uAddressPort), socket(btSocket), connectionType(connType)
+    RemoteUsers(QString uName, QString uAddressPort, UserConnectionType connType,
+                QTcpSocket* networkSocket=nullptr,
+                QBluetoothSocket* bluetoothSocket=nullptr)
+        : name(uName) , address(uAddressPort), connectionType(connType)
+        , btSocket(bluetoothSocket), netSocket(networkSocket)
         , status(UserConnectionStatus::Connected), pingMs(0) , connectionLostCounter(0)
         , access(UserAccess::Normal), connectedAt(QDateTime::currentDateTime())
     {
@@ -139,6 +156,8 @@ public:
     //to be able call qml functions and init MPRIS
     void initMpris();
 
+    void initConnectionLost(RemoteUsers* user);
+
     //------------------------ call qml functiosn
     void runQmlFunction(const QString& functionName);
     QVariant runQmlFunction(const QString& functionName, QVariant argum);
@@ -153,6 +172,9 @@ public:
     Q_INVOKABLE void changeCursor(const QString& mode="");
 
 
+    //net
+    Q_INVOKABLE void netServer(const bool& status);
+
     //bluetooth
     Q_INVOKABLE void bluetoothServer(const bool& status);
     Q_INVOKABLE void refreshBluetoothAdapters();
@@ -162,13 +184,14 @@ public:
     Q_INVOKABLE QVariantList btLocalAdapters() const;
 
 
-    //bluetooth users
+    //users bluetooth either net
     QList<RemoteUsers*> users() const;
     RemoteUsers* findUser(QBluetoothSocket* userSocket) const;
+    RemoteUsers* findUser(QTcpSocket* userSocket) const;
     RemoteUsers* findUser(QString& address);
     void setUsers(const QList<RemoteUsers*>& newUsers);
     void addUser(RemoteUsers* newUser);
-    QVariantList connectedUsersAsVariantList() const;//expose connected users (either bluetooth/wifi) to qml
+    QVariantList connectedUsersAsVariantList() const;//expose connected users (either bluetooth/Network) to qml
 
 
     QString btLocalName() const;
@@ -198,6 +221,12 @@ public:
     bool IsDBusConnectionOk() const;
     void setIsDBusConnectionOk(bool newIsDBusConnectionOk);
 
+    NetStatus ntStatus() const;
+    void setNtStatus(NetStatus newNetStatus);
+
+    QString netLocalName() const;
+    void setNetLocalName(const QString &newNetLocalName);
+
 signals:
     //properties
     void btStatusChanged();
@@ -206,9 +235,16 @@ signals:
     void btLocalNameChanged();
     void bluetoothHostModeStateChanged();
 
-    void sendMessage(const QString &message);
+
+    //bluetooth singals
+    void sendMessage(const QString &message);//later remove it becasue of confusion
     void sendMessage(QBluetoothSocket *receiver, const QString &message);
     void sendMessage(QBluetoothSocket *receiver, const QByteArray& data);
+
+
+    //net signals
+    void sendMessage(QTcpSocket *receiver, const QString &message);
+    void sendMessage(QTcpSocket *receiver, const QByteArray& data);
 
     void bannedUsersChanged();
 
@@ -220,10 +256,20 @@ signals:
 
     void IsDBusConnectionOkChanged();
 
+    void ntStatusChanged();
+
+    void netLocalNameChanged();
+
 public slots:
+    //bluetooth slots
     void clientConnected(QBluetoothSocket *  sender);
     void clientDisconnected( QBluetoothSocket *  sender);
     void messageReceived(QBluetoothSocket* sender, QByteArray data);
+
+    //net slots
+    void clientConnected(QTcpSocket *  sender);
+    void clientDisconnected(QTcpSocket *  sender);
+    void messageReceived(QTcpSocket* sender, QByteArray data);
 
     void bluetoothStateChanged(QBluetoothLocalDevice::HostMode state);
 
@@ -237,13 +283,22 @@ public slots:
 
 private:
     void initBluetoothServer();
+    void initNetServer();
     void processCommand(RemoteUsers *user, QByteArray *data,
                             CommandHandler::Command mprisCommand=CommandHandler::Command::CurrentMediaName);
     void sendPingToAllUsers();
 
+    void doProcessPing(RemoteUsers* user);
     QGuiApplication* m_app;
     SettingsManager* m_settings;
     CustomCursor cc;
+
+    //net host
+    NetServer* m_netServer;
+    QString m_netLocalName;
+    Q_PROPERTY(QString netLocalName READ netLocalName WRITE setNetLocalName NOTIFY netLocalNameChanged FINAL)
+    NetStatus m_ntStatus;
+    Q_PROPERTY(NetStatus ntStatus READ ntStatus WRITE setNtStatus NOTIFY ntStatusChanged FINAL)
 
     //bluetooth host
     ChatServer* m_btServer;
@@ -273,6 +328,7 @@ private:
     bool m_IsDBusConnectionOk;//status of dbus connection if failed dont allow user to change mprisControl status
     Q_PROPERTY(bool mprisControl READ mprisControl WRITE setMprisControl NOTIFY mprisControlChanged FINAL)
     Q_PROPERTY(bool IsDBusConnectionOk READ IsDBusConnectionOk WRITE setIsDBusConnectionOk NOTIFY IsDBusConnectionOkChanged FINAL)
+
 };
 
 #endif // BACKEND_H

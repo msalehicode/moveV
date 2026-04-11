@@ -27,6 +27,8 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("App/steadyAudioDevice")) m_settings.setValue("App/steadyAudioDevice",false);
     if(!m_settings.contains("App/currentAudioOutput")) m_settings.setValue("App/currentAudioOutput","");
     if(!m_settings.contains("App/bluetoothHostStatus")) m_settings.setValue("App/bluetoothHostStatus",false);
+    if(!m_settings.contains("App/bluetoothHostAlwaysDiscoverable")) m_settings.setValue("App/bluetoothHostAlwaysDiscoverable",false);
+    if(!m_settings.contains("App/networkHostStatus")) m_settings.setValue("App/networkHostStatus",false);
     if(!m_settings.contains("App/mprisControl")) m_settings.setValue("App/mprisControl",false);
 
 
@@ -89,6 +91,8 @@ void SettingsManager::loadSettings()
     m_value["App/steadyAudioDevice"] = m_settings.value("App/steadyAudioDevice",false);
     m_value["App/currentAudioOutput"] = m_settings.value("App/currentAudioOutput","");
     m_value["App/bluetoothHostStatus"] = m_settings.value("App/bluetoothHostStatus",false);
+    m_value["App/bluetoothHostAlwaysDiscoverable"] = m_settings.value("App/bluetoothHostAlwaysDiscoverable",false);
+    m_value["App/networkHostStatus"] = m_settings.value("App/networkHostStatus",false);
     m_value["App/mprisControl"] = m_settings.value("App/mprisControl",false);
 
 

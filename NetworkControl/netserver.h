@@ -12,6 +12,8 @@
 
 #include <QDateTime>
 
+//to get ip addresses of server.
+#include <QtNetwork>
 
 //! [declaration]
 class NetServer : public QObject

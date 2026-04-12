@@ -67,8 +67,32 @@ void NetServer::stopServer()
 
 QString NetServer::getServerIpPort()
 {
+    QString ipList; //= m_server->serverAddress().toString(); //local address
+    QString port = ":"+QString::number(m_server->serverPort());
+    // find out IP addresses of this machine
+    const QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
+    // add non-localhost addresses
+    for (const QHostAddress &entry : ipAddressesList)
+    {
+        if (!entry.isLoopback())
+            ipList+= "\n"+entry.toString() + port;
+    }
+    if(ipList.isEmpty())
+    {
+        ipList+= "(LOCAL): ";
+        // add localhost addresses
+        for (const QHostAddress &entry : ipAddressesList)
+        {
+            if (entry.isLoopback())
+                ipList+= "\n"+entry.toString() + port;
+        }
+    }
+
+
+
+
     if(m_server->isListening())
-        return m_server->serverAddress().toString()+":"+QString::number(m_server->serverPort());
+        return ipList;
 
     return "ip:port";
 }

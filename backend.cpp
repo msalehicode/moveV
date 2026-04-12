@@ -405,9 +405,21 @@ void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
 }
 
 
+QString Backend::toPureIPv4(const QHostAddress &addr)
+{
+    auto ipv6 = addr.toIPv6Address();
+    quint32 ipv4 =
+        (ipv6.c[12] << 24) |
+        (ipv6.c[13] << 16) |
+        (ipv6.c[14] << 8)  |
+        ipv6.c[15];
+
+    return QHostAddress(ipv4).toString();
+}
+
 void Backend::clientConnected(QTcpSocket *sender)
 {
-    QString userAddress = sender->peerAddress().toString()+":"+QString::number(static_cast<int>(sender->peerPort()));
+    QString userAddress = toPureIPv4(sender->peerAddress())+":"+QString::number(static_cast<int>(sender->peerPort()));
     QString userName = sender->peerName();
 
     //check if user exists refuse connetion

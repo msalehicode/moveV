@@ -288,6 +288,8 @@ private:
                             CommandHandler::Command mprisCommand=CommandHandler::Command::CurrentMediaName);
     void sendPingToAllUsers();
 
+    QString toPureIPv4(const QHostAddress &addr); //sender->peerAddress() contains ipv6 and ipv4 (::::ff127.0.01) so this removes that ipv6
+
     void doProcessPing(RemoteUsers* user);
     QGuiApplication* m_app;
     SettingsManager* m_settings;

@@ -22,7 +22,8 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     //load bluetooth always disoverable
     settingVariant = m_settings->getSetting("App/bluetoothHostAlwaysDiscoverable",false);
     status = settingVariant.value<bool>();
-    m_btAlwaysDiscoverable=status;
+    qDebug() << "bluetooth always discoverable read from settings is: " << status;
+    setBtAlwaysDiscoverable(status);
 
 
 
@@ -1046,8 +1047,6 @@ bool Backend::btAlwaysDiscoverable() const
 
 void Backend::setBtAlwaysDiscoverable(bool newAlwaysDiscoverable)
 {
-    if (m_btAlwaysDiscoverable == newAlwaysDiscoverable)
-        return;
     m_btAlwaysDiscoverable = newAlwaysDiscoverable;
     if(m_btServer)
         m_btServer->setAlwaysDiscoverable(m_btAlwaysDiscoverable);

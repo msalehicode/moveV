@@ -13,7 +13,7 @@ static constexpr auto serviceUuid = "e8e10f95-1a70-4b27-9ccf-02010264e9c8"_L1;
 //! [Service UUID]
 
 ChatServer::ChatServer(QObject *parent)
-    :   QObject(parent) , m_alwaysDiscoverable(true)
+    :   QObject(parent) , m_alwaysDiscoverable(false)
 {
     if (m_localDevice.isValid())
     {
@@ -228,8 +228,6 @@ void ChatServer::readSocket()
 void ChatServer::onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 {
     m_btState=state;
-    qDebug() << "Bluetooth HostMode changed to:" << m_btState;
-
     //try to turn on bluetooth. but on different platforms may fail.
     // if(state==QBluetoothLocalDevice::HostMode::HostPoweredOff)
     // {
@@ -254,7 +252,7 @@ void ChatServer::onBluetoothStateChanged(QBluetoothLocalDevice::HostMode state)
 void ChatServer::setAlwaysDiscoverable(bool newAlwaysDiscoverable)
 {
     //currenly is not discoverable make it discoverable
-    if(!m_alwaysDiscoverable)
+    if(!m_alwaysDiscoverable && newAlwaysDiscoverable)
     {
         m_localDevice.setHostMode(QBluetoothLocalDevice::HostDiscoverable);
         qInfo() << "now device set to discoverable.";

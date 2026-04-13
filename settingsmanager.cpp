@@ -30,6 +30,8 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("App/bluetoothHostAlwaysDiscoverable")) m_settings.setValue("App/bluetoothHostAlwaysDiscoverable",false);
     if(!m_settings.contains("App/networkHostStatus")) m_settings.setValue("App/networkHostStatus",false);
     if(!m_settings.contains("App/mprisControl")) m_settings.setValue("App/mprisControl",false);
+    if(!m_settings.contains("App/hostPasswordStatus")) m_settings.setValue("App/hostPasswordStatus",false);
+    if(!m_settings.contains("App/hostPassword")) m_settings.setValue("App/hostPassword","pass123");
 
 
     //speedup and stop (SNS)
@@ -94,6 +96,8 @@ void SettingsManager::loadSettings()
     m_value["App/bluetoothHostAlwaysDiscoverable"] = m_settings.value("App/bluetoothHostAlwaysDiscoverable",false);
     m_value["App/networkHostStatus"] = m_settings.value("App/networkHostStatus",false);
     m_value["App/mprisControl"] = m_settings.value("App/mprisControl",false);
+    m_value["App/hostPasswordStatus"] = m_settings.value("App/hostPasswordStatus",false);
+    m_value["App/hostPassword"] = m_settings.value("App/hostPassword","pass123");
 
 
     //speedup and stop (SNS)

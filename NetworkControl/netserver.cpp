@@ -77,8 +77,8 @@ QString NetServer::getServerIpPort()
         if (!entry.isLoopback())
             ipList+= "\n"+entry.toString() + port;
     }
-    if(ipList.isEmpty())
-    {
+    // if(ipList.isEmpty())
+    // {
         ipList+= "(LOCAL): ";
         // add localhost addresses
         for (const QHostAddress &entry : ipAddressesList)
@@ -86,7 +86,7 @@ QString NetServer::getServerIpPort()
             if (entry.isLoopback())
                 ipList+= "\n"+entry.toString() + port;
         }
-    }
+    // }
 
 
 

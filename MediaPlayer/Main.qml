@@ -119,7 +119,6 @@ ApplicationWindow {
             root.metadataInfo.clear()
             root.metadataInfo.read(mediaPlayer.metaData)
         }
-
         onMetaDataChanged: updateMetadata()
         onActiveTracksChanged: updateMetadata()
         onErrorOccurred: {
@@ -248,6 +247,8 @@ ApplicationWindow {
         // anchors.rightMargin: fullScreen ? 0 : 20
         anchors.fill: parent
         visible: mediaPlayer.hasVideo
+
+
 
         property bool fullScreen: false
 
@@ -1206,166 +1207,283 @@ ApplicationWindow {
 
                 }
 
-                Column
+
+
+                CustomCollapsiblePanel
                 {
-                    id:bluetoothHostingBox
-                    Row
-                    {
-                        spacing: 5
-                        Rectangle
-                        {
-                            id:bluetoothStateColor
-                            width:20
-                            height:20
-                            radius: 20
-                            color: (function(status) {
-                                switch(status) {
-                                    case 0: return "red";
-                                    case 3: return "lime";
-                                    case 1:
-                                    case 2: return "green"
-                                    default: return "black";
-                                }
-                                })(backend.bluetoothHostModeState)
-
-                        }
-                        Label
-                        {
-                            id:bluetoothDeviceNameAddressAndState
-                            text: backend.btLocalName + " max:" + backend.btMaxConnectionUser
-                        }
-                    }
-
-
-                    //later adeptor list via RadioButton by Repeater
-
-                    CustomCheckbox
-                    {
-                        id:bluetoothHostAlwaysDiscoverable
-                        initialCheckedState: backend.btAlwaysDiscoverable
-                        theText:"always discoverable";
-                        onStatusChangeAction:
-                        {
-                            backend.btAlwaysDiscoverable=checked
-                            settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
-                        }
-                    }
-
-                    CustomCheckbox
-                    {
-                        id:bluetoothHostStatus
-                        initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
-                        theText:"Bluetooth host (" + (function(status) {
-                            switch(status) {
-                                case -1: return "Unknown";
-                                case 0:  return "Starting...";
-                                case 10: return "Adaptor Not Found";
-                                case 11: return "Failed";
-                                case 20: return "Permission Denied";
-                                case 21: return "Asking Permission";
-                                case 22: return "Permission Granted";
-                                case 30: return "Inactive";
-                                case 31: return "Discoverable";
-                                case 32: return "Loading";
-                                case 33: return "Active";
-                                default: return "Unknown Status: "+status;
-                            }
-                        })(backend.btStatus) +")"
-
-                        enabled: (backend.btStatus!==0 && backend.btStatus!==32)//BtStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on bluetooth server)
-                        onStatusChangeAction:
-                        {
-                            backend.bluetoothServer(checked);
-                            settings.setSetting("App/bluetoothHostStatus",checked)
-                        }
-                    }
-
+                    id:hostingBox
+                    setWidth: clHosting.width
+                    setHeight: 250
+                    setTitle: "Host Remotes:"
+                    setBgColorButton:"black"
+                    setBgContent: "grey"
+                    setContentHeight:clHosting.height
+                    setIconArrow: "icons/back.png"
+                    pathFromComponentDire:false
+                    property bool isMouseOnControl: false;
 
 
                     Rectangle
                     {
-                        width: 200
-                        height: 60
-                        color:"transparent"
-                        Row
+                        id:baseHostingToCatchMouseHover
+                        color: "transparent"
+                        HoverHandler {
+                            acceptedDevices: PointerDevice.Mouse
+                            onHoveredChanged: {
+                                hostingBox.isMouseOnControl = hovered
+                            }
+                        }
+                        width: parent.width
+                        height: clHosting.height
+                    }
+
+                    Column
+                    {
+
+                        id:clHosting
+
+                        Label {
+                            text: "Password (optional):"
+                            font.bold: true
+                            font.pixelSize: 15
+                        }
+                        CustomCheckbox
                         {
+                            id:hostingPasswordStatus
+                            initialCheckedState:  backend.hostPasswordStatus
+                            theText:"password auth"
+                            onStatusChangeAction:
+                            {
+                                backend.hostPasswordStatus=checked; //also will save to settings.
+                            }
+                        }
+
+                        MyTextInput
+                        {
+                            id:hostingPassword
+                            setWidth: parent.width/1.5
+                            setVisible: backend.hostPasswordStatus
+                            setHeight: 50
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            setTitleText: "Password (optional):"
+                            theText: settings.value["App/hostPassword"]
+                            setBgColor: "black"
+                            setFontColor: "white"
+                            onTheTextAccepted:
+                            {
+                                checkPass();
+                            }
+
+                            function checkPass()
+                            {
+                                //check if password accepted or not
+                                if(!backend.setHostPassword(hostingPassword.theText))
+                                    hostingPassword.invalidInput("password not accepted.") //when user change a charecter will hide this error text.
+                            }
+
+                            MyButton
+                            {
+                                id:buttonApplyPassword
+                                setButtonText: "apply"
+                                setWidth: 60
+                                setHeight: parent.height/2
+                                onButtonClicked:
+                                {
+                                    hostingPassword.checkPass();
+                                }
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: parent.right
+                            }
+                        }
+
+
+
+                        Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
+                        Label {
+                            text: "Bluetooth Hosting:"
+                            font.bold: true
+                            font.pixelSize: 15
+                        }
+
+                        Column
+                        {
+                            id:bluetoothHostingBox
+
+                            CustomCheckbox
+                            {
+                                id:bluetoothHostStatus
+                                initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
+                                theText:"Bluetooth host (" + (function(status) {
+                                    switch(status) {
+                                        case -1: return "Unknown";
+                                        case 0:  return "Starting...";
+                                        case 10: return "Adaptor Not Found";
+                                        case 11: return "Failed";
+                                        case 20: return "Permission Denied";
+                                        case 21: return "Asking Permission";
+                                        case 22: return "Permission Granted";
+                                        case 30: return "Inactive";
+                                        case 31: return "Discoverable";
+                                        case 32: return "Loading";
+                                        case 33: return "Active";
+                                        default: return "Unknown Status: "+status;
+                                    }
+                                })(backend.btStatus) +")"
+
+                                enabled: (backend.btStatus!==0 && backend.btStatus!==32)//BtStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on bluetooth server)
+                                onStatusChangeAction:
+                                {
+                                    backend.bluetoothServer(checked);
+                                    settings.setSetting("App/bluetoothHostStatus",checked)
+                                }
+                            }
+
+
+                            Row
+                            {
+                                id:bluetoothInfoRow
+                                visible: bluetoothHostStatus.checked
+                                spacing: 5
+                                Rectangle
+                                {
+                                    id:bluetoothStateColor
+                                    width:20
+                                    height:20
+                                    radius: 20
+                                    color: (function(status) {
+                                        switch(status) {
+                                            case 0: return "red";
+                                            case 3: return "lime";
+                                            case 1:
+                                            case 2: return "green"
+                                            default: return "black";
+                                        }
+                                        })(backend.bluetoothHostModeState)
+
+                                }
+                                Label
+                                {
+                                    id:bluetoothDeviceNameAddressAndState
+                                    text: backend.btLocalName + " max:" + backend.btMaxConnectionUser
+                                }
+                            }
+
+
+                            //later adeptor list via RadioButton by Repeater
+
+                            CustomCheckbox
+                            {
+                                id:bluetoothHostAlwaysDiscoverable
+                                initialCheckedState: backend.btAlwaysDiscoverable
+                                theText:"always discoverable";
+                                visible: bluetoothHostStatus.checked
+                                onStatusChangeAction:
+                                {
+                                    backend.btAlwaysDiscoverable=checked
+                                    settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
+                                }
+                            }
+
+
+
+                            Rectangle
+                            {
+                                id:bluetoothMaxConnectionBase
+                                width: 200
+                                height: 60
+                                color:"transparent"
+                                visible: bluetoothHostStatus.checked
+                                Row
+                                {
+                                    Label
+                                    {
+                                        text:"Max Connection:"
+                                        color: "white"
+                                    }
+                                    MySlider
+                                    {
+                                        id:bluetoothHostMaxAllowedConnection
+                                        setWidth: 200
+                                        setHeight: 10
+                                        setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                                        setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                                        setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                                        intialValue: backend.btMaxConnectionUser
+                                        setFilledLeftRadius: 30
+                                        setRadius: 30
+                                        setFrom: 1
+                                        setTo: 5
+                                        onModified: //value changed
+                                        {
+                                            // console.debug("bt max users changed to " + value)
+                                            backend.btMaxConnectionUser=value
+                                        }
+                                        onHovered:
+                                        {
+                                            if(isHovered)
+                                                backend.changeCursor("hand")
+                                            else
+                                                backend.changeCursor()
+                                        }
+                                    }
+
+                                }
+
+
+                            }
+
+
+                        }
+
+                        Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
+                        Label {
+                            text: "Network Hosting:"
+                            font.bold: true
+                            font.pixelSize: 15
+                        }
+                        Column
+                        {
+                            id:networkHostingBox
+                            CustomCheckbox
+                            {
+                                id:networkHostStatus
+                                initialCheckedState:  Scripts.asBool(settings.value["App/networkHostStatus"])
+                                theText:"Network host (" + (function(status) {
+                                    switch(status) {
+                                        case -1: return "Unknown";
+                                        case 0:  return "Starting...";
+                                        case 10: return "Adaptor Not Found";
+                                        case 11: return "Failed";
+                                        case 30: return "Inactive";
+                                        case 31: return "Loading";
+                                        case 32: return "Active";
+                                        default: return "Unknown Status: "+status;
+                                    }
+                                })(backend.ntStatus) +")"
+
+                                enabled: (backend.ntStatus!==0 && backend.ntStatus!==31)
+                                //NetStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on network server)
+                                onStatusChangeAction:
+                                {
+                                    backend.netServer(checked);
+                                    settings.setSetting("App/networkHostStatus",checked)
+                                }
+                            }
+
                             Label
                             {
-                                text:"Max Connection:"
-                                color: "white"
+                                id:networkHostName
+                                text:"network address:\n" + backend.netLocalName
+                                visible: networkHostStatus.checked
                             }
-                            MySlider
-                            {
-                                id:bluetoothHostMaxAllowedConnection
-                                setWidth: 200
-                                setHeight: 10
-                                setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
-                                setColor: !Config.activeTheme ? "white" : Config.highlightColor
-                                setOpacity: !Config.activeTheme ? 0.8 : 0.5
-                                intialValue: backend.btMaxConnectionUser
-                                setFilledLeftRadius: 30
-                                setRadius: 30
-                                setFrom: 1
-                                setTo: 5
-                                onModified: //value changed
-                                {
-                                    // console.debug("bt max users changed to " + value)
-                                    backend.btMaxConnectionUser=value
-                                }
-                                onHovered:
-                                {
-                                    if(isHovered)
-                                        backend.changeCursor("hand")
-                                    else
-                                        backend.changeCursor()
-                                }
-                            }
+
+
 
                         }
 
+                        Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
 
                     }
-
-
-                }
-
-
-                Column
-                {
-                    id:networkHostingBox
-                    Label
-                    {
-                        id:networkHostName
-                        text:"network name:" + backend.netLocalName
-                    }
-
-                    CustomCheckbox
-                    {
-                        id:networkHostStatus
-                        initialCheckedState:  Scripts.asBool(settings.value["App/networkHostStatus"])
-                        theText:"Network host (" + (function(status) {
-                            switch(status) {
-                                case -1: return "Unknown";
-                                case 0:  return "Starting...";
-                                case 10: return "Adaptor Not Found";
-                                case 11: return "Failed";
-                                case 30: return "Inactive";
-                                case 31: return "Loading";
-                                case 32: return "Active";
-                                default: return "Unknown Status: "+status;
-                            }
-                        })(backend.ntStatus) +")"
-
-                        enabled: (backend.ntStatus!==0 && backend.ntStatus!==31)
-                        //NetStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on network server)
-                        onStatusChangeAction:
-                        {
-                            backend.netServer(checked);
-                            settings.setSetting("App/networkHostStatus",checked)
-                        }
-                    }
-
-
 
                 }
 
@@ -1409,7 +1527,7 @@ ApplicationWindow {
                                 }
                                 Rectangle
                                 {
-                                    color:"black"
+                                    color: "black"
                                     width:35
                                     height:35
                                     radius: 35
@@ -1421,8 +1539,12 @@ ApplicationWindow {
                                         anchors.centerIn: parent
                                         font.pixelSize: 15
                                     }
+                                    Label
+                                    {
+                                        text:"v"+modelData.version + " - " + modelData.platform
+                                        anchors.top: parent.bottom
+                                    }
                                 }
-
 
                                 Text
                                 {
@@ -1434,8 +1556,11 @@ ApplicationWindow {
                                        .name
                                        .using
                                        .ping
+                                       .authenticated
+                                       .version
+                                       .platform
                                     */
-                                    text:"name: ("+modelData.name+") @ ["+modelData.address+"]"
+                                    text:modelData.name+"\n@ ["+modelData.address+"]"
                                     width: 200
                                     color: "white"
                                     font.pixelSize: 15
@@ -1468,6 +1593,22 @@ ApplicationWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
+                            }
+                            Rectangle
+                            {
+                                id: unathenticatedUserCover
+                                anchors.fill: parent
+                                color: "black"
+                                Label
+                                {
+                                    text:"Authentication needed"
+                                    anchors.centerIn: parent
+                                }
+
+                                //visible->true when user is not authenticated otherwise hid
+                                visible: backend.hostPasswordStatus ?
+                                              ((modelData.authenticated==="1"||modelData.authenticated==="true") ?false : true)
+                                              : false
                             }
                         }
                     }
@@ -1544,7 +1685,8 @@ ApplicationWindow {
         onTriggered:
         {
             if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
-                    && !seeker.isMouseOnControl && !topControls.isMouseOnControl && !menuBar.isMenuOpened)
+                    && !seeker.isMouseOnControl && !topControls.isMouseOnControl && !menuBar.isMenuOpened
+                    && !hostingBox.isMouseOnControl)
             {
                 hideControls.start()
             }
@@ -1823,6 +1965,15 @@ ApplicationWindow {
     function showOverlay(overlay) {
         closeOverlays()
         overlay.visible = true
+    }
+
+    function controlVisibility(status)
+    {
+        console.log("controlVisibility=",status)
+        if(status)
+            showControls.start()
+        else
+            hideControls.start()
     }
 
     function openFile(path) {

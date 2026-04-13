@@ -12,12 +12,25 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     m_IsDBusConnectionOk(false),
     m_netServer(nullptr),
     m_ntStatus(NetStatus::Unknown),
-    m_netLocalName("empty")
+    m_netLocalName("empty"),
+    m_hostPassword(""),
+    m_hostPasswordStatus(false)
 {
     //read mprisControl status from settings
     QVariant settingVariant = m_settings->getSetting("App/mprisControl",false);
     bool status = settingVariant.value<bool>();
     setMprisControl(status);
+
+
+    //read hostPasswrodStauts from settings.
+    settingVariant = m_settings->getSetting("App/hostPasswordStatus",false);
+    status = settingVariant.value<bool>();
+    setHostPasswordStatus(status);
+
+    //read password..
+    settingVariant = m_settings->getSetting("App/hostPassword","");
+    setHostPassword(settingVariant.value<QString>());
+
 
     //setup ping users
     m_pingUsersTimer.setInterval(SERVER_PING_USERS_TIMER_INTERVAL);
@@ -335,6 +348,10 @@ void Backend::clientConnected( QBluetoothSocket*  sender)
 
 
         qInfo() <<  userName << " has conncted to server.\n";
+
+        //if passwrod is required ask him enter password.
+        if(m_hostPasswordStatus)
+            emit sendMessage(sender,m_commandHandler.pack(CommandHandler::Command::EnterPassword,""));
     }
     else
     {
@@ -376,6 +393,34 @@ void Backend::doProcessPing(RemoteUsers* user)
     else
         qDebug() << "user pingTimer is not valid.";
 }
+
+bool Backend::hostPasswordStatus() const
+{
+    return m_hostPasswordStatus;
+}
+
+void Backend::setHostPasswordStatus(bool newHostPasswordStatus)
+{
+    if (m_hostPasswordStatus == newHostPasswordStatus)
+        return;
+    m_hostPasswordStatus = newHostPasswordStatus;
+
+    //save status at settings file
+    m_settings->setSetting("App/hostPasswordStatus",newHostPasswordStatus);
+    emit hostPasswordStatusChanged();
+}
+
+bool Backend::setHostPassword(QString pass)
+{
+    if(pass.length()>0 && pass.length()<200)
+    {
+        m_hostPassword=pass;
+        m_settings->setSetting("App/hostPassword",pass);
+        return true;
+    }
+    return false;
+}
+
 void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
 {
     qDebug() << "message received from("  << sender->peerName() << "): "
@@ -390,6 +435,7 @@ void Backend::messageReceived(QBluetoothSocket* sender, QByteArray data)
             doProcessPing(user);
         else
             processCommand(user,&data);
+
     }
     else
         qInfo() << "coult not pass received message to process due to user/sender isn't valid (not found)";
@@ -408,6 +454,8 @@ QString Backend::toPureIPv4(const QHostAddress &addr)
 
     return QHostAddress(ipv4).toString();
 }
+
+
 
 void Backend::clientConnected(QTcpSocket *sender)
 {
@@ -434,6 +482,10 @@ void Backend::clientConnected(QTcpSocket *sender)
         initConnectionLost(user);
 
         qInfo() <<  userName << " has conncted to server.\n";
+
+        //if passwrod is required ask him enter password.
+        if(m_hostPasswordStatus)
+            emit sendMessage(sender,m_commandHandler.pack(CommandHandler::Command::EnterPassword,""));
     }
     else
     {
@@ -487,6 +539,7 @@ void Backend::messageReceived(QTcpSocket *sender, QByteArray data)
             doProcessPing(user);
         else
             processCommand(user,&data);
+
     }
     else
         qInfo() << "coult not pass received message to process due to user/sender isn't valid (not found)";
@@ -725,6 +778,58 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         QByteArray ba = *data;
         cmd = m_commandHandler.unpack(ba,value);
 
+        //process received clientInfo
+        if(cmd==CommandHandler::Command::ClientInfo)
+        {
+            qDebug() << "client info received: " << value;
+            user->versionCode = value.split("`").at(0).toInt();
+            if(user->versionCode<MINIMUM_ALLOWED_VERSION_CODE_REMOTE)
+            {
+                qInfo() << "client version is not allowed, versionCode:" << user->versionCode << " connection refused.";
+                sendResponse(user,m_commandHandler.pack(CommandHandler::Command::VersionIsOutDated,""));
+                if(user->connectionType==UserConnectionType::Bluetooth)
+                    m_btServer->disconnectClient(user->btSocket);
+                else if(user->connectionType==UserConnectionType::Network)
+                    m_netServer->disconnectClient(user->netSocket);
+
+                return;//version error has sent dont proceed
+            }
+            user->name += " - "+ value.split("`").at(5); //add deviceName. due to when connection is by network there is no name, so we add device to show appropriate name
+            user->platform = value.split("`").at(2);
+            user->info = value;
+            emit connectedUsersListChanged();
+            return;//info extracted so no need to proceed.
+        }
+
+        //if password is required, check for password.
+        if(m_hostPasswordStatus && !user->authenticated)
+        {
+            //check for command maybe he is trying to login
+            if(cmd==CommandHandler::Command::EnterPassword)
+            {
+                if(value==m_hostPassword)
+                {
+                    qInfo() << "user " <<  user->name << " authenticated successfully.";
+                    user->authenticated=true;
+                    sendResponse(user,m_commandHandler.pack(CommandHandler::Command::AthenticatedFine,""));
+                    emit connectedUsersListChanged();
+                }
+                else
+                {
+                    qInfo() << "user " <<  user->name << " entered wrong password!";
+                    //later add CLIENT_MAX_INCORRECT_PASSWORD_ATTEMPS and ban user if attempts exceeded.
+                    sendResponse(user,m_commandHandler.pack(CommandHandler::Command::WrongPassword,""));
+                }
+            }
+            else
+            {
+                qDebug() << "unathenticated user. asking him enter password...";
+                sendResponse(user,m_commandHandler.pack(CommandHandler::Command::EnterPassword,""));
+            }
+            return;//response sent no need to proceed
+        }
+
+
         if(user->connectionType == UserConnectionType::Bluetooth)
         {
             qDebug() << "processing command using bluetooth, from:"<< user->btSocket->peerName() << "cmd=" << cmd << "val="
@@ -859,6 +964,11 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
 
 
     //send response of that command/request if user is valid
+    sendResponse(user,response);
+}
+
+void Backend::sendResponse(RemoteUsers* user, const QString& response)
+{
     if(user)
     {
         qInfo()<< "sending reponse to user from processCommand.";
@@ -875,6 +985,26 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
     else
         qCritical() << "cant send response to nullptr user";
 }
+
+void Backend::sendResponse(RemoteUsers* user, QByteArray response)
+{
+    if(user)
+    {
+        qInfo()<< "sending reponse to user from processCommand.";
+        if(user->connectionType == UserConnectionType::Bluetooth)
+        {
+            emit sendMessage(user->btSocket, response);//maybe later broadcast  to all connected users.
+        }
+        else if(user->connectionType == UserConnectionType::Network)
+        {
+            emit sendMessage(user->netSocket, response);//maybe later broadcast  to all connected users.
+        }
+    }
+
+    else
+        qCritical() << "cant send response to nullptr user";
+}
+
 
 void Backend::sendPingToAllUsers()
 {
@@ -1207,6 +1337,9 @@ QVariantList Backend::connectedUsersAsVariantList() const
         userMap["connectedAt"] = userInfo.at(4);
         userMap["using"] = userInfo.at(5);
         userMap["ping"] = userInfo.at(6);
+        userMap["authenticated"] = userInfo.at(7);
+        userMap["version"] = userInfo.at(8);
+        userMap["platform"] = userInfo.at(9);
         variantList.append(userMap);
     }
     return variantList;
@@ -1367,7 +1500,10 @@ QList<QString> RemoteUsers::getAsStringList() const
         convertUserAccess(),
         QTime(connectedAt.time()).toString(),
         convertConnectionType(true),
-        QString::number(pingMs)
+        QString::number(pingMs),
+        QString::number(authenticated),
+        QString::number(versionCode),
+        platform
     };
     return list;
 }

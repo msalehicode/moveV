@@ -106,7 +106,12 @@ struct RemoteUsers
     QDateTime connectedAt;
     UserConnectionType connectionType;
     qint64 pingMs;
+    bool authenticated;
 
+    int versionCode;
+
+    QString platform;
+    QString info; //build, system info...
     short connectionLostCounter;
     QElapsedTimer pingTimer;
     QTimer connectionLostTimer;
@@ -118,6 +123,7 @@ struct RemoteUsers
         , btSocket(bluetoothSocket), netSocket(networkSocket)
         , status(UserConnectionStatus::Connected), pingMs(0) , connectionLostCounter(0)
         , access(UserAccess::Normal), connectedAt(QDateTime::currentDateTime())
+        , authenticated(false), info(""), versionCode(0), platform("")
     {
 
 
@@ -227,6 +233,11 @@ public:
     QString netLocalName() const;
     void setNetLocalName(const QString &newNetLocalName);
 
+    bool hostPasswordStatus() const;
+    void setHostPasswordStatus(bool newHostPasswordStatus);
+
+    Q_INVOKABLE bool setHostPassword(QString pass);
+
 signals:
     //properties
     void btStatusChanged();
@@ -260,6 +271,8 @@ signals:
 
     void netLocalNameChanged();
 
+    void hostPasswordStatusChanged();
+
 public slots:
     //bluetooth slots
     void clientConnected(QBluetoothSocket *  sender);
@@ -288,12 +301,19 @@ private:
                             CommandHandler::Command mprisCommand=CommandHandler::Command::CurrentMediaName);
     void sendPingToAllUsers();
 
+    void sendResponse(RemoteUsers* user, const QString& response);
+    void sendResponse(RemoteUsers* user, QByteArray response);
+
     QString toPureIPv4(const QHostAddress &addr); //sender->peerAddress() contains ipv6 and ipv4 (::::ff127.0.01) so this removes that ipv6
 
     void doProcessPing(RemoteUsers* user);
     QGuiApplication* m_app;
     SettingsManager* m_settings;
     CustomCursor cc;
+
+    QString m_hostPassword;
+    bool m_hostPasswordStatus;
+    Q_PROPERTY(bool hostPasswordStatus READ hostPasswordStatus WRITE setHostPasswordStatus NOTIFY hostPasswordStatusChanged FINAL)
 
     //net host
     NetServer* m_netServer;

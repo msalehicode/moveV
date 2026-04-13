@@ -19,14 +19,6 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     bool status = settingVariant.value<bool>();
     setMprisControl(status);
 
-    //load bluetooth always disoverable
-    settingVariant = m_settings->getSetting("App/bluetoothHostAlwaysDiscoverable",false);
-    status = settingVariant.value<bool>();
-    qDebug() << "bluetooth always discoverable read from settings is: " << status;
-    setBtAlwaysDiscoverable(status);
-
-
-
     //setup ping users
     m_pingUsersTimer.setInterval(SERVER_PING_USERS_TIMER_INTERVAL);
     connect(&m_pingUsersTimer, &QTimer::timeout,
@@ -419,7 +411,8 @@ QString Backend::toPureIPv4(const QHostAddress &addr)
 
 void Backend::clientConnected(QTcpSocket *sender)
 {
-    QString userAddress = toPureIPv4(sender->peerAddress())+":"+QString::number(static_cast<int>(sender->peerPort()));
+    QString userIpv4 = toPureIPv4(sender->peerAddress());
+    QString userAddress = userIpv4+":"+QString::number(static_cast<int>(sender->peerPort()));
     QString userName = sender->peerName();
 
     //check if user exists refuse connetion
@@ -430,7 +423,8 @@ void Backend::clientConnected(QTcpSocket *sender)
         return;
     }
 
-    if(!m_bannedUsers.contains(userAddress))
+
+    if(!m_bannedUsers.contains(userIpv4))
     {
         //add him to our clinets list
         RemoteUsers* user = new RemoteUsers(userName,userAddress,
@@ -443,7 +437,7 @@ void Backend::clientConnected(QTcpSocket *sender)
     }
     else
     {
-        qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (banned).";
+        qInfo() << userName << " ("<< userIpv4 << ") tried to connect to server but refused (banned).";
         m_netServer->disconnectClient(sender);
     }
 }
@@ -630,6 +624,14 @@ void Backend::initBluetoothServer()
             else
             {
                 setBtStatus(BtStatus::Active);
+
+                //load and set bluetooth always disoverable
+                QVariant settingVariant = m_settings->getSetting("App/bluetoothHostAlwaysDiscoverable",false);
+                bool status = settingVariant.value<bool>();
+                qDebug() << "bluetooth always discoverable read from settings is: " << status;
+                setBtAlwaysDiscoverable(status);
+
+
             }
 
 
@@ -737,6 +739,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
 
     }
 
+    runQmlFunction("controlVisibility","true");
     switch (cmd)
     {
         case CommandHandler::Command::ModifyBrightness:
@@ -1253,12 +1256,16 @@ void Backend::banUser(QString address)
         }
         else if(user->connectionType==UserConnectionType::Network)
         {
-            //add user's address to banList
-            if(!m_bannedUsers.contains(user->address))
+            //remove user ip from user->address ipv4:port
+            QString userIp = user->address.split(':').first();
+            //check wether address has already banned or not
+            if(!m_bannedUsers.contains(userIp))
             {
-                m_bannedUsers.insert(user->address);
+                //add user's address to banList
+                m_bannedUsers.insert(userIp);
+                qInfo() << "user " << user->name << "(" << userIp << ") has been banned.";
                 emit bannedUsersChanged();
-                qInfo() << "user " << user->name << "(" << user->address << ") has been banned.";
+
                 //disconnect him
                 m_netServer->disconnectClient(user->netSocket);
                 //assuming m_netServer will run clientDisconnected and user would remove from m_users

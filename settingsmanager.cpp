@@ -38,7 +38,7 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("SNS/secBeforeSpeedup")) m_settings.setValue("SNS/secBeforeSpeedup",1); //x Seconds before subtitle make pace normal. (FOR SNS) (for those subtitles are not shown/matched when actor speak)
     if(!m_settings.contains("SNS/secAfterSpeedup")) m_settings.setValue("SNS/secAfterSpeedup",1);
     if(!m_settings.contains("SNS/speed")) m_settings.setValue("SNS/speed",2);
-    if(!m_settings.contains("SNS/status")) m_settings.setValue("SNS/status",true);
+    if(!m_settings.contains("SNS/status")) m_settings.setValue("SNS/status",false);
 
 
     //Media
@@ -47,14 +47,14 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("Media/muted")) m_settings.setValue("Media/muted",false);
     if(!m_settings.contains("Media/subtitleTimerInterval")) m_settings.setValue("Media/subtitleTimerInterval",200);
     if(!m_settings.contains("Media/autoLoadSubtitles")) m_settings.setValue("Media/autoLoadSubtitles",true);
-    if(!m_settings.contains("Media/volume")) m_settings.setValue("Media/volume",0.5);
+    if(!m_settings.contains("Media/volume")) m_settings.setValue("Media/volume",1);
     if(!m_settings.contains("Media/rate")) m_settings.setValue("Media/rate",1);
-    if(!m_settings.contains("Media/brightness")) m_settings.setValue("Media/brightness",0.5);
+    if(!m_settings.contains("Media/brightness")) m_settings.setValue("Media/brightness",0);
     if(!m_settings.contains("Media/speed")) m_settings.setValue("Media/speed",1);
-    if(!m_settings.contains("Media/sub_removeDomains")) m_settings.setValue("Media/sub_removeDomains",true);
-    if(!m_settings.contains("Media/sub_ignoreHTMLtags")) m_settings.setValue("Media/sub_ignoreHTMLtags",true);
-    if(!m_settings.contains("Media/sub_cleanSubtitle")) m_settings.setValue("Media/sub_cleanSubtitle",true);
-    if(!m_settings.contains("Media/sub_removeExtraInfo")) m_settings.setValue("Media/sub_removeExtraInfo",true);
+    if(!m_settings.contains("Media/sub_removeDomains")) m_settings.setValue("Media/sub_removeDomains",false);
+    if(!m_settings.contains("Media/sub_ignoreHTMLtags")) m_settings.setValue("Media/sub_ignoreHTMLtags",false);
+    if(!m_settings.contains("Media/sub_cleanSubtitle")) m_settings.setValue("Media/sub_cleanSubtitle",false);
+    if(!m_settings.contains("Media/sub_removeExtraInfo")) m_settings.setValue("Media/sub_removeExtraInfo",false);
 
 
     //subtitle 1
@@ -65,7 +65,7 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("Subtitle1/backColor")) m_settings.setValue("Subtitle1/backColor","black");
     if(!m_settings.contains("Subtitle1/backOpacity")) m_settings.setValue("Subtitle1/backOpacity",0.5);
     if(!m_settings.contains("Subtitle1/textSize")) m_settings.setValue("Subtitle1/textSize",50);
-    if(!m_settings.contains("Subtitle1/posY")) m_settings.setValue("Subtitle1/posY",50);
+    if(!m_settings.contains("Subtitle1/posY")) m_settings.setValue("Subtitle1/posY",0.4);
     if(!m_settings.contains("Subtitle1/offset")) m_settings.setValue("Subtitle1/offset",0);
 
 
@@ -77,7 +77,7 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("Subtitle2/backColor")) m_settings.setValue("Subtitle2/backColor","black");
     if(!m_settings.contains("Subtitle2/backOpacity")) m_settings.setValue("Subtitle2/backOpacity",0.5);
     if(!m_settings.contains("Subtitle2/textSize")) m_settings.setValue("Subtitle2/textSize",50);
-    if(!m_settings.contains("Subtitle2/posY")) m_settings.setValue("Subtitle2/posY",50);
+    if(!m_settings.contains("Subtitle2/posY")) m_settings.setValue("Subtitle2/posY",0.8);
     if(!m_settings.contains("Subtitle2/offset")) m_settings.setValue("Subtitle2/offset",0);
 
 
@@ -104,7 +104,7 @@ void SettingsManager::loadSettings()
     m_value["SNS/secBeforeSpeedup"] = m_settings.value("SNS/secBeforeSpeedup",1);
     m_value["SNS/secAfterSpeedup"] = m_settings.value("SNS/secAfterSpeedup",1);
     m_value["SNS/speed"] = m_settings.value("SNS/speed",2);
-    m_value["SNS/status"] = m_settings.value("SNS/status",true);
+    m_value["SNS/status"] = m_settings.value("SNS/status",false);
 
     //Media
     m_value["Media/speedHold"] = m_settings.value("Media/speedHold",2);
@@ -112,14 +112,14 @@ void SettingsManager::loadSettings()
     m_value["Media/muted"] = m_settings.value("Media/muted",false);
     m_value["Media/subtitleTimerInterval"] = m_settings.value("Media/subtitleTimerInterval",200);
     m_value["Media/autoLoadSubtitles"] = m_settings.value("Media/autoLoadSubtitles",true);
-    m_value["Media/volume"] = m_settings.value("Media/volume",0.5);
+    m_value["Media/volume"] = m_settings.value("Media/volume",1);
     m_value["Media/rate"] = m_settings.value("Media/rate",1);
-    m_value["Media/brightness"] = m_settings.value("Media/brightness",0.5);
+    m_value["Media/brightness"] = m_settings.value("Media/brightness",0);
     m_value["Media/speed"] = m_settings.value("Media/speed",1);
-    m_value["Media/sub_removeDomains"] = m_settings.value("Media/sub_removeDomains",true);
-    m_value["Media/sub_ignoreHTMLtags"] = m_settings.value("Media/sub_ignoreHTMLtags",true);
-    m_value["Media/sub_cleanSubtitle"] = m_settings.value("Media/sub_cleanSubtitle",true);
-    m_value["Media/sub_removeExtraInfo"] = m_settings.value("Media/sub_removeExtraInfo",true);
+    m_value["Media/sub_removeDomains"] = m_settings.value("Media/sub_removeDomains",false);
+    m_value["Media/sub_ignoreHTMLtags"] = m_settings.value("Media/sub_ignoreHTMLtags",false);
+    m_value["Media/sub_cleanSubtitle"] = m_settings.value("Media/sub_cleanSubtitle",false);
+    m_value["Media/sub_removeExtraInfo"] = m_settings.value("Media/sub_removeExtraInfo",false);
 
     //subtitle 1
     m_value["Subtitle1/status"] = m_settings.value("Subtitle1/status",true);
@@ -129,7 +129,7 @@ void SettingsManager::loadSettings()
     m_value["Subtitle1/backColor"] = m_settings.value("Subtitle1/backColor","black");
     m_value["Subtitle1/backOpacity"] = m_settings.value("Subtitle1/backOpacity",0.5);
     m_value["Subtitle1/textSize"] = m_settings.value("Subtitle1/textSize",50);
-    m_value["Subtitle1/posY"] = m_settings.value("Subtitle1/posY",50);
+    m_value["Subtitle1/posY"] = m_settings.value("Subtitle1/posY",0.4);
     m_value["Subtitle1/offset"] = m_settings.value("Subtitle1/offset",0);
 
 
@@ -141,7 +141,7 @@ void SettingsManager::loadSettings()
     m_value["Subtitle2/backColor"] = m_settings.value("Subtitle2/backColor","black");
     m_value["Subtitle2/backOpacity"] = m_settings.value("Subtitle2/backOpacity",0.5);
     m_value["Subtitle2/textSize"] = m_settings.value("Subtitle2/textSize",50);
-    m_value["Subtitle2/posY"] = m_settings.value("Subtitle2/posY",50);
+    m_value["Subtitle2/posY"] = m_settings.value("Subtitle2/posY",0.8);
     m_value["Subtitle2/offset"] = m_settings.value("Subtitle2/offset",0);
 
     // qDebug() << "Loaded settings map:" << m_value;

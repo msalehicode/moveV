@@ -26,6 +26,11 @@ ApplicationWindow {
     width:1000
     height:800
 
+    onHeightChanged:
+    {
+        updateSubtitlesYposition();
+    }
+
     onClosing:
     {
         //save busy settings (stored in variable)
@@ -602,6 +607,7 @@ ApplicationWindow {
     // Subtitle boxes
     Rectangle
     {
+        id:subtitle1Box
         width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
         height:subtitleText1.height
         color:settings.value["Subtitle1/backColor"]
@@ -610,12 +616,13 @@ ApplicationWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
         Drag.source: parent
-        y:settings.value["Subtitle1/posY"]
 
-        property int parentWidth: parent ? parent.width : 0
-        property int parentHeight: parent ? parent.height : 0
+
+        y: root.height * (settings.value["Subtitle1/posY"] !== undefined ? settings.value["Subtitle1/posY"] : 0.8) // Default to 80% if not set
+
+
         MouseArea {
-            id: dragArea
+            id:mouseAreaSubtitle1
 
             onEntered: backend.changeCursor("verReposition")
             onExited: backend.changeCursor()
@@ -623,17 +630,7 @@ ApplicationWindow {
             anchors.fill: parent
             drag.target: parent
             onReleased: {
-                // Ensure rectangle stays inside parent bounds
-                if (parent.x < 0)
-                    parent.x = 0
-                if (parent.y < 0)
-                    parent.y = 0
-                if (parent.x + parent.width > parent.parentWidth)
-                    parent.x = parent.parentWidth - parent.width
-                if (parent.y + parent.height > parent.parentHeight)
-                    parent.y = parent.parentHeight - parent.height
-
-                settings.setSetting("Subtitle1/posY",parent.y)
+                updateSubtitlesYposition()
             }
         }
         Label {
@@ -641,8 +638,10 @@ ApplicationWindow {
             width: parent.width
             height: implicitHeight
             wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: "AlignHCenter"
+            // horizontalAlignment: Text.AlignHCenter
             // horizontalAlignment: Text.AlignRight
+
 
             color: settings.value["Subtitle1/textColor"]
             style: Text.Outline
@@ -650,8 +649,44 @@ ApplicationWindow {
             font.pixelSize: settings.value["Subtitle1/textSize"]
         }
     }
+    function updateSubtitlesYposition()
+    {
+        console.log("updating subtitle ypos..")
+
+        // Ensure rectangle stays inside parent bounds
+        if (subtitle1Box.x < 0)
+            subtitle1Box.x = 0
+        if (subtitle1Box.y < 0)
+            subtitle1Box.y = 0
+        if (subtitle1Box.x + subtitle1Box.width > root.width)
+            subtitle1Box.x = root.width - subtitle1Box.width
+        if (subtitle1Box.y + subtitle1Box.height > root.height)
+            subtitle1Box.y = root.height - subtitle1Box.height
+        // When saving, store the relative Y position as a percentage
+        var posYPercentage = subtitle1Box.y / root.height;
+        console.log("Subtitle1 relative posY:", posYPercentage)
+        settings.setSetting("Subtitle1/posY", posYPercentage)
+
+
+        // Ensure rectangle stays inside parent bounds
+        if (subtitle2Box.x < 0)
+            subtitle2Box.x = 0
+        if (subtitle2Box.y < 0)
+            subtitle2Box.y = 0
+        if (subtitle2Box.x + subtitle2Box.width > root.width)
+            subtitle2Box.x = root.width - subtitle2Box.width
+        if (subtitle2Box.y + subtitle2Box.height > root.height)
+            subtitle2Box.y = root.height - subtitle2Box.height
+        // When saving, store the relative Y position as a percentage
+        posYPercentage = subtitle2Box.y / root.height;
+        console.log("Subtitle2 relative posY:", posYPercentage)
+        settings.setSetting("Subtitle2/posY", posYPercentage)
+
+    }
+
     Rectangle
     {
+        id:subtitle2Box
         width: subtitleText2.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText2.implicitWidth
         height:subtitleText2.height
         color:settings.value["Subtitle2/backColor"]
@@ -660,30 +695,20 @@ ApplicationWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         // anchors.verticalCenter: parent.verticalCenter
         Drag.source: parent
-        y:settings.value["Subtitle2/posY"]
 
 
-        property int parentWidth: parent ? parent.width : 0
-        property int parentHeight: parent ? parent.height : 0
+        y: root.height * (settings.value["Subtitle2/posY"] !== undefined ? settings.value["Subtitle2/posY"] : 0.8) // Default to 80% if not set
+
+
         MouseArea
         {
+            id:mouseAreaSubtitle2
             anchors.fill: parent
             drag.target: parent
             onEntered: backend.changeCursor("verReposition")
             onExited: backend.changeCursor()
             onReleased: {
-                // Ensure rectangle stays inside parent bounds
-                if (parent.x < 0)
-                    parent.x = 0
-                if (parent.y < 0)
-                    parent.y = 0
-                if (parent.x + parent.width > parent.parentWidth)
-                    parent.x = parent.parentWidth - parent.width
-                if (parent.y + parent.height > parent.parentHeight)
-                    parent.y = parent.parentHeight - parent.height
-
-
-                settings.setSetting("Subtitle2/posY",parent.y)
+                updateSubtitlesYposition()
             }
         }
         Label {
@@ -692,7 +717,8 @@ ApplicationWindow {
             width: parent.width
             height: implicitHeight
             wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: "AlignHCenter"
+            // horizontalAlignment: Text.AlignHCenter
             // horizontalAlignment: Text.AlignRight
 
             color: settings.value["Subtitle2/textColor"]

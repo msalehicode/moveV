@@ -32,6 +32,7 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("App/mprisControl")) m_settings.setValue("App/mprisControl",false);
     if(!m_settings.contains("App/hostPasswordStatus")) m_settings.setValue("App/hostPasswordStatus",false);
     if(!m_settings.contains("App/hostPassword")) m_settings.setValue("App/hostPassword","pass123");
+    if(!m_settings.contains("App/showControlsWhenRemoteCommand")) m_settings.setValue("App/showControlsWhenRemoteCommand",true);
 
 
     //speedup and stop (SNS)
@@ -98,6 +99,7 @@ void SettingsManager::loadSettings()
     m_value["App/mprisControl"] = m_settings.value("App/mprisControl",false);
     m_value["App/hostPasswordStatus"] = m_settings.value("App/hostPasswordStatus",false);
     m_value["App/hostPassword"] = m_settings.value("App/hostPassword","pass123");
+    m_value["App/showControlsWhenRemoteCommand"] = m_settings.value("App/showControlsWhenRemoteCommand",true);
 
 
     //speedup and stop (SNS)
@@ -155,6 +157,11 @@ QVariantMap SettingsManager::value() const
 void SettingsManager::setValue(const QVariantMap &settings)
 {
     m_value = settings;
+}
+
+QString SettingsManager::getValue(const QString &key) const
+{
+    return getSetting(key,"").toString();
 }
 
 

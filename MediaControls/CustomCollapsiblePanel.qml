@@ -25,7 +25,7 @@ Item
     property bool setOpen : false
     property color setBgContent: "grey"
     default property alias content: contentArea.children //to beable add content/other Components inside this component. like buttons,...
-
+    property Item itemAlongTitle; // to apply item after setTitle (e.g wanna add rowed icons there)
 
     signal collapsed;
 
@@ -83,9 +83,20 @@ Item
                         leftMargin:30
                     }
 
-                    width:parent.width/1.75
+                    // width:parent.width/1.75
+                    width:implicitWidth
                     height:implicitHeight
                     wrapMode: Text.WordWrap
+                    Item  // to apply item after setTitle (e.g wanna add rowed icons there)
+                    {
+                        id: itemAlongTitleArea
+                        width: childrenRect.width
+                        height: childrenRect.height
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: popupContentText.right
+                        anchors.leftMargin: 10
+                    }
+
                 }
                 Rectangle
                 {
@@ -139,6 +150,13 @@ Item
     {
         //to make sure if setOpen is true set right height
         collapsed();
+
+        // to apply item after setTitle (e.g wanna add rowed icons there)
+        if (itemAlongTitle)
+        {
+            itemAlongTitle.parent = itemAlongTitleArea
+            itemAlongTitle.anchors.fill = itemAlongTitleArea
+        }
     }
 
 }

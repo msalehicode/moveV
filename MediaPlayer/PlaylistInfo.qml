@@ -51,6 +51,8 @@ Rectangle {
                         FileNameProvider.getFileName(file.toString())
                     )
                 })
+                if(!backend.isThereNextTrack)
+                    backend.isThereNextTrack=true
             }
             else
                 console.warn("file format not supported, file:",file)
@@ -73,6 +75,8 @@ Rectangle {
                     path: selectedFile,
                     isMovie: Scripts.isMovie(FileNameProvider.getFileName(selectedFile.toString()))
                 })
+            if(!backend.isThereNextTrack && mediaCount>1)
+                backend.isThereNextTrack=true
         }
         else
             console.warn("file format not supported, file:",selectedFile)

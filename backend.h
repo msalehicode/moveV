@@ -94,6 +94,30 @@ enum UserConnectionType
     Bluetooth,
     Network
 };
+struct VideoMetaData
+{
+    QString name;
+    QString artistOrPublisher;
+    int length;
+    bool isVideo;
+    VideoMetaData(): name("no media"), isVideo(true), length(0)
+    {
+
+    }
+};
+
+struct UnstoredMediaPlayerData
+{
+    bool isPlaying;
+    QString volume;
+    QString brightness;
+    bool isShuffle;
+    bool isLoop;
+    UnstoredMediaPlayerData() : isPlaying(false), volume("0"), brightness("0") , isLoop(false), isShuffle(false)
+    {
+
+    }
+};
 
 struct RemoteUsers
 {
@@ -111,7 +135,7 @@ struct RemoteUsers
     int versionCode;
 
     QString platform;
-    QString info; //build, system info...
+    QList<QVariant> info; //store clientInfo data for future uses. CommandHandler::ClientInfoIndexes
     short connectionLostCounter;
     QElapsedTimer pingTimer;
     QTimer connectionLostTimer;
@@ -123,7 +147,7 @@ struct RemoteUsers
         , btSocket(bluetoothSocket), netSocket(networkSocket)
         , status(UserConnectionStatus::Connected), pingMs(0) , connectionLostCounter(0)
         , access(UserAccess::Normal), connectedAt(QDateTime::currentDateTime())
-        , authenticated(false), info(""), versionCode(0), platform("")
+        , authenticated(false), versionCode(0), platform("")
     {
 
 
@@ -161,6 +185,7 @@ public:
 
     //to be able call qml functions and init MPRIS
     void initMpris();
+    void closeMpris();
 
     void initConnectionLost(RemoteUsers* user);
 
@@ -238,6 +263,13 @@ public:
 
     Q_INVOKABLE bool setHostPassword(QString pass);
 
+    Q_INVOKABLE void processCommand(CommandHandler::Command cmd,QString payload);
+    bool isThereNextTrack() const;
+    void setIsThereNextTrack(bool newIsThereNextTrack);
+
+    bool isTherePreviousTrack() const;
+    void setIsTherePreviousTrack(bool newIsTherePreviousTrack);
+
 signals:
     //properties
     void btStatusChanged();
@@ -273,6 +305,12 @@ signals:
 
     void hostPasswordStatusChanged();
 
+    void mediaPlayerDataChange(CommandHandler::Command cmd, QString payload);
+
+    void isThereNextTrackChanged();
+
+    void isTherePreviousTrackChanged();
+
 public slots:
     //bluetooth slots
     void clientConnected(QBluetoothSocket *  sender);
@@ -298,11 +336,15 @@ private:
     void initBluetoothServer();
     void initNetServer();
     void processCommand(RemoteUsers *user, QByteArray *data,
-                            CommandHandler::Command mprisCommand=CommandHandler::Command::CurrentMediaName);
+                        CommandHandler::Command localCommand=CommandHandler::Command::DefaultCmd, QString thePayload="");
+
     void sendPingToAllUsers();
+
+    QString getPlayerLatestStatus();
 
     void sendResponse(RemoteUsers* user, const QString& response);
     void sendResponse(RemoteUsers* user, QByteArray response);
+    void sendResponseToAll(QByteArray response);
 
     QString toPureIPv4(const QHostAddress &addr); //sender->peerAddress() contains ipv6 and ipv4 (::::ff127.0.01) so this removes that ipv6
 
@@ -310,6 +352,9 @@ private:
     QGuiApplication* m_app;
     SettingsManager* m_settings;
     CustomCursor cc;
+
+    bool m_isThereNextTrack;
+    bool m_isTherePreviousTrack;
 
     QString m_hostPassword;
     bool m_hostPasswordStatus;
@@ -340,6 +385,8 @@ private:
     bool m_btAlwaysDiscoverable;
     int m_btMaxConnectionUser;
 
+    VideoMetaData m_currentMedia;
+    UnstoredMediaPlayerData m_unstoredMPdata;
 
     QTimer m_pingUsersTimer;
     QObject* m_rootObject;//to call qml functions and run mpris stuff
@@ -351,6 +398,8 @@ private:
     Q_PROPERTY(bool mprisControl READ mprisControl WRITE setMprisControl NOTIFY mprisControlChanged FINAL)
     Q_PROPERTY(bool IsDBusConnectionOk READ IsDBusConnectionOk WRITE setIsDBusConnectionOk NOTIFY IsDBusConnectionOkChanged FINAL)
 
+    Q_PROPERTY(bool isThereNextTrack READ isThereNextTrack WRITE setIsThereNextTrack NOTIFY isThereNextTrackChanged FINAL)
+    Q_PROPERTY(bool isTherePreviousTrack READ isTherePreviousTrack WRITE setIsTherePreviousTrack NOTIFY isTherePreviousTrackChanged FINAL)
 };
 
 #endif // BACKEND_H

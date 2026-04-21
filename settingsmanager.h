@@ -24,10 +24,12 @@ public:
     QVariantMap value() const;
 
     void setValue(const QVariantMap &settings);
+    QString getValue(const QString &key) const;
 
     Q_INVOKABLE void setSetting(const QString &key, const QVariant &value);
 
     Q_INVOKABLE QVariant getSetting(const QString &key, const QVariant &defaultValue) const;
+
 
 signals:
     void valueChanged();

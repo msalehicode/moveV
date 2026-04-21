@@ -26,7 +26,20 @@
 #define SERVER_NETWORK_HOST_PORT 5023
 
 
-#define APP_VERSION_CODE 90 //0.9.0
-#define MINIMUM_ALLOWED_VERSION_CODE_REMOTE 90 //0.9.0
+/*
+ * version rules: due to version check/control between MediaPlayer and Remotes
+ *  max value for Major/Minor/Patch is 9 [single digit for each]
+ *  to avoid version control. e.g: [0.9.10 (v910) which is greater than 0.10.2 (v102) but its not true. version is old]
+ *
+ *e.g:
+ *  0.9.6 (v96)
+ *  1.0.0 (v100)
+ *  1.3.6 (v136)
+ *  2.3.6 (v236)
+ *  5.0.0 (v500)
+ */
+
+#define APP_VERSION_CODE 107 //1.0.7
+#define MINIMUM_ALLOWED_VERSION_CODE_REMOTE 107 //1.0.7
 
 #endif // CONFIG_H

@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import QtMultimedia
 import Config
 import QtQuick.Controls
+import MyCommands 1.0
 
 Item {
     id: root
@@ -104,44 +105,44 @@ Item {
                 CustomButton {
                     id: previousButton
                     icon.source: ControlImages.iconSource("Previous_Icon")
-                    onClicked: root.playPreviousFile()
+                    onClicked: backend.processCommand(Command.PreviousToggle,"")
                 }
 
                 CustomButton {
                     id: hopBackwardButton
-                    icon.source: ControlImages.iconSourcePng("Forward_icon")
-                    onClicked: root.mediaPlayer.seekBackward()
+                    icon.source: ControlImages.iconSourcePng("Forward_icon") //its back but i don't have proper icon right now
+                    onClicked: backend.processCommand(Command.SeekBack,"")
                 }
 
                 CustomButton {
                     id: playButton
                     icon.source: ControlImages.iconSource("Play_Icon", false)
-                    onClicked: root.mediaPlayer.play()
+                    onClicked: backend.processCommand(Command.Play,"")
                 }
 
                 CustomButton {
                     id: pausedButton
                     icon.source: ControlImages.iconSource("Stop_Icon", false)
-                    onClicked: root.mediaPlayer.pause()
+                    onClicked: backend.processCommand(Command.Pause,"")
                 }
 
                 CustomButton {
                     id: hopForwardButton
                     icon.source: ControlImages.iconSourcePng("Forward_icon")
-                    onClicked: root.mediaPlayer.seekForward()
+                    onClicked: backend.processCommand(Command.SeekForth,"")
                 }
 
                 CustomButton {
                     id: nextButton
                     icon.source: ControlImages.iconSource("Next_Icon")
-                    onClicked: root.playNextFile()
+                    onClicked: backend.processCommand(Command.NextToggle,"")
                 }
 
                 CustomButton {
                     id: loopButton
                     icon.source: ControlImages.iconSource("Loop_Icon")
                     visible: Screen.primaryOrientation === Qt.LandscapeOrientation
-                    onClicked: root.changeLoopMode()
+                    onClicked: backend.processCommand(Command.RepeatToggle,"")
 
                     states: [
                         State {

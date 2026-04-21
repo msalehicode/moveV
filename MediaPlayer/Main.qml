@@ -17,6 +17,7 @@ import "scripts.js" as Scripts
 import "../MediaControls/"
 import "../MediaControls/MyComponents/"
 import QtQuick.Dialogs
+import MyCommands 1.0
 
 ApplicationWindow {
 
@@ -25,11 +26,6 @@ ApplicationWindow {
     // height: settings.value["App/height"]
     width:1000
     height:800
-
-    onHeightChanged:
-    {
-        updateSubtitlesYposition();
-    }
 
     onClosing:
     {
@@ -51,7 +47,6 @@ ApplicationWindow {
     property alias tracksInfo: settingsInfo.tracksInfo
 
     property bool spedupByHold: false //a flag to set when user hold mouse click to speedup
-    property bool spedupByHoldFromRemote: false
     property string currentSubtitle: "" //temp variable to hold subtitle
 
 
@@ -118,7 +113,6 @@ ApplicationWindow {
             id: audio
             volume: Scripts.asBool(settings.value["Media/muted"])? 0 : root.volume
         }
-        // source: new URL("https://download.qt.io/learning/videos/media-player-example/Qt_LogoMergeEffect.mp4")
 
         function updateMetadata() {
             root.metadataInfo.clear()
@@ -127,6 +121,7 @@ ApplicationWindow {
         onMetaDataChanged: updateMetadata()
         onActiveTracksChanged: updateMetadata()
         onErrorOccurred: {
+            console.log("mediastatus error ", mediaPlayer.errorString)
             errorPopup.errorMsg = mediaPlayer.errorString
             errorPopup.open()
         }
@@ -139,6 +134,8 @@ ApplicationWindow {
 
             mediaCurrentFileLabel.text = FileNameProvider.getFileName(mediaPlayer.source)
 
+            //pack metadata later..
+            backend.processCommand(Command.CurrentMediaMeta, mediaCurrentFileLabel.text)
 
 
 
@@ -197,8 +194,8 @@ ApplicationWindow {
         }
 
 
-        onMediaStatusChanged: {
-
+        onMediaStatusChanged:
+        {
             loadingMedia(mediaStatus)
 
             if ((MediaPlayer.EndOfMedia === mediaStatus && mediaPlayer.loops !== MediaPlayer.Infinite) &&
@@ -211,7 +208,8 @@ ApplicationWindow {
                 root.currentFile = 0
                 root.playMedia()
             }
-
+            else
+                console.log("mediastatus cahnged to:", mediaStatus , " errorString:",errorString)
         }
 
         function loadingMedia(mediaStatus)
@@ -243,13 +241,6 @@ ApplicationWindow {
 
     VideoOutput {
         id: videoOutput
-
-        // anchors.top: fullScreen || Config.isMobileTarget ? parent.top : topControls.top
-        // anchors.bottom: fullScreen ? parent.bottom : playbackControl.bottom
-        // anchors.left: parent.left
-        // anchors.right: parent.right
-        // anchors.leftMargin: fullScreen ? 0 : 20
-        // anchors.rightMargin: fullScreen ? 0 : 20
         anchors.fill: parent
         visible: mediaPlayer.hasVideo
 
@@ -307,36 +298,39 @@ ApplicationWindow {
         anchors.fill: parent
         color:"black"
         opacity: root.brightness
-        WheelHandler {
-            onWheel: function(event) {
-                if (event.angleDelta.y !== 0) {
-                    showControls.start()
+        WheelHandler
+        {
+            onWheel: function(event)
+            {
+                if (event.angleDelta.y !== 0)
+                {
                     let posX = event.x;
                     let halfWidth = videoArea.width / 2;
 
-                    if (posX > halfWidth) {
+                    if (posX > halfWidth)
+                    {
                         // Right side → control volume
-                        if (event.angleDelta.y > 0) {
-                            root.volume = Math.min(root.volume + 0.1, 1.0)
-                        } else {
-                            root.volume = Math.max(root.volume - 0.1, 0.0)
-                        }
-                    } else {
+                        if (event.angleDelta.y > 0)
+                            backend.processCommand(Command.ModifyVolume, Math.min(root.volume + 0.1, 1.0))
+                        else
+                            backend.processCommand(Command.ModifyVolume, Math.max(root.volume - 0.1, 0.0))
+                    }
+                    else
+                    {
                         // Left side → control brightness
-                        if (event.angleDelta.y > 0) {
-                            root.brightness=Math.min(root.brightness - 0.1, 1.0)
-                        } else {
-                            root.brightness= Math.max(root.brightness + 0.1, 0.0)
-                        }
+                        if (event.angleDelta.y > 0)
+                            backend.processCommand(Command.ModifyBrightness, Math.min(root.brightness - 0.1, 1.0))
+                        else
+                            backend.processCommand(Command.ModifyBrightness, Math.max(root.brightness + 0.1, 0.0))
                     }
                 }
             }
         }
 
         Keys.onPressed: (event) =>
-                        {
-                            keyboardButtonsHandler(event)
-                        }
+        {
+            keyboardButtonsHandler(event)
+        }
 
         MouseArea {
             hoverEnabled: true  // enables movement detection even without pressing
@@ -346,7 +340,7 @@ ApplicationWindow {
             propagateComposedEvents: true
             onDoubleClicked:
             {
-                mediaPlayer.doFullscreen()
+                backend.processCommand(Command.FullscreenToggle,"")
             }
             onPositionChanged: (mouse) =>
                                {
@@ -357,11 +351,15 @@ ApplicationWindow {
                 root.closeOverlays()
             }
 
-            onPressAndHold: {
-                spedupByHold=true
+            onPressAndHold:
+            {
+                backend.processCommand(Command.StartSpeeding,"")
             }
-            onReleased: {
-                spedupByHold=false
+            onReleased:
+            {
+                //if speeding stop.
+                if(spedupByHold)
+                    backend.processCommand(Command.StopSpeeding,"")
             }
         }
 
@@ -376,7 +374,8 @@ ApplicationWindow {
 
 
             // --- RIGHT SIDE: Volume Control ---
-            Rectangle {
+            Rectangle
+            {
                 id: volumeControlArea
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
@@ -387,7 +386,8 @@ ApplicationWindow {
                 property real cumulativeDy: 0
                 property real startY: 0
 
-                MouseArea {
+                MouseArea
+                {
                     anchors.fill: parent
                     drag.target: null
                     onPressed: (mouse) => {
@@ -396,7 +396,6 @@ ApplicationWindow {
                                }
                     onPositionChanged: (mouse) => {
                                            // Volume
-                                           showControls.start()
 
                                            let delta = volumeControlArea.startY - mouse.y
                                            volumeControlArea.cumulativeDy += delta
@@ -407,10 +406,8 @@ ApplicationWindow {
                                            if (volumeControlArea.cumulativeDy < videoArea.minDy)
                                            volumeControlArea.cumulativeDy = videoArea.minDy
 
-                                           root.volume=Math.min(Math.max(
-                                                                    ((volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy))
-                                                                    , 0), 1)
-
+                                           backend.processCommand(Command.ModifyVolume,
+                                                                  Math.min(Math.max(((volumeControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)) , 0), 1))
                                        }
                 }
             }
@@ -435,7 +432,6 @@ ApplicationWindow {
                                    brightnessControlArea.startY = mouse.y
                                }
                     onPositionChanged: (mouse) => {
-                                           showControls.start()
 
                                            let delta = brightnessControlArea.startY - mouse.y
                                            brightnessControlArea.cumulativeDy += delta
@@ -446,10 +442,9 @@ ApplicationWindow {
                                            if (brightnessControlArea.cumulativeDy < videoArea.minDy)
                                            brightnessControlArea.cumulativeDy = videoArea.minDy
 
-                                           root.brightness = Math.min(Math.max(
-                                                                          1 - ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)),
-                                                                          0), 1)
 
+                                           backend.processCommand(Command.ModifyBrightness,
+                                                                  Math.min(Math.max(1 - ((brightnessControlArea.cumulativeDy - videoArea.minDy) / (videoArea.maxDy - videoArea.minDy)),0), 1))
                                        }
                 }
             }
@@ -470,8 +465,6 @@ ApplicationWindow {
     // }
 
 
-    //
-
 
     // -------------------------- SUBTITLE --------------------------
 
@@ -491,7 +484,7 @@ ApplicationWindow {
     // Update subtitle every ..ms
     Timer {
         interval: settings.value["Media/subtitleTimerInterval"]
-        running: mediaPlayer.playing ? true : false
+        running: mediaPlayer.playing ? true : false //later make it to stop when both subtitles are disabled-----------------------------
         repeat: true
 
         onTriggered:
@@ -542,11 +535,10 @@ ApplicationWindow {
                         subtitleText2.text =subtitle2Data.currentSubtitle
                 }
 
-                if(spedupByHold || spedupByHoldFromRemote)//user held mouse click to spedup
+                if(spedupByHold)//user held mouse click to spedup
                 {
                     mediaPlayer.playbackRate=settings.value["Media/speedHold"]
-                    showSpeeding("hold speed "+settings.value["Media/speedHold"] + "x" +
-                                 (spedupByHoldFromRemote? " (by remote)" : ""))
+                    showSpeeding("hold speed "+settings.value["Media/speedHold"] + "x")
                 }
                 else if (Scripts.asBool(settings.value["SNS/status"]))
                 {
@@ -620,7 +612,6 @@ ApplicationWindow {
 
         y: root.height * (settings.value["Subtitle1/posY"] !== undefined ? settings.value["Subtitle1/posY"] : 0.8) // Default to 80% if not set
 
-
         MouseArea {
             id:mouseAreaSubtitle1
 
@@ -630,7 +621,7 @@ ApplicationWindow {
             anchors.fill: parent
             drag.target: parent
             onReleased: {
-                updateSubtitlesYposition()
+                backend.processCommand(Command.Subtitle1PosY, getCorrectedSubtitlePos(subtitle1Box.x,subtitle1Box.y,subtitle1Box.width,subtitle1Box.height,root.height))
             }
         }
         Label {
@@ -649,39 +640,20 @@ ApplicationWindow {
             font.pixelSize: settings.value["Subtitle1/textSize"]
         }
     }
-    function updateSubtitlesYposition()
+
+
+    function getCorrectedSubtitlePos(x,y, width,height, ph)
     {
-        console.log("updating subtitle ypos..")
-
         // Ensure rectangle stays inside parent bounds
-        if (subtitle1Box.x < 0)
-            subtitle1Box.x = 0
-        if (subtitle1Box.y < 0)
-            subtitle1Box.y = 0
-        if (subtitle1Box.x + subtitle1Box.width > root.width)
-            subtitle1Box.x = root.width - subtitle1Box.width
-        if (subtitle1Box.y + subtitle1Box.height > root.height)
-            subtitle1Box.y = root.height - subtitle1Box.height
+        if (y < 0)
+            y = 0
+        if (y + height > ph)
+            y = ph - height
         // When saving, store the relative Y position as a percentage
-        var posYPercentage = subtitle1Box.y / root.height;
-        console.log("Subtitle1 relative posY:", posYPercentage)
-        settings.setSetting("Subtitle1/posY", posYPercentage)
 
-
-        // Ensure rectangle stays inside parent bounds
-        if (subtitle2Box.x < 0)
-            subtitle2Box.x = 0
-        if (subtitle2Box.y < 0)
-            subtitle2Box.y = 0
-        if (subtitle2Box.x + subtitle2Box.width > root.width)
-            subtitle2Box.x = root.width - subtitle2Box.width
-        if (subtitle2Box.y + subtitle2Box.height > root.height)
-            subtitle2Box.y = root.height - subtitle2Box.height
-        // When saving, store the relative Y position as a percentage
-        posYPercentage = subtitle2Box.y / root.height;
-        console.log("Subtitle2 relative posY:", posYPercentage)
-        settings.setSetting("Subtitle2/posY", posYPercentage)
-
+        var pos = y / ph; // //0.0-1 is like 0-100%
+        console.log("pos=",pos)
+        return pos
     }
 
     Rectangle
@@ -708,7 +680,7 @@ ApplicationWindow {
             onEntered: backend.changeCursor("verReposition")
             onExited: backend.changeCursor()
             onReleased: {
-                updateSubtitlesYposition()
+               backend.processCommand(Command.Subtitle2PosY, getCorrectedSubtitlePos(subtitle2Box.x,subtitle2Box.y,subtitle2Box.width,subtitle2Box.height,root.height))
             }
         }
         Label {
@@ -770,8 +742,6 @@ ApplicationWindow {
         //subPath -> address of file
         //subtitleNo -> apply for sub1 or sub2?
         //subIndex -> those case e.g media has 2 embedded subtitles so which one?
-
-
 
         if(embedded)
         {
@@ -869,6 +839,7 @@ ApplicationWindow {
 
 
 
+    // show some specific statuses like MUTED, SPEEDIN UP, ...
     Column
     {
         id:showingStatusBox
@@ -965,8 +936,6 @@ ApplicationWindow {
 
     }
 
-
-
     function showSpeeding(text="")
     {
         if(text==="")
@@ -989,12 +958,7 @@ ApplicationWindow {
         anchors.bottom: playbackControl.top
         mediaPlayer: mediaPlayer
 
-        fullScreenButton.onClicked: {
-            if (mediaPlayer.hasVideo) {
-                videoOutput.fullScreen ?  root.showNormal() : root.showFullScreen()
-                videoOutput.fullScreen = !videoOutput.fullScreen
-            }
-        }
+        fullScreenButton.onClicked: backend.processCommand(Command.FullscreenToggle, "")
 
         settingsButton.onClicked: !settingsInfo.visible ? root.showOverlay(settingsInfo) : root.closeOverlays()
     }
@@ -1008,36 +972,9 @@ ApplicationWindow {
         mediaPlayer: mediaPlayer
         isPlaylistVisible: playlistInfo.visible
 
-        onPlayNextFile: {
-            if (playlistInfo.mediaCount) {
-                if (!playlistInfo.isShuffled){
-                    ++root.currentFile
-                    if (root.currentFile > playlistInfo.mediaCount - 1 && root.playlistLooped) {
-                        root.currentFile = 0
-                    } else if (root.currentFile > playlistInfo.mediaCount - 1 && !root.playlistLooped) {
-                        --root.currentFile
-                        return
-                    }
-                }
-                root.playMedia()
-            }
-        }
+        onPlayNextFile: backend.processCommand(Command.NextToggle, "")
 
-
-        onPlayPreviousFile: {
-            if (playlistInfo.mediaCount) {
-                if (!playlistInfo.isShuffled){
-                    --root.currentFile
-                    if (root.currentFile < 0 && isPlaylistLooped) {
-                        root.currentFile = playlistInfo.mediaCount - 1
-                    } else if (root.currentFile < 0 && !root.playlistLooped) {
-                        ++root.currentFile
-                        return
-                    }
-                }
-                root.playMedia()
-            }
-        }
+        onPlayPreviousFile: backend.processCommand(Command.PreviousToggle, "")
 
         playlistButton.onClicked: !playlistInfo.visible ? root.showOverlay(playlistInfo) : root.closeOverlays()
         menuButton.onClicked: menuPopup.open()
@@ -1162,11 +1099,7 @@ ApplicationWindow {
                     to: 360
                     value: settings.value["Media/rotationAngle"] // 0 = normal, 90 = rotated right, 180 = upside down, 270 = rotated left
                     stepSize: 1
-                    onValueChanged:
-                    {
-                        settings.setSetting("Media/rotationAngle",value)
-                        videoOutput.rotation=value
-                    }
+                    onValueChanged: backend.processCommand(Command.ModifyRotation, value)
                     width: 45
                     height: 45
                 }
@@ -1174,62 +1107,49 @@ ApplicationWindow {
                 Row //sns settings
                 {
                     anchors.verticalCenter:parent.verticalCenter
-                    SpinBox {
-                        id: offsetBeforeSubtitle
-                        width: 50
-                        height:25
-                        from: 0    // advance up to 10s
-                        to: 50       // delay up to 10s
-                        // stepSize: 0.5
-                        value: settings.value["SNS/secBeforeSpeedup"]
-                        visible: snsCheckbox.checked
-                        onValueChanged:
-                        {
-                            settings.setSetting("SNS/secBeforeSpeedup",value)
-                        }
-                    }
+                    // SpinBox { //has loop problem
+                    //     id: offsetBeforeSubtitle
+                    //     width: 50
+                    //     height:25
+                    //     from: 0
+                    //     to: 50
+                    //     // stepSize: 0.5
+                    //     value: Scripts.asInt(settings.value["SNS/secBeforeSpeedup"])
+                    //     visible: snsCheckbox.switchStatus
+                    //     onValueChanged: backend.processCommand(Command.SNSsecBeforeSpeedup, value)
+                    // }
                     Column
                     {
-                        CustomCheckbox
+                        MySwitch
                         {
-                            id:snsCheckbox
-                            initialCheckedState: (settings.value["SNS/status"] === "true")
-                            theText:"SNS"
-                            onStatusChangeAction:
-                            {
-                                settings.setSetting("SNS/status",checked)
-                            }
-                            leftPadding: indicator.width
+                            id: snsCheckbox
+                            switchStatus: Scripts.asBool(settings.value["SNS/status"]) //read once for initial. it isn't bind
+                            onSwitchClicked: backend.processCommand(Command.SNSToggle,switchStatus)
                         }
+
                         SpinBox {
                             id:snsSpeedSpinBox
                             width: 50
                             height:25
-                            from: 0    // advance up to 10s
-                            to: 50       // delay up to 10s
+                            from: 0
+                            to: 50
                             value: settings.value["SNS/speed"]
-                            visible: snsCheckbox.checked
-                            onValueChanged:
-                            {
-                                settings.setSetting("SNS/speed",value)
-                            }
+                            visible: snsCheckbox.switchStatus
+                            onValueChanged: backend.processCommand(Command.SNSspeed,value)
                         }
                     }
 
-                    SpinBox {
-                        id: offsetAfterSubtitle
-                        width: 50
-                        height:25
-                        from: 0    // advance up to 10s
-                        to: 50       // delay up to 10s
-                        // stepSize: 0.5
-                        value: settings.value["SNS/secAfterSpeedup"]
-                        visible: snsCheckbox.checked
-                        onValueChanged:
-                        {
-                            settings.setSetting("SNS/secAfterSpeedup",value)
-                        }
-                    }
+                    // SpinBox { //has loop problem
+                    //     id: offsetAfterSubtitle
+                    //     width: 50
+                    //     height:25
+                    //     from: 0
+                    //     to: 50
+                    //     // stepSize: 0.5
+                    //     value: settings.value["SNS/secAfterSpeedup"]
+                    //     visible: snsCheckbox.switchStatus
+                    //     onValueChanged: backend.processCommand(Command.SNSsecAfterSpeedup, value)
+                    // }
 
                 }
 
@@ -1238,15 +1158,40 @@ ApplicationWindow {
                 CustomCollapsiblePanel
                 {
                     id:hostingBox
-                    setWidth: clHosting.width
+                    setWidth: 300
                     setHeight: 250
-                    setTitle: "Host Remotes:"
-                    setBgColorButton:"black"
-                    setBgContent: "grey"
+                    setTitle: "Remote Hosting "
+                    setBgColorButton:"gray"
+                    setBgContent: "black"
                     setContentHeight:clHosting.height
                     setIconArrow: "icons/back.png"
                     pathFromComponentDire:false
                     property bool isMouseOnControl: false;
+                    itemAlongTitle: Row
+                    {
+                        anchors.verticalCenter: parent.verticalCenter
+                        Image {
+                            width: 20
+                            height: 20
+                            source: hostingPasswordStatus.switchStatus? "icons/lock.svg" : "icons/unlock.svg"
+                        }
+
+                        Image
+                        {
+                            source: "icons/wifi.png"
+                            width:25
+                            height: 25
+                            visible: networkHostStatus.switchStatus && backend.ntStatus>30 //ntStatus= {loading,active}
+                        }
+                        Image
+                        {
+                            source: "icons/bluetooth.png"
+                            width:25
+                            height: 25
+                            visible: bluetoothHostStatus.switchStatus && backend.btStatus>30 //btStatus= {discoverable, loading active}
+                        }
+                    }
+
 
 
                     Rectangle
@@ -1265,7 +1210,6 @@ ApplicationWindow {
 
                     Column
                     {
-
                         id:clHosting
 
                         Label {
@@ -1273,32 +1217,25 @@ ApplicationWindow {
                             font.bold: true
                             font.pixelSize: 15
                         }
-                        CustomCheckbox
+                        MySwitch
                         {
-                            id:hostingPasswordStatus
-                            initialCheckedState:  backend.hostPasswordStatus
-                            theText:"password auth"
-                            onStatusChangeAction:
-                            {
-                                backend.hostPasswordStatus=checked; //also will save to settings.
-                            }
+                            id: hostingPasswordStatus
+                            switchStatus: backend.hostPasswordStatus
+                            onSwitchClicked: backend.processCommand(Command.HostPasswordStatusToggle,switchStatus)
                         }
 
                         MyTextInput
                         {
                             id:hostingPassword
-                            setWidth: parent.width/1.5
+                            setWidth: 200
                             setVisible: backend.hostPasswordStatus
                             setHeight: 50
                             anchors.horizontalCenter: parent.horizontalCenter
-                            setTitleText: "Password (optional):"
+                            setTitleText: "Enter Password:"
                             theText: settings.value["App/hostPassword"]
-                            setBgColor: "black"
-                            setFontColor: "white"
-                            onTheTextAccepted:
-                            {
-                                checkPass();
-                            }
+                            setBgColor: "white"
+                            setFontColor: "black"
+                            onTheTextAccepted: checkPass();
 
                             function checkPass()
                             {
@@ -1313,10 +1250,7 @@ ApplicationWindow {
                                 setButtonText: "apply"
                                 setWidth: 60
                                 setHeight: parent.height/2
-                                onButtonClicked:
-                                {
-                                    hostingPassword.checkPass();
-                                }
+                                onButtonClicked: hostingPassword.checkPass();
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.right: parent.right
                             }
@@ -1326,7 +1260,22 @@ ApplicationWindow {
 
                         Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
                         Label {
-                            text: "Bluetooth Hosting:"
+                            text: "Bluetooth Hosting: (" + (function(status) {
+                                switch(status) {
+                                    case -1: return "Unknown";
+                                    case 0:  return "Starting...";
+                                    case 10: return "Adaptor Not Found";
+                                    case 11: return "Failed";
+                                    case 20: return "Permission Denied";
+                                    case 21: return "Asking Permission";
+                                    case 22: return "Permission Granted";
+                                    case 30: return "Inactive";
+                                    case 31: return "Discoverable";
+                                    case 32: return "Loading";
+                                    case 33: return "Active";
+                                    default: return "Unknown Status: "+status;
+                                }
+                            })(backend.btStatus) +")"
                             font.bold: true
                             font.pixelSize: 15
                         }
@@ -1334,41 +1283,23 @@ ApplicationWindow {
                         Column
                         {
                             id:bluetoothHostingBox
-
-                            CustomCheckbox
+                            MySwitch
                             {
-                                id:bluetoothHostStatus
-                                initialCheckedState:  Scripts.asBool(settings.value["App/bluetoothHostStatus"])
-                                theText:"Bluetooth host (" + (function(status) {
-                                    switch(status) {
-                                        case -1: return "Unknown";
-                                        case 0:  return "Starting...";
-                                        case 10: return "Adaptor Not Found";
-                                        case 11: return "Failed";
-                                        case 20: return "Permission Denied";
-                                        case 21: return "Asking Permission";
-                                        case 22: return "Permission Granted";
-                                        case 30: return "Inactive";
-                                        case 31: return "Discoverable";
-                                        case 32: return "Loading";
-                                        case 33: return "Active";
-                                        default: return "Unknown Status: "+status;
-                                    }
-                                })(backend.btStatus) +")"
-
+                                id: bluetoothHostStatus
+                                switchStatus: Scripts.asBool(settings.value["App/bluetoothHostStatus"])
                                 enabled: (backend.btStatus!==0 && backend.btStatus!==32)//BtStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on bluetooth server)
-                                onStatusChangeAction:
+                                onSwitchClicked:
                                 {
-                                    backend.bluetoothServer(checked);
-                                    settings.setSetting("App/bluetoothHostStatus",checked)
+                                    //#command
+                                    backend.bluetoothServer(switchStatus);
+                                    settings.setSetting("App/bluetoothHostStatus",switchStatus)
                                 }
                             }
-
 
                             Row
                             {
                                 id:bluetoothInfoRow
-                                visible: bluetoothHostStatus.checked
+                                visible: bluetoothHostStatus.switchStatus
                                 spacing: 5
                                 Rectangle
                                 {
@@ -1385,122 +1316,130 @@ ApplicationWindow {
                                             default: return "black";
                                         }
                                         })(backend.bluetoothHostModeState)
-
                                 }
                                 Label
                                 {
                                     id:bluetoothDeviceNameAddressAndState
-                                    text: backend.btLocalName + " max:" + backend.btMaxConnectionUser
+                                    text: backend.btLocalName
                                 }
+
                             }
 
 
                             //later adeptor list via RadioButton by Repeater
 
-                            CustomCheckbox
+                            Row
                             {
-                                id:bluetoothHostAlwaysDiscoverable
-                                initialCheckedState: backend.btAlwaysDiscoverable
-                                theText:"always discoverable";
-                                visible: bluetoothHostStatus.checked
-                                onStatusChangeAction:
+                                Label
                                 {
-                                    backend.btAlwaysDiscoverable=checked
-                                    settings.setSetting("App/bluetoothHostAlwaysDiscoverable",checked)
+                                    text: "Always discoverable"
+                                    color:"white"
+                                }
+                                MySwitch
+                                {
+                                    id: bluetoothHostAlwaysDiscoverable
+                                    switchStatus: backend.btAlwaysDiscoverable
+                                    visible: bluetoothHostStatus.switchStatus
+                                    onSwitchClicked:
+                                    {
+                                        //#command
+                                        backend.btAlwaysDiscoverable=switchStatus
+                                        settings.setSetting("App/bluetoothHostAlwaysDiscoverable",switchStatus)
+                                    }
                                 }
                             }
 
 
 
-                            Rectangle
-                            {
-                                id:bluetoothMaxConnectionBase
-                                width: 200
-                                height: 60
-                                color:"transparent"
-                                visible: bluetoothHostStatus.checked
-                                Row
-                                {
-                                    Label
-                                    {
-                                        text:"Max Connection:"
-                                        color: "white"
-                                    }
-                                    MySlider
-                                    {
-                                        id:bluetoothHostMaxAllowedConnection
-                                        setWidth: 200
-                                        setHeight: 10
-                                        setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
-                                        setColor: !Config.activeTheme ? "white" : Config.highlightColor
-                                        setOpacity: !Config.activeTheme ? 0.8 : 0.5
-                                        intialValue: backend.btMaxConnectionUser
-                                        setFilledLeftRadius: 30
-                                        setRadius: 30
-                                        setFrom: 1
-                                        setTo: 5
-                                        onModified: //value changed
-                                        {
-                                            // console.debug("bt max users changed to " + value)
-                                            backend.btMaxConnectionUser=value
-                                        }
-                                        onHovered:
-                                        {
-                                            if(isHovered)
-                                                backend.changeCursor("hand")
-                                            else
-                                                backend.changeCursor()
-                                        }
-                                    }
+                            //---------------------- doenst work proper so comment for now. -----------------------------
 
-                                }
-
-
-                            }
+                            //Label { text" max:" + backend.btMaxConnectionUser }
+                            // Rectangle
+                            // {
+                            //     id:bluetoothMaxConnectionBase
+                            //     width: 200
+                            //     height: 60
+                            //     color:"transparent"
+                            //     visible: bluetoothHostStatus.switchStatus
+                            //     Row
+                            //     {
+                            //         Label
+                            //         {
+                            //             text:"Max Connection:"
+                            //             color: "white"
+                            //         }
+                            //         MySlider
+                            //         {
+                            //             id:bluetoothHostMaxAllowedConnection
+                            //             setWidth: 200
+                            //             setHeight: 10
+                            //             setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            //             setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            //             setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            //             intialValue: backend.btMaxConnectionUser
+                            //             setFilledLeftRadius: 30
+                            //             setRadius: 30
+                            //             setFrom: 1
+                            //             setTo: 5
+                            //             onModified: //value changed
+                            //             {
+                            //                 //#command
+                            //                 // console.debug("bt max users changed to " + value)
+                            //                 backend.btMaxConnectionUser=value
+                            //             }
+                            //             onHovered:
+                            //             {
+                            //                 if(isHovered)
+                            //                     backend.changeCursor("hand")
+                            //                 else
+                            //                     backend.changeCursor()
+                            //             }
+                            //         }
+                            //     }
+                            // }
 
 
                         }
 
                         Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
                         Label {
-                            text: "Network Hosting:"
                             font.bold: true
                             font.pixelSize: 15
+                            text: "Network Hosting: (" +  (function(status) {
+                                switch(status) {
+                                    case -1: return "Unknown";
+                                    case 0:  return "Starting...";
+                                    case 10: return "Adaptor Not Found";
+                                    case 11: return "Failed";
+                                    case 30: return "Inactive";
+                                    case 31: return "Loading";
+                                    case 32: return "Active";
+                                    default: return "Unknown Status: "+status;
+                                }
+                            })(backend.ntStatus) +")"
                         }
                         Column
                         {
                             id:networkHostingBox
-                            CustomCheckbox
+                            MySwitch
                             {
-                                id:networkHostStatus
-                                initialCheckedState:  Scripts.asBool(settings.value["App/networkHostStatus"])
-                                theText:"Network host (" + (function(status) {
-                                    switch(status) {
-                                        case -1: return "Unknown";
-                                        case 0:  return "Starting...";
-                                        case 10: return "Adaptor Not Found";
-                                        case 11: return "Failed";
-                                        case 30: return "Inactive";
-                                        case 31: return "Loading";
-                                        case 32: return "Active";
-                                        default: return "Unknown Status: "+status;
-                                    }
-                                })(backend.ntStatus) +")"
-
-                                enabled: (backend.ntStatus!==0 && backend.ntStatus!==31)
-                                //NetStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on network server)
-                                onStatusChangeAction:
+                                id: networkHostStatus
+                                switchStatus: Scripts.asBool(settings.value["App/networkHostStatus"])
+                                enabled: (backend.ntStatus!==0 && backend.ntStatus!==31) //NetStatus::Starting or ::Loading  (disable it to make sure user dont spam start/stop button while backend is working on network server)
+                                onSwitchClicked:
                                 {
-                                    backend.netServer(checked);
-                                    settings.setSetting("App/networkHostStatus",checked)
+                                    //#command
+                                    backend.netServer(switchStatus);
+                                    settings.setSetting("App/networkHostStatus",switchStatus)
                                 }
                             }
+
 
                             Label
                             {
                                 id:networkHostName
                                 text:"network address:\n" + backend.netLocalName
-                                visible: networkHostStatus.checked
+                                visible: networkHostStatus.switchStatus
                             }
 
 
@@ -1516,11 +1455,12 @@ ApplicationWindow {
 
                 CustomCollapsiblePanel
                 {
+                    id:connectedUsersBase
                     setWidth: 500
                     setHeight: 250
                     setTitle: "Connected remotes: (" + connectedUsers.count + ")"
-                    setBgColorButton:"black"
-                    setBgContent: "grey"
+                    setBgColorButton:"grey"
+                    setBgContent: "black"
                     setContentHeight: connectedUsers.count===0 ? 60+15 : (connectedUsers.count*(60+15)) //15spacing, 60height item
                     setIconArrow: "icons/back.png"
                     pathFromComponentDire:false
@@ -1546,17 +1486,9 @@ ApplicationWindow {
                                 spacing: 10
                                 Image
                                 {
-                                    width:50
-                                    height:50
+                                    width:65
+                                    height:65
                                     source: modelData.using==="B"? "icons/bluetooth.png" : "icons/wifi.png"
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Rectangle
-                                {
-                                    color: "black"
-                                    width:35
-                                    height:35
-                                    radius: 35
                                     anchors.verticalCenter: parent.verticalCenter
                                     Label
                                     {
@@ -1565,13 +1497,30 @@ ApplicationWindow {
                                         anchors.centerIn: parent
                                         font.pixelSize: 15
                                     }
+                                }
+                                Image
+                                {
+                                    source: (function(platform) {
+                                        switch(platform.toLowerCase())
+                                        {
+                                        case "linux" : return "icons/linux.svg"
+                                        case "android": return "icons/android.svg"
+                                        case "macos":
+                                        case "ios":
+                                            return "icons/apple.svg"
+                                        case "windows": return "icons/windows.svg"
+                                        }
+                                    })(modelData.platform)
+                                    width: 30
+                                    height: 30
+                                    anchors.verticalCenter: parent.verticalCenter
                                     Label
                                     {
-                                        text:"v"+modelData.version + " - " + modelData.platform
+                                        text:"v"+modelData.version
                                         anchors.top: parent.bottom
+                                        color:"black"
                                     }
                                 }
-
                                 Text
                                 {
                                     /*
@@ -1643,10 +1592,12 @@ ApplicationWindow {
 
                 CustomCollapsiblePanel
                 {
+                    id:bannedAddressesBase
                     setWidth: 250
                     setHeight: 200
                     setTitle:"banned users: (" + listViewBannedUsers.count + ")"
-                    setBgColorButton: "black"
+                    setBgColorButton: "grey"
+                    setBgContent: "black"
                     setTextColor: "white"
                     setIconArrow: "icons/back.png"
                     pathFromComponentDire:false
@@ -1784,135 +1735,68 @@ ApplicationWindow {
 
     function keyboardButtonsHandler(event)
     {
+        //handle combined keys:
         if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ShiftModifier))
-        {
-            brightnessDown()
-        }
-
+            backend.processCommand(Command.BrightnessUp,"")
         else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ShiftModifier))
-        {
-            brightnessUp()
-        }
-
+            backend.processCommand(Command.BrightnessDown,"")
         else if(event.key === Qt.Key_Up  && (event.modifiers & Qt.ControlModifier))
-        {
-            speedUp()
-        }
-
+            backend.processCommand(Command.SpeedUp,"")
         else if(event.key === Qt.Key_Down  && (event.modifiers & Qt.ControlModifier))
-        {
-            speedDown()
-        }
+            backend.processCommand(Command.SpeedDown,"")
 
-
-        else
+        else //handle single keys
             switch(event.key)
             {
-
-            case Qt.Key_Escape:
-            {
-                if(videoOutput.fullScreen)
-                {
-                    root.showNormal()
-                }
-            }break;
+                case Qt.Key_Escape:
+                    if(videoOutput.fullScreen) //go out of fullscreen.
+                        backend.processCommand(Command.FullscreenToggle,"");
+                break;
 
 
-            case Qt.Key_VolumeMute:
-            case Qt.Key_M:
-            {
-                muteUnmute()
-            }break;
+                case Qt.Key_VolumeMute:
+                case Qt.Key_M:
+                    backend.processCommand(Command.MuteToggle,"")
+                break;
 
-            case Qt.Key_MediaPlay:
-            case Qt.Key_MediaPause:
-            case Qt.Key_MediaTogglePlayPause:
-            case Qt.Key_Space:
-            {
-                if(!mediaPlayer.playing)
-                    playVideo()
-                else
-                    pauseVideo()
-            }break;
+                case Qt.Key_MediaPlay:
+                case Qt.Key_MediaPause:
+                case Qt.Key_MediaTogglePlayPause:
+                case Qt.Key_Space:
+                    backend.processCommand(Command.PlayToggle,"")
+                break;
 
-            case Qt.Key_Right:
-            {
-                mediaPlayer.seekForward()
-            }break;
-            case Qt.Key_Left:
-            {
-                mediaPlayer.seekBackward()
-            }break;
+                case Qt.Key_Right:
+                    backend.processCommand(Command.SeekForth, "")
+                break;
 
-            case Qt.Key_VolumeUp:
-            case Qt.Key_Up:
-            {
-                volUp()
-            }break;
+                case Qt.Key_Left:
+                    backend.processCommand(Command.SeekBack, "")
+                break;
 
-            case Qt.Key_VolumeDown:
-            case Qt.Key_Down:
-            {
-                volDown()
-            }break;
-            case Qt.Key_F:
-            case Qt.Key_Enter:
-            case Qt.Key_Return:
-            {
-                mediaPlayer.doFullscreen()
-            }break;
+                case Qt.Key_VolumeUp:
+                case Qt.Key_Up:
+                    backend.processCommand(Command.VolumeUp, "")
+                break;
+
+                case Qt.Key_VolumeDown:
+                case Qt.Key_Down:
+                    backend.processCommand(Command.VolumeDown, "")
+                break;
+
+                case Qt.Key_F:
+                case Qt.Key_Enter:
+                case Qt.Key_Return:
+                    backend.processCommand(Command.FullscreenToggle,"")
+                break;
             }
 
-        showControls.start()
     }
 
-
-
-
-    function playVideo()
-    {
-        mediaPlayer.play()
-    }
-    function pauseVideo()
-    {
-        mediaPlayer.pause()
-    }
-    function togglePlayPause() {
-
-        if (mediaPlayer.playbackState === MediaPlayer.PlayingState)
-            mediaPlayer.pause()
-        else
-            mediaPlayer.play()
-    }
-    function stopVideo() {
-        mediaPlayer.stop()
-    }
-    function nextVideo()
-    {
-        playbackControl.playNextFile()
-    }
-
-    function previousVideo()
-    {
-        playbackControl.playPreviousFile()
-    }
-
-    function seekForth()
-    {
-        mediaPlayer.position = Math.min(mediaPlayer.position + 15000, mediaPlayer.duration);
-    }
-    function seekBack()
-    {
-        mediaPlayer.position = Math.max(mediaPlayer.position - 15000, 0);
-    }
-    function changePosition(val)
-    {
-        mediaPlayer.position = val
-    }
 
     function volUp(val=0.10)
     {
-        if(root.volume<100)
+        if(root.volume<1)
             root.volume+=val
     }
 
@@ -1922,38 +1806,42 @@ ApplicationWindow {
             root.volume-=val
     }
 
-    function changeVol(val)
+    function changeVol(val) //used for Drag and Move Change by Mouse
     {
         if(val>=0 && val<=1)
             root.volume=val
     }
 
-    function speedUp(val=0.5)
+
+    function speedUp()
     {
         var temp = settings.value["Media/rate"]
-        if(temp<100)
-            settings.setSetting("Media/rate",temp+val)
+        if(temp<2.5)
+            settings.setSetting("Media/rate",temp+0.5)
     }
 
-    function speedDown(val=0.5)
+    function speedDown()
     {
         var temp = settings.value["Media/rate"]
         if(temp>0)
-            settings.setSetting("Media/rate",temp-val)
+            settings.setSetting("Media/rate",temp-0.5)
     }
 
-    function startHoldSpeeding()
-    {
-        spedupByHoldFromRemote=true
-    }
-    function stopHoldSpeeding()
-    {
-        spedupByHoldFromRemote=false
-    }
+    // function changeSpeed(val) //used by playRate Slider
+    // {
+    //     var temp = settings.value["Media/rate"]
+    //     // if(val===temp && temp!==0.5)//prevent from loop
+    //         // return;
+
+
+    //     playbackControl.playbackRate =temp-val
+    //     if(temp>0 || temp<2.5)
+    //         settings.setSetting("Media/rate",temp-val)
+    // }
 
     function brightnessUp(val=0.10)
     {
-        if(root.brightness<100)
+        if(root.brightness<1)
             root.brightness+=val
     }
 
@@ -1963,19 +1851,13 @@ ApplicationWindow {
             root.brightness-=val
     }
 
-    function changeBrightness(val)
+    function changeBrightness(val) //used for Drag and Move Change by Mouse
     {
-        if(val<100 && val >0)
-        {
+        if(val<1 && val >0)
             root.brightness=val
-        }
     }
 
-    function muteUnmute()
-    {
-        settings.setSetting("Media/muted",
-                            !Scripts.asBool(settings.value["Media/muted"]))
-    }
+
 
 
     function playMedia() {
@@ -1993,31 +1875,12 @@ ApplicationWindow {
         overlay.visible = true
     }
 
-    function controlVisibility(status)
-    {
-        console.log("controlVisibility=",status)
-        if(status)
-            showControls.start()
-        else
-            hideControls.start()
-    }
 
     function openFile(path) {
         ++currentFile
         playlistInfo.addFile(currentFile, path)
         mediaPlayer.source = path
         mediaPlayer.play()
-    }
-
-
-    function shuffleToggle()
-    {
-        playlistInfo.isShuffled=!playlistInfo.isShuffled
-    }
-
-    function fullscreenToggle()
-    {
-        mediaPlayer.doFullscreen()
     }
 
     // -------------------------- popups --------------------------
@@ -2097,6 +1960,7 @@ ApplicationWindow {
     }
 
 
+    //handle drop files/media files
     DropArea {
         id:dropHandler
         anchors.fill: parent
@@ -2269,6 +2133,99 @@ ApplicationWindow {
     ErrorPopup {
         id: errorPopup
     }
+
+    Connections
+    {
+        target: backend
+        onMediaPlayerDataChange: function (cmd, payload)
+        {
+            switch(cmd)
+            {
+                //handled by C++ backend.processCommand(...)
+                case Command.HostPasswordStatusToggle:
+                case Command.MprisControlToggle:
+                case Command.MuteToggle:
+                case Command.CurrentMediaMeta:
+                case Command.SNSspeed:
+                case Command.Subtitle1PosY:
+                case Command.Subtitle2PosY:
+                    return; //dont proceed
+
+
+                //combined handle (both QML and C++)
+                case Command.ModifyRotation: videoOutput.rotation=Scripts.asInt(payload); break;
+                case Command.SNSToggle: snsCheckbox.changeStatus(Scripts.asBool(payload)); break;
+                //QML handled, C++ just watch :)
+                case Command.VolumeDown: volDown(); break;
+                case Command.VolumeUp: volUp(); break;
+                case Command.ModifyVolume:changeVol(Scripts.asInt(payload)); break;
+                case Command.BrightnessDown: brightnessUp(); break;
+                case Command.BrightnessUp: brightnessDown(); break;
+                case Command.ModifyBrightness: changeBrightness(Scripts.asInt(payload)); break;
+                case Command.SpeedUp: speedUp(); break;
+                case Command.SpeedDown: speedDown(); break;
+                // case Command.ModifyPlayRate: changeSpeed(Scripts.asInt(payload)); break;
+                case Command.ShowControls: showControls.start(); break;
+                case Command.SeekForth: mediaPlayer.seekForward(); break;
+                case Command.SeekBack: mediaPlayer.seekBackward(); break;
+                case Command.FullscreenToggle: mediaPlayer.doFullscreen(); break;
+                case Command.StartSpeeding: spedupByHold=true; break;
+                case Command.StopSpeeding: spedupByHold=false; break;
+                case Command.ShuffleToggle: playlistInfo.isShuffled=!playlistInfo.isShuffled; break;
+                case Command.RepeatToggle: playbackControl.changeLoopMode(); break;
+                case Command.Play: mediaPlayer.play(); break;
+                case Command.Pause: mediaPlayer.pause(); break;
+                case Command.PlayToggle:
+                    if (mediaPlayer.playbackState === MediaPlayer.PlayingState) mediaPlayer.pause()
+                    else mediaPlayer.play()
+                    break;
+                case Command.NextToggle:
+                    if (playlistInfo.mediaCount)
+                    {
+                        if (!playlistInfo.isShuffled)
+                        {
+                            ++root.currentFile
+
+                            if (root.currentFile > playlistInfo.mediaCount - 1 && root.playlistLooped)
+                            {
+                                root.currentFile = 0
+                            }
+                            else if (root.currentFile > playlistInfo.mediaCount - 1 && !root.playlistLooped)
+                            {
+                                --root.currentFile
+                                return
+                            }
+                        }
+                        root.playMedia()
+                    }
+                    break;
+                case Command.PreviousToggle:
+                    if (playlistInfo.mediaCount)
+                    {
+                        if (!playlistInfo.isShuffled)
+                        {
+                            --root.currentFile
+
+                            if (root.currentFile < 0 && root.isPlaylistLooped)
+                            {
+                                root.currentFile = playlistInfo.mediaCount - 1
+                            }
+                            else if (root.currentFile < 0 && !root.playlistLooped)
+                            {
+                                ++root.currentFile
+                                return
+                            }
+                        }
+                        root.playMedia()
+                    }
+                    break;
+
+                default:
+                    console.log("onMediaPlayerDataChange cmd=",cmd," payload=",payload)
+            }
+        }
+    }
+
 
 
     Component.onCompleted: {

@@ -42,6 +42,12 @@ qt_add_qml_module(MediaPlayer
         "icons/Rate_Icon_Dark.svg"
         "icons/bluetooth.png"
         "icons/wifi.png"
+        "icons/lock.svg"
+        "icons/unlock.svg"
+        "icons/linux.svg"
+        "icons/apple.svg"
+        "icons/windows.svg"
+        "icons/android.svg"
 )
 
 

@@ -24,7 +24,7 @@
 #include "backend.h"
 #include "settingsmanager.h"
 
-
+#include "commandhandler.h"
 
 //to pass session to backend
 #include <QDBusConnection>
@@ -111,6 +111,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("backend", &backend);
     engine.rootContext()->setContextProperty("settings", &settings);
 
+
+    qmlRegisterUncreatableType<CommandHandler>("MyCommands", 1, 0, "Command", "Enums only");
 
 
     QObject::connect(&engine, &QQmlApplicationEngine::quit, &app, &QGuiApplication::quit);

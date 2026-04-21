@@ -14,7 +14,11 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     m_ntStatus(NetStatus::Unknown),
     m_netLocalName("empty"),
     m_hostPassword(""),
-    m_hostPasswordStatus(false)
+    m_hostPasswordStatus(false),
+    m_isTherePreviousTrack(false),
+    m_isThereNextTrack(false),
+    m_mprisAdaptor(nullptr)
+
 {
     //read mprisControl status from settings
     QVariant settingVariant = m_settings->getSetting("App/mprisControl",false);
@@ -44,7 +48,8 @@ void Backend::initMpris()
 
     // Create BOTH adaptors
     new MprisRootAdaptor(m_rootObject);
-    m_mprisAdaptor = new MprisAdaptor(m_rootObject, "/org/mpris/MediaPlayer2");
+    if(!m_mprisAdaptor) //if mprisAdapter doesnt exists otherwise use old mprisAdaptor
+        m_mprisAdaptor = new MprisAdaptor(m_rootObject, "/org/mpris/MediaPlayer2");
 
 
     QDBusConnection connection = QDBusConnection::sessionBus();
@@ -98,6 +103,23 @@ void Backend::initMpris()
             this , &Backend::mprisPlayPrevious);
 
     setIsDBusConnectionOk(true);
+}
+
+void Backend::closeMpris()
+{
+    QDBusConnection connection = QDBusConnection::sessionBus();
+    if (connection.isConnected())
+    {
+        qInfo() << "Unregistering D-Bus object and service...";
+
+        // Unregister the object
+        connection.unregisterObject("/org/mpris/MediaPlayer2");
+
+        // Unregister the service name
+        connection.unregisterService("org.mpris.MediaPlayer2.myplayer");
+
+        qInfo() << "D-Bus object and service unregistered.";
+    }
 }
 
 void Backend::runQmlFunction(const QString &functionName)
@@ -356,6 +378,7 @@ void Backend::clientConnected( QBluetoothSocket*  sender)
     else
     {
         qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (banned).";
+        sendMessage(sender,m_commandHandler.pack(CommandHandler::Command::Banned,""));
         m_btServer->disconnectClient(sender);
     }
 }
@@ -392,6 +415,32 @@ void Backend::doProcessPing(RemoteUsers* user)
     }
     else
         qDebug() << "user pingTimer is not valid.";
+}
+
+bool Backend::isTherePreviousTrack() const
+{
+    return m_isTherePreviousTrack;
+}
+
+void Backend::setIsTherePreviousTrack(bool newIsTherePreviousTrack)
+{
+    if (m_isTherePreviousTrack == newIsTherePreviousTrack)
+        return;
+    m_isTherePreviousTrack = newIsTherePreviousTrack;
+    emit isTherePreviousTrackChanged();
+}
+
+bool Backend::isThereNextTrack() const
+{
+    return m_isThereNextTrack;
+}
+
+void Backend::setIsThereNextTrack(bool newIsThereNextTrack)
+{
+    if (m_isThereNextTrack == newIsThereNextTrack)
+        return;
+    m_isThereNextTrack = newIsThereNextTrack;
+    emit isThereNextTrackChanged();
 }
 
 bool Backend::hostPasswordStatus() const
@@ -456,6 +505,38 @@ QString Backend::toPureIPv4(const QHostAddress &addr)
 }
 
 
+QString Backend::getPlayerLatestStatus()
+{
+    QList<QVariant> dataToPack;
+    // dataToPack << QString("subtitle1Status") << 45;
+
+
+    for (const QString &key : CommandHandler::commandKeyMap.keys())
+    {
+        if(key.length()>1) //avoid get setting for not exists keys.
+            dataToPack << m_settings->getSetting(key, "");
+        else //for specific keys which doesnt exist on settings so m_settings(getSetting) won't be able find their value, set them manually
+            if(key=="1") dataToPack << m_currentMedia.name;
+    }
+
+    QString payload = m_commandHandler.packPayload(dataToPack);
+
+    // qDebug() << "Packed Payload:" << payload;
+    /* -------- LATER ADD TO PAYLOAD-- -- - -- - -
+                current media (name, total time, played time)
+                Audio Output Devices List (names)
+                selected audio output device index. 0
+                repeated (no repeat, repeat this one, repeat list)
+                fullscreen,
+                isPlaying,
+                shuffeled,
+                brightness, volume
+                current audio output
+            */
+    return payload;
+}
+
+
 
 void Backend::clientConnected(QTcpSocket *sender)
 {
@@ -467,6 +548,7 @@ void Backend::clientConnected(QTcpSocket *sender)
     if(findUser(userAddress))
     {
         qInfo() << userName << " ("<< userAddress << ") tried to connect to server but refused (address exists!).";
+        sendMessage(sender,m_commandHandler.pack(CommandHandler::Command::AlreadyConnected,""));
         m_netServer->disconnectClient(sender);
         return;
     }
@@ -490,6 +572,7 @@ void Backend::clientConnected(QTcpSocket *sender)
     else
     {
         qInfo() << userName << " ("<< userIpv4 << ") tried to connect to server but refused (banned).";
+        emit sendMessage(sender,m_commandHandler.pack(CommandHandler::Command::Banned,""));
         m_netServer->disconnectClient(sender);
     }
 }
@@ -745,24 +828,22 @@ void Backend::initNetServer()
 
 
 
-// void Backend::processCommand(RemoteUsers *user, const QString &message)
 void Backend::processCommand(RemoteUsers *user, QByteArray *data,
-                             CommandHandler::Command mprisCommand)
+                             CommandHandler::Command localCommand,QString thePayload)
 {
     QString response = "default response";
     CommandHandler::Command cmd;
     QString value;
 
 
-    if(user==nullptr || data==nullptr) //its a command by mpris
+    if(user==nullptr || data==nullptr) //its a command by local (mpris/kyeboardmouse)
     {
-        qDebug() << "processing from mpris, command=" << mprisCommand;
-        cmd=mprisCommand;
+        qDebug() << "processing from mpris/localControl(mouse,keyboard), command=" << localCommand;
+        cmd=localCommand;
+        value=thePayload;
 
         /*
-         * later add these for each needs / changes media meta data and status
-         *
-            m_mprisAdaptor->control.canPlay=true;
+         *  m_mprisAdaptor->control.canPlay=true;
             m_mprisAdaptor->control.canPause=true;
             m_mprisAdaptor->control.canGoNext=false;
             m_mprisAdaptor->control.canGoPrevious=true;
@@ -770,8 +851,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
             m_mprisAdaptor->updateMetadata(true,"title playing media"
                                            ,"artist is not"
                                            ,"1");
-
-        */
+         */
     }
     else
     {
@@ -782,7 +862,11 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         if(cmd==CommandHandler::Command::ClientInfo)
         {
             qDebug() << "client info received: " << value;
-            user->versionCode = value.split("`").at(0).toInt();
+
+
+            QList<QVariant> unpackedPayloads = m_commandHandler.unpackPayload(value);
+            // qDebug() << "unpackedPayloads.size()=" << unpackedPayloads.size();
+            user->versionCode = unpackedPayloads[static_cast<int>(CommandHandler::ClientInfoIndexes::CI_VERSION_CODE)].toInt();
             if(user->versionCode<MINIMUM_ALLOWED_VERSION_CODE_REMOTE)
             {
                 qInfo() << "client version is not allowed, versionCode:" << user->versionCode << " connection refused.";
@@ -794,11 +878,27 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
 
                 return;//version error has sent dont proceed
             }
-            user->name += " - "+ value.split("`").at(5); //add deviceName. due to when connection is by network there is no name, so we add device to show appropriate name
-            user->platform = value.split("`").at(2);
-            user->info = value;
+            user->name = unpackedPayloads[static_cast<int>(CommandHandler::ClientInfoIndexes::CI_MACHINE_HOST_NAME)].toString();
+            user->platform = unpackedPayloads[static_cast<int>(CommandHandler::ClientInfoIndexes::CI_PLATFORM)].toString();
+            user->info = unpackedPayloads; //store it for future uses.
+
+            //send mediaplayer latest info to client (becauuse authentication is off.)
+            if(!m_hostPasswordStatus)
+                sendResponse(user,m_commandHandler.pack(CommandHandler::Command::MediaPlayerData,getPlayerLatestStatus()));
+            //else send mediaplaer latest info would done after authentication.
+
             emit connectedUsersListChanged();
             return;//info extracted so no need to proceed.
+        }
+        else if(user->versionCode==0)//check user version is (0) which is default.
+        {
+            qInfo() << "user didnt provide clientInfo properly connection closed due to invalid version";
+            sendResponse(user,m_commandHandler.pack(CommandHandler::Command::VersionNotProvided,""));
+            if(user->connectionType==UserConnectionType::Bluetooth)
+                m_btServer->disconnectClient(user->btSocket);
+            else if(user->connectionType==UserConnectionType::Network)
+                m_netServer->disconnectClient(user->netSocket);
+            return;//version is not provided
         }
 
         //if password is required, check for password.
@@ -812,6 +912,10 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
                     qInfo() << "user " <<  user->name << " authenticated successfully.";
                     user->authenticated=true;
                     sendResponse(user,m_commandHandler.pack(CommandHandler::Command::AthenticatedFine,""));
+
+                    //send mediaplayer latest info to client (becauuse authentication is done.)
+                    sendResponse(user,m_commandHandler.pack(CommandHandler::Command::MediaPlayerData,getPlayerLatestStatus()));
+
                     emit connectedUsersListChanged();
                 }
                 else
@@ -830,6 +934,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         }
 
 
+
         if(user->connectionType == UserConnectionType::Bluetooth)
         {
             qDebug() << "processing command using bluetooth, from:"<< user->btSocket->peerName() << "cmd=" << cmd << "val="
@@ -840,131 +945,191 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
             qDebug() << "processing command using network, from:"<< user->netSocket->peerName() << "cmd=" << cmd << "val="
                      << "cmd-int:" << static_cast<int>(cmd) << value <<" data:" << data;
         }
-
-
     }
 
-    runQmlFunction("controlVisibility","true");
+    if(m_settings->getSetting("App/showControlsWhenRemoteCommand",true).toBool())
+        emit mediaPlayerDataChange(CommandHandler::Command::ShowControls, "");
+
+
+    bool updateMprisAdaptor=false;
     switch (cmd)
     {
+        //no need to action, qml slot would act.
+        case CommandHandler::Command::StartSpeeding:
+        case CommandHandler::Command::StopSpeeding:
+        case CommandHandler::Command::SeekBack:
+        case CommandHandler::Command::SeekForth:
+        case CommandHandler::Command::ShuffleToggle:
+        case CommandHandler::Command::FullscreenToggle:
+        case CommandHandler::Command::RepeatToggle:
+        case CommandHandler::Command::PreviousToggle:
+        case CommandHandler::Command::NextToggle:
         case CommandHandler::Command::ModifyBrightness:
-        {
-            runQmlFunction("changeBrightness",value);
-            response = "changeBrightnes..."+value;
-        }break;
-
+        case CommandHandler::Command::ModifyPlayRate:
         case CommandHandler::Command::ModifyVolume:
+        case CommandHandler::Command::VolumeDown:
+        case CommandHandler::Command::VolumeUp:
+        case CommandHandler::Command::BrightnessDown:
+        case CommandHandler::Command::BrightnessUp:
+        case CommandHandler::Command::SpeedDown:
+        case CommandHandler::Command::SpeedUp:
+        case CommandHandler::Command::ShowControls:
+            break; //dont check others
+        case CommandHandler::Command::PlayToggle:
+            m_unstoredMPdata.isPlaying = !m_unstoredMPdata.isPlaying;
+            updateMprisAdaptor=true;
+            break;
+        case CommandHandler::Command::Play: //only called by mpris
+            m_unstoredMPdata.isPlaying=true;
+            updateMprisAdaptor=true;
+            break;
+        case CommandHandler::Command::Pause: //only called by mpris
+            m_unstoredMPdata.isPlaying=false;
+            updateMprisAdaptor=true;
+            break;
+
+        //handled here. no need QML action
+        case CommandHandler::Command::Subtitle1Status: m_settings->setSetting("Subtitle1/status",value); break;
+        case CommandHandler::Command::Subtitle1WordByWord: m_settings->setSetting("Subtitle1/wordByWord",value); break;
+        case CommandHandler::Command::Subtitle1WordByWordChunks: m_settings->setSetting("Subtitle1/wordByWordChunks",value); break;
+        case CommandHandler::Command::Subtitle1TextSize: m_settings->setSetting("Subtitle1/textSize",value); break;
+        case CommandHandler::Command::Subtitle1Offset: m_settings->setSetting("Subtitle1/offset",value); break;
+        case CommandHandler::Command::Subtitle1TextColor: m_settings->setSetting("Subtitle1/textColor",value); break;
+        case CommandHandler::Command::Subtitle1BackColor: m_settings->setSetting("Subtitle1/backColor",value); break;
+        case CommandHandler::Command::Subtitle1Opacity: m_settings->setSetting("Subtitle1/backOpacity",value); break;
+        //sub2
+        case CommandHandler::Command::Subtitle2Status: m_settings->setSetting("Subtitle2/status",value); break;
+        case CommandHandler::Command::Subtitle2WordByWord: m_settings->setSetting("Subtitle2/wordByWord",value); break;
+        case CommandHandler::Command::Subtitle2WordByWordChunks: m_settings->setSetting("Subtitle2/wordByWordChunks",value); break;
+        case CommandHandler::Command::Subtitle2TextSize: m_settings->setSetting("Subtitle2/textSize",value); break;
+        case CommandHandler::Command::Subtitle2Offset: m_settings->setSetting("Subtitle2/offset",value); break;
+        case CommandHandler::Command::Subtitle2TextColor: m_settings->setSetting("Subtitle2/textColor",value); break;
+        case CommandHandler::Command::Subtitle2BackColor: m_settings->setSetting("Subtitle2/backColor",value); break;
+        case CommandHandler::Command::Subtitle2Opacity: m_settings->setSetting("Subtitle2/backOpacity",value); break;
+
+        case CommandHandler::Command::SteadyAudioDeviceToggle:
+            m_settings->setSetting("App/steadyAudioDevice",value=="true"?true:false);
+            break;
+
+        case CommandHandler::Command::SubRemoveDomainsToggle:
+            m_settings->setSetting("Media/sub_removeDomains",value=="true"?true:false);
+            break;
+
+        case CommandHandler::Command::SubIgnoreHtmlTagToggle:
+            m_settings->setSetting("Media/sub_ignoreHTMLtags",value=="true"?true:false);
+            break;
+
+        case CommandHandler::Command::SubCleanSubtitleToggle:
+            m_settings->setSetting("Media/sub_cleanSubtitle",value=="true"?true:false);
+            break;
+
+        case CommandHandler::Command::SubRemoveExtraInfoToggle:
+            m_settings->setSetting("Media/sub_removeExtraInfo",value=="true"?true:false);
+            break;
+
+        case CommandHandler::Command::CustomCursorStatusToggle:
+            m_settings->setSetting("App/customCursorStatus",value=="true"?true:false);
+            //fore to update cursor
+            changeCursor(); //let it choose blank or pointer/pixelImage
+            break;
+
+        case CommandHandler::Command::MprisControlToggle:
         {
-            runQmlFunction("changeVol",value);
+            bool status = (value=="true"?true:false);
+            setMprisControl(status);
+            m_settings->setSetting("App/mprisControl",status);
+            if(m_mprisControl)
+                initMpris();
+            else
+                closeMpris();
         }break;
 
+        case CommandHandler::Command::CurrentMediaMeta:
+            m_currentMedia.name=value;
+            m_unstoredMPdata.isPlaying=true;
+            updateMprisAdaptor=true;
+            break;
+
+        case CommandHandler::Command::SNSspeed:
+        {
+            m_settings->setSetting("SNS/speed",value);
+        }break;
+
+        case CommandHandler::Command::MuteToggle:
+        {
+            m_settings->setSetting("Media/muted", !m_settings->getSetting("Media/muted",false).toBool());
+        }break;
+
+
+        case CommandHandler::Command::Subtitle1PosY:
+        {
+            m_settings->setSetting("Subtitle1/posY", value);
+            qDebug() << "subtitle1posy" << value;
+        }break;
+
+        case CommandHandler::Command::Subtitle2PosY:
+        {
+            m_settings->setSetting("Subtitle2/posY", value);
+        }break;
+
+        case CommandHandler::Command::HostPasswordStatusToggle:
+        {
+            setHostPasswordStatus(value=="true"?true:false);
+        }break;
+
+
+
+        //also QML will apply to element
         case CommandHandler::Command::ModifyRotation:
         {
             m_settings->setSetting("Media/rotationAngle",value);
         }break;
 
-        case CommandHandler::Command::ModifyPosition:
-        {
-            runQmlFunction("changePosition",value);
-        }break;
-
-        case CommandHandler::Command::SeekBack:
-        {
-            runQmlFunction("seekBack");
-        }break;
-
-        case CommandHandler::Command::SeekForth:
-        {
-            runQmlFunction("seekForth");
-        }break;
-
-        case CommandHandler::Command::SpeedUp2:
-        {
-            runQmlFunction("speedUp",0.5);
-        }break;
-
-        case CommandHandler::Command::SpeedDown:
-        {
-            runQmlFunction("speedDown",0.5);
-        }break;
-
-        case CommandHandler::Command::StartSpeeding:
-        {
-            runQmlFunction("startHoldSpeeding");
-        }break;
-        case CommandHandler::Command::StopSpeeding:
-        {
-            runQmlFunction("stopHoldSpeeding");
-        }break;
-
-        case CommandHandler::Command::PowerToggle:
-        {
-            qInfo() << "PowerToggle received..";
-        }break;
-
         case CommandHandler::Command::SNSToggle:
         {
-            QVariant v = m_settings->getSetting("SNS/status","false");
-            if(v=="1" || v=="true")
-                m_settings->setSetting("SNS/status","false");
-            else
-                m_settings->setSetting("SNS/status","true");
+            m_settings->setSetting("SNS/status",value);
         }break;
 
-        case CommandHandler::Command::MuteToggle:
-        {
-            runQmlFunction("muteUnmute");
-        }break;
 
-        case CommandHandler::Command::ShuffleToggle:
-        {
-            runQmlFunction("shuffleToggle");
-        }break;
-
-        case CommandHandler::Command::FullscreenToggle:
-        {
-            runQmlFunction("fullscreenToggle");
-        }break;
-
-        case CommandHandler::Command::RepeatToggle:
-        {
-            qInfo()<<"RepeatToggle cmd received";
-        }break;
-
-        case CommandHandler::Command::PreviousToggle:
-        {
-            runQmlFunction("previousVideo");
-        }break;
-
-        case CommandHandler::Command::PlayToggle:
-        {
-            runQmlFunction("togglePlayPause");
-        }break;
-
-        case CommandHandler::Command::NextToggle:
-        {
-            runQmlFunction("nextVideo");
-        }break;
-
-        //for mpris..
-        // case CommandHandler::Command::Play:
+        //etc
+        // case CommandHandler::Command::SNSsecBeforeSpeedup: //has loop problem
         // {
-        //     runQmlFunction("playVideo");
+        //     m_settings->setSetting("SNS/secBeforeSpeedup",value);
         // }break;
-
-        // case CommandHandler::Command::Pause:
+        // case CommandHandler::Command::SNSsecAfterSpeedup: //has loop problem
         // {
-        //     runQmlFunction("pauseVideo");
+        //     m_settings->setSetting("SNS/secAfterSpeedup",value);
         // }break;
 
         default:
-            qInfo()<<"Can't process undefined command. cmd=" << cmd << " value=" << value;
-            break;
+            qInfo()<<"action hasn't provided. can't process this command :" << cmd << " value=" << value;
+            return; //dont broadcast.
     }
 
+    //update mpris adaptor
+    if(updateMprisAdaptor)
+    {
+        m_mprisAdaptor->control.canPlay=true;
+        m_mprisAdaptor->control.canPause=true;
+        m_mprisAdaptor->control.canGoNext=true;
+        m_mprisAdaptor->control.canGoPrevious=true;
+        m_mprisAdaptor->control.canControl=true;
+        m_mprisAdaptor->updateMetadata(m_unstoredMPdata.isPlaying
+                                       ,m_currentMedia.name
+                                       ,"artist is not"
+                                       ,"1");
+    }
 
-    //send response of that command/request if user is valid
-    sendResponse(user,response);
+    //broadcast to connected clients
+    sendResponseToAll(m_commandHandler.pack(cmd,value));
+
+    //apply into mediaplayer
+    emit mediaPlayerDataChange(cmd, value);
+}
+
+void Backend::processCommand(CommandHandler::Command cmd, QString payload)
+{
+    processCommand(nullptr,nullptr, cmd,payload);
 }
 
 void Backend::sendResponse(RemoteUsers* user, const QString& response)
@@ -980,6 +1145,8 @@ void Backend::sendResponse(RemoteUsers* user, const QString& response)
         {
             emit sendMessage(user->netSocket, response);//maybe later broadcast  to all connected users.
         }
+        else
+            qDebug() << "user connection type undefined could not send resposne.";
     }
 
     else
@@ -999,10 +1166,40 @@ void Backend::sendResponse(RemoteUsers* user, QByteArray response)
         {
             emit sendMessage(user->netSocket, response);//maybe later broadcast  to all connected users.
         }
+        else
+            qDebug() << "user connection type undefined could not send resposne.";
     }
 
     else
         qCritical() << "cant send response to nullptr user";
+}
+
+void Backend::sendResponseToAll(QByteArray response)
+{
+    qDebug() << "send repsonse to all response:" << response;
+    if(m_users.isEmpty())
+    {
+        qDebug() << "no user found. cant sendResponseToAll.";
+        return;
+    }
+
+    for (RemoteUsers* user : m_users)
+    {
+        // Check if user is actually connected and has a socket
+        if(user->btSocket != nullptr || user->netSocket != nullptr)
+        {
+            if(user->connectionType == UserConnectionType::Bluetooth)
+            {
+                emit sendMessage(user->btSocket,response);
+            }
+            else if(user->connectionType == UserConnectionType::Network)
+            {
+                emit sendMessage(user->netSocket,response);
+            }
+        }
+        else
+            qDebug() << "user has no socket cant sendResponseToAll for him.";
+    }
 }
 
 
@@ -1016,7 +1213,7 @@ void Backend::sendPingToAllUsers()
     }
 
     //send ping
-    qDebug() << "Sending pings to all connected clients...";
+    // qDebug() << "Sending pings to all connected clients...";
     for (RemoteUsers* user : m_users)
     {
         // Check if user is actually connected and has a socket
@@ -1040,6 +1237,7 @@ void Backend::sendPingToAllUsers()
                     qInfo() << "user exceed max connection lost count. disconencting him...";
                     user->connectionLostTimer.stop();
 
+                    sendResponse(user,m_commandHandler.pack(CommandHandler::Command::ConnectionLost,""));
                     if(user->connectionType == UserConnectionType::Bluetooth)
                         m_btServer->disconnectClient(user->btSocket);
                     else if(user->connectionType == UserConnectionType::Network)
@@ -1053,18 +1251,18 @@ void Backend::sendPingToAllUsers()
 
             if(user->connectionType == UserConnectionType::Bluetooth)
             {
-                qDebug()<< "sending ping for bluetooth.";
+                // qDebug()<< "sending ping for bluetooth.";
                 emit sendMessage(user->btSocket,CommandHandler::PING_DATA);
             }
 
             else if(user->connectionType == UserConnectionType::Network)
             {
-                qDebug()<< "sending ping for network.";
+                // qDebug()<< "sending ping for network.";
                 emit sendMessage(user->netSocket,CommandHandler::PING_DATA);
             }
 
 
-            qDebug() << "Sent ping to" << user->name << " (" << user->address << ") PING_DATA=(" << CommandHandler::PING_DATA << ")";
+            // qDebug() << "Sent ping to" << user->name << " (" << user->address << ") PING_DATA=(" << CommandHandler::PING_DATA << ")";
         }
     }
 
@@ -1351,6 +1549,7 @@ void Backend::kickUser(QString address)
     if(user)
     {
         qInfo() << "user " << user->name << "(" << user->address << ") has been kicked.";
+        sendResponse(user,m_commandHandler.pack(CommandHandler::Command::Kicked,""));
         if(user->connectionType==UserConnectionType::Bluetooth)
         {
             m_btServer->disconnectClient(user->btSocket);
@@ -1380,6 +1579,7 @@ void Backend::banUser(QString address)
                 m_bannedUsers.insert(user->address);
                 emit bannedUsersChanged();
                 qInfo() << "user " << user->name << "(" << user->address << ") has been banned.";
+                sendResponse(user,m_commandHandler.pack(CommandHandler::Command::Banned,""));
                 //disconnect him
                 m_btServer->disconnectClient(user->btSocket);
                 //assuming bterver will run clientDisconnected and user would remove from m_users
@@ -1397,6 +1597,7 @@ void Backend::banUser(QString address)
                 //add user's address to banList
                 m_bannedUsers.insert(userIp);
                 qInfo() << "user " << user->name << "(" << userIp << ") has been banned.";
+                sendResponse(user,m_commandHandler.pack(CommandHandler::Command::Banned,""));
                 emit bannedUsersChanged();
 
                 //disconnect him

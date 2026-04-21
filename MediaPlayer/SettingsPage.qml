@@ -10,7 +10,7 @@ import Config
 import QtQuick.Dialogs
 import "scripts.js" as Scripts
 import "../MediaControls/MyComponents/"
-
+import MyCommands 1.0
 Item {
     id: root
     anchors.fill: parent
@@ -102,7 +102,7 @@ Item {
         anchors.fill: parent
         clip:true
         contentWidth: 380
-        contentHeight: columnAudioOutputDevices.height  // Optional: Set the height if necessary
+        contentHeight: 2500//columnAudioOutputDevices.height  // Optional: Set the height if necessary
 
         Column {
             id: columnAudioOutputDevices
@@ -131,21 +131,14 @@ Item {
             {
                 Label {
                     text: "mpris Control:"
-                    font.bold: true
-                    font.pixelSize: 15
+                    font.pixelSize: 12
                 }
-                CustomCheckbox
+                MySwitch
                 {
-                    id:mprisControlStatus
-                    initialCheckedState:  Scripts.asBool(settings.value["App/mprisControl"])
-                    theText:"mpris control"
-                    // enabled: backend.IsDBusConnectionOk
+                    id: mprisControlStatus
+                    switchStatus:  Scripts.asBool(settings.value["App/mprisControl"])
                     visible: backend.IsDBusConnectionOk
-                    onStatusChangeAction:
-                    {
-                        backend.mprisControl=checked
-                        settings.setSetting("App/mprisControl",checked)
-                    }
+                    onSwitchClicked: backend.processCommand(Command.MprisControlToggle,switchStatus)
                 }
                 Label {
                     text: " D-Bus connection failed."
@@ -164,22 +157,24 @@ Item {
                 font.pixelSize: 15
             }
 
-            CustomCheckbox
+            Label {
+                text: "Steady on selected Audio Device"
+                font.pixelSize: 12
+            }
+            MySwitch
             {
-                initialCheckedState:  Scripts.asBool(settings.value["App/steadyAudioDevice"])
-                theText:"Steady on selected Audio Device"
-                onStatusChangeAction:
-                {
-                    settings.setSetting("App/steadyAudioDevice",checked)
-                }
-                leftPadding: indicator.width
+                id: steadyOnAudioOutputDevice
+                switchStatus:  Scripts.asBool(settings.value["App/steadyAudioDevice"])
+                onSwitchClicked: backend.processCommand(Command.SteadyAudioDeviceToggle,switchStatus)
             }
 
 
             ButtonGroup {
                 id: groupAudioOutputDevice
             }
-            Column {
+            Column
+            {
+                spacing: 5
                 CustomRadioButton {
                     text: Config.defaultAudioLabel
                     checked:(
@@ -224,69 +219,51 @@ Item {
             }
             Column {
 
-                ButtonGroup {
-                    id: childGroup
-                    exclusive: false
-                    checkState: parentBox.checkState
+                Label {
+                    text: "remove domains"
+                    font.pixelSize: 12
                 }
-
-                CustomCheckbox {
-                    id: parentBox
-                    text: qsTr("check all")
-                    checkState: childGroup.checkState
-                }
-
-
-                CustomCheckbox
+                MySwitch
                 {
-                    initialCheckedState:  Scripts.asBool(settings.value["Media/sub_removeDomains"])
-                    theText:"remove domains"
-                    onStatusChangeAction:
-                    {
-                        settings.setSetting("Media/sub_removeDomains",checked)
-                    }
-                    leftPadding: indicator.width
-                    ButtonGroup.group: childGroup
+                    id:subRemoveDomains
+                    switchStatus:  Scripts.asBool(settings.value["Media/sub_removeDomains"])
+                    onSwitchClicked: backend.processCommand(Command.SubRemoveDomainsToggle,switchStatus)
                 }
 
-                CustomCheckbox
+                Label {
+                    text: "ignore HTML tags"
+                    font.pixelSize: 12
+                }
+                MySwitch
                 {
-                    initialCheckedState:  Scripts.asBool(settings.value["Media/sub_ignoreHTMLtags"])
-                    theText:"ignore HTML tags"
-                    onStatusChangeAction:
-                    {
-                        settings.setSetting("Media/sub_ignoreHTMLtags",checked)
-                    }
-                    leftPadding: indicator.width
-                    ButtonGroup.group: childGroup
+                    id:subIgnoreHTML
+                    switchStatus:  Scripts.asBool(settings.value["Media/sub_ignoreHTMLtags"])
+                    onSwitchClicked: backend.processCommand(Command.SubIgnoreHtmlTagToggle,switchStatus)
                 }
 
-                CustomCheckbox
+                Label {
+                    text: "clean subtitle"
+                    font.pixelSize: 12
+                }
+                MySwitch
                 {
-                    initialCheckedState:  Scripts.asBool(settings.value["Media/sub_cleanSubtitle"])
-                    theText:"clean subtitle"
-                    onStatusChangeAction:
-                    {
-                        settings.setSetting("Media/sub_cleanSubtitle",checked)
-                    }
-                    leftPadding: indicator.width
-                    ButtonGroup.group: childGroup
+                    id:subCleanSubtitle
+                    switchStatus:  Scripts.asBool(settings.value["Media/sub_cleanSubtitle"])
+                    onSwitchClicked: backend.processCommand(Command.SubCleanSubtitleToggle,switchStatus)
                 }
 
 
-                CustomCheckbox
+
+                Label {
+                    text: "remove ExtraInfo"
+                    font.pixelSize: 12
+                }
+                MySwitch
                 {
-                    initialCheckedState:  Scripts.asBool(settings.value["Media/sub_removeExtraInfo"])
-                    theText:"remove extrainfo"
-                    onStatusChangeAction:
-                    {
-                        settings.setSetting("Media/sub_removeExtraInfo",checked)
-                    }
-                    leftPadding: indicator.width
-                    ButtonGroup.group: childGroup
+                    id:subRemoveExtrainfo
+                    switchStatus:  Scripts.asBool(settings.value["Media/sub_removeExtraInfo"])
+                    onSwitchClicked: backend.processCommand(Command.SubRemoveExtraInfoToggle,switchStatus)
                 }
-
-
             }
 
 
@@ -299,14 +276,11 @@ Item {
             }
             Row
             {
-                CustomCheckbox
+                MySwitch
                 {
-                    initialCheckedState:  Scripts.asBool(settings.value["App/customCursorStatus"])
-                    theText:"custom cursor status"
-                    onStatusChangeAction:
-                    {
-                        settings.setSetting("App/customCursorStatus",checked)
-                    }
+                    id: customCursorStatus
+                    switchStatus:  Scripts.asBool(settings.value["App/customCursorStatus"])
+                    onSwitchClicked: backend.processCommand(Command.CustomCursorStatusToggle, switchStatus)
                 }
 
 
@@ -333,6 +307,31 @@ Item {
             }
 
 
+            ColorDialog
+            {
+                id:sharedColorDialog
+                property string key;
+                onAccepted:
+                {
+                    // console.debug("color accepted key=",key, "selectedColor=",selectedColor)
+                    var commandCode=0;
+
+                    if(key==="Subtitle1/textColor")
+                        commandCode=Command.Subtitle1TextColor;
+
+                    else if(key==="Subtitle1/backColor")
+                        commandCode=Command.Subtitle1BackColor;
+
+                    else if(key==="Subtitle2/textColor")
+                        commandCode=Command.Subtitle2TextColor;
+
+                    else if(key==="Subtitle2/backColor")
+                        commandCode=Command.Subtitle2BackColor;
+
+                    backend.processCommand(commandCode,selectedColor)
+                    // settings.setSetting(key,selectedColor)
+                }
+            }
 
             Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
             Label {
@@ -341,78 +340,46 @@ Item {
                 font.pixelSize: 15
             }
 
-
-            CustomCheckbox
+            Label {
+                text: "sub1 status:"
+                font.pixelSize: 12
+            }
+            MySwitch
             {
-                id:subtitle1Status
-                initialCheckedState:  Scripts.asBool(settings.value["Subtitle1/status"])
-                theText:"subtitle 1 Status"
-                onStatusChangeAction:
-                {
-                    settings.setSetting("Subtitle1/status",checked)
-                }
+                id: subtitle1Status
+                switchStatus:  Scripts.asBool(settings.value["Subtitle1/status"])
+                onSwitchClicked: backend.processCommand(Command.Subtitle1Status, switchStatus)
             }
 
 
-            Rectangle {
-                width: 200
-                height: 200
-                color: "transparent"
-                visible: subtitle1Status.checked
 
-                ColorDialog
-                {
-                    id:sharedColorDialog
-                    property string key;
-                    onAccepted:
-                    {
-                        // console.debug("color accepted key=",key, "selectedColor=",selectedColor)
-                        settings.setSetting(key,selectedColor)
-                    }
-                }
+            Rectangle {
+                id:subtitle1MoreBase
+                width: 200
+                height: 400
+                color: "transparent"
+                visible: Scripts.asBool(settings.value["Subtitle1/status"])
+
 
                 Column {
                     anchors.fill: parent
 
-
-                    ComboBox {
-                        id: fruitComboBox
-                        // Layout.alignment: Qt.AlignHCenter
-                        model: foundSubtitles // Assign the data model
-                        textRole: "text"  // Specify which property to display
-                        valueRole: "id"   // Specify which property to use as the value (optional, defaults to index)
-                        onCurrentIndexChanged:
-                        {
-                            if (currentIndex !== -1) {
-                                // Get the data of the selected item from the ListModel
-                                var selectedItem = subtitleModel.get(currentIndex);
-                                // console.debug("Selected Index:", selectedItem.index);
-                                // console.debug("Selected Text:", selectedItem.text);
-                                // console.debug("Selected Path:", selectedItem.path);
-
-
-
-                            }
-                        }
+                    Label {
+                        text: "sub1 wordByWord:"
+                        font.pixelSize: 12
+                        visible: subtitle1Status.switchStatus
                     }
-
-
-
-                    CustomCheckbox
+                    MySwitch
                     {
-                        id:wordByWordSubtitle1Checkbox
-                        initialCheckedState:  Scripts.asBool(settings.value["Subtitle1/wordByWord"])
-                        theText:"word by word"
-                        onStatusChangeAction:
-                        {
-                            settings.setSetting("Subtitle1/wordByWord",checked)
-                        }
+                        id: wordByWordSubtitle1Checkbox
+                        switchStatus:  Scripts.asBool(settings.value["Subtitle1/wordByWord"])
+                        onSwitchClicked: backend.processCommand(Command.Subtitle1WordByWord,switchStatus)
                     }
 
                     Label {
                         text: "wordByWord Chunks: (" + settings.value["Subtitle1/wordByWordChunks"] + ")"
                         font.pixelSize: 12
-                        visible: wordByWordSubtitle1Checkbox.checked
+                        visible: wordByWordSubtitle1Checkbox.switchStatus
                     }
 
 
@@ -434,10 +401,11 @@ Item {
                             setFrom: 1
                             setTo: 10
                             setStepVisible: true
-                            setVisible: wordByWordSubtitle1Checkbox.checked
+                            setVisible: wordByWordSubtitle1Checkbox.switchStatus
                             onModified: //value changed
                             {
-                                settings.setSetting("Subtitle1/wordByWordChunks", value)
+                                // settings.setSetting("Subtitle1/wordByWordChunks", value)
+                                backend.processCommand(Command.Subtitle1WordByWordChunks, value)
                             }
                             onHovered:
                             {
@@ -477,7 +445,8 @@ Item {
                             setStepVisible: false
                             onModified: //value changed
                             {
-                                settings.setSetting("Subtitle1/textSize",value)
+                                backend.processCommand(Command.Subtitle1TextSize, value)
+                                // settings.setSetting("Subtitle1/textSize",value)
                             }
                             onHovered:
                             {
@@ -518,7 +487,8 @@ Item {
                             setStepVisible: false
                             onModified: //value changed
                             {
-                                settings.setSetting("Subtitle1/offset",value)
+                                // settings.setSetting("Subtitle1/offset",value)
+                                backend.processCommand(Command.Subtitle1Offset, value)
                             }
                             onHovered:
                             {
@@ -532,6 +502,43 @@ Item {
                     }
 
 
+                    Label {
+                        text: "Subtitle 1 back opacity: (" + settings.value["Subtitle1/backOpacity"] + ")"
+                        font.pixelSize: 12
+                    }
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asFloat(settings.value["Subtitle1/backOpacity"])*10
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: 1
+                            setTo: 10
+                            setStepVisible: true
+                            onModified: //value changed
+                            {
+                                // settings.setSetting("Subtitle1/backOpacity",value/10)
+                                backend.processCommand(Command.Subtitle1Opacity, value/10)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
+                        }
+
+                    }
 
                     Row
                     {
@@ -570,6 +577,9 @@ Item {
 
 
 
+
+            ///sub2
+
             Rectangle { height: 1; color: "lightgrey"; anchors { right:parent.right; left:parent.left } }
             Label {
                 text: "Subtitle 2 Settings:"
@@ -577,41 +587,48 @@ Item {
                 font.pixelSize: 15
             }
 
-            CustomCheckbox
+            Label {
+                text: "sub2 status:"
+                font.pixelSize: 12
+            }
+            MySwitch
             {
-                id:subtitle2Status
-                initialCheckedState:  Scripts.asBool(settings.value["Subtitle2/status"])
-                theText:"subtitle 2 status"
-                onStatusChangeAction:
-                {
-                    settings.setSetting("Subtitle2/status",checked)
-                }
+                id: subtitle2Status
+                switchStatus:  Scripts.asBool(settings.value["Subtitle2/status"])
+                onSwitchClicked: backend.processCommand(Command.Subtitle2Status, switchStatus)
             }
 
+
+
             Rectangle {
+                id:subtitle2MoreBase
                 width: 200
                 height: 200
                 color: "transparent"
-                visible: subtitle2Status.checked
+                visible: Scripts.asBool(settings.value["Subtitle2/status"])
+
 
                 Column {
                     anchors.fill: parent
-                    CustomCheckbox
+
+                    Label {
+                        text: "sub2 wordByWord:"
+                        font.pixelSize: 12
+                        visible: subtitle2Status.switchStatus
+                    }
+                    MySwitch
                     {
-                        id:wordByWordSubtitle2Checkbox
-                        initialCheckedState:  Scripts.asBool(settings.value["Subtitle2/wordByWord"])
-                        theText:"word by word"
-                        onStatusChangeAction:
-                        {
-                            settings.setSetting("Subtitle2/wordByWord",newStatus)
-                        }
+                        id: wordByWordSubtitle2Checkbox
+                        switchStatus:  Scripts.asBool(settings.value["Subtitle2/wordByWord"])
+                        onSwitchClicked: backend.processCommand(Command.Subtitle2WordByWord,switchStatus)
                     }
 
                     Label {
                         text: "wordByWord Chunks: (" + settings.value["Subtitle2/wordByWordChunks"] + ")"
                         font.pixelSize: 12
-                        visible: wordByWordSubtitle2Checkbox.checked
+                        visible: wordByWordSubtitle2Checkbox.switchStatus
                     }
+
 
                     Rectangle
                     {
@@ -631,10 +648,11 @@ Item {
                             setFrom: 1
                             setTo: 10
                             setStepVisible: true
-                            setVisible: wordByWordSubtitle2Checkbox.checked
+                            setVisible: wordByWordSubtitle2Checkbox.switchStatus
                             onModified: //value changed
                             {
-                                settings.setSetting("Subtitle2/wordByWordChunks", value)
+                                // settings.setSetting("Subtitle1/wordByWordChunks", value)
+                                backend.processCommand(Command.Subtitle2WordByWordChunks, value)
                             }
                             onHovered:
                             {
@@ -650,7 +668,7 @@ Item {
 
 
                     Label {
-                        text: "text size: (" + settings.value["Subtitle2/textSize"] + ")"
+                        text: "Subtitle 2 font size: (" + settings.value["Subtitle2/textSize"] + ")"
                         font.pixelSize: 12
                     }
 
@@ -674,7 +692,8 @@ Item {
                             setStepVisible: false
                             onModified: //value changed
                             {
-                                settings.setSetting("Subtitle2/textSize",value)
+                                backend.processCommand(Command.Subtitle2TextSize, value)
+                                // settings.setSetting("Subtitle1/textSize",value)
                             }
                             onHovered:
                             {
@@ -686,6 +705,7 @@ Item {
                         }
 
                     }
+
 
 
 
@@ -714,7 +734,8 @@ Item {
                             setStepVisible: false
                             onModified: //value changed
                             {
-                                settings.setSetting("Subtitle2/offset",value)
+                                // settings.setSetting("Subtitle1/offset",value)
+                                backend.processCommand(Command.Subtitle2Offset, value)
                             }
                             onHovered:
                             {
@@ -728,6 +749,43 @@ Item {
                     }
 
 
+                    Label {
+                        text: "Subtitle 2 back opacity: (" + settings.value["Subtitle2/backOpacity"] + ")"
+                        font.pixelSize: 12
+                    }
+                    Rectangle
+                    {
+                        width: 200
+                        height: 50
+                        color:"transparent"
+                        MySlider
+                        {
+                            setWidth: 200
+                            setHeight: 10
+                            setFilledColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setColor: !Config.activeTheme ? "white" : Config.highlightColor
+                            setOpacity: !Config.activeTheme ? 0.8 : 0.5
+                            intialValue: Scripts.asFloat(settings.value["Subtitle2/backOpacity"])*10
+                            setFilledLeftRadius: 30
+                            setRadius: 30
+                            setFrom: 1
+                            setTo: 10
+                            setStepVisible: true
+                            onModified: //value changed
+                            {
+                                // settings.setSetting("Subtitle1/backOpacity",value/10)
+                                backend.processCommand(Command.Subtitle2Opacity, value/10)
+                            }
+                            onHovered:
+                            {
+                                if(isHovered)
+                                    backend.changeCursor("hand")
+                                else
+                                    backend.changeCursor()
+                            }
+                        }
+
+                    }
 
                     Row
                     {
@@ -761,7 +819,6 @@ Item {
                         }
                     }
 
-
                 }
             }
 
@@ -769,6 +826,56 @@ Item {
         }
     }
 
+    Connections
+    {
+        target: backend
+        onMediaPlayerDataChange: function (cmd, payload)
+        {
+            switch(cmd)
+            {
+                case Command.Subtitle1WordByWord: wordByWordSubtitle1Checkbox.changeStatus(Scripts.asBool(payload)); break;
+                case Command.Subtitle1Status:
+                {
+                    var val = Scripts.asBool(payload)
+                    subtitle1Status.changeStatus(val)
+                    subtitle1MoreBase.visible=val
+                }break;
+
+                case Command.Subtitle2WordByWord: wordByWordSubtitle2Checkbox.changeStatus(Scripts.asBool(payload)); break;
+                case Command.Subtitle2Status:
+                {
+                    var val = Scripts.asBool(payload)
+                    subtitle2Status.changeStatus(val)
+                    subtitle2MoreBase.visible=val
+                }break;
+
+                case Command.SubRemoveDomainsToggle:
+                    subRemoveDomains.changeStatus(Scripts.asBool(payload))
+                    break;
+                case Command.SubIgnoreHtmlTagToggle:
+                    subIgnoreHTML.changeStatus(Scripts.asBool(payload))
+                    break;
+                case Command.SubCleanSubtitleToggle:
+                    subCleanSubtitle.changeStatus(Scripts.asBool(payload))
+                    break;
+                case Command.SubRemoveExtraInfoToggle:
+                    subRemoveExtrainfo.changeStatus(Scripts.asBool(payload))
+                    break;
+
+
+
+                case Command.MprisControlToggle:
+                    mprisControlStatus.changeStatus(Scripts.asBool(payload))
+                    break;
+
+                case Command.CustomCursorStatusToggle:
+                    customCursorStatus.changeStatus(Scripts.asBool(payload))
+                    break;
+
+
+            }
+        }
+    }
 
     // Component.onCompleted:
     // {

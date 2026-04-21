@@ -105,6 +105,13 @@ function asPath(value) {
 }
 
 
+function asFloat(value) {
+    if (value === undefined || value === null) return 0.0;
+
+    const num = Number(value);
+    return isNaN(num) ? 0.0 : num;
+}
+
 function asInt(value)
 {
     if (value === undefined || value === null)

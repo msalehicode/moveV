@@ -57,7 +57,8 @@ Item
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                changeStatus()
+                switchStatus=!switchStatus
+                switchClicked()
             }
         }
     }
@@ -80,16 +81,15 @@ Item
         duration: setAnimationDuration
     }
 
-    function changeStatus() {
-        if (switchStatus) {
+    function changeStatus(newStatus) {
+        if (!newStatus) {
             animationDeactivate.start()
             mySwitsch.color = setBgColorDeactivated
-            switchStatus = false
         } else {
             animationActivate.start()
             mySwitsch.color = setBgColorActivated
-            switchStatus = true
         }
-        switchClicked()
+        // switchStatus = !switchStatus
+        // switchClicked()
     }
 }

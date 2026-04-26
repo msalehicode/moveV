@@ -20,6 +20,9 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     m_mprisAdaptor(nullptr)
 
 {
+    QThread* t= QThread::currentThread();
+    qDebug() << "backend constructor on Thread:" << t;
+
     //read mprisControl status from settings
     QVariant settingVariant = m_settings->getSetting("App/mprisControl",false);
     bool status = settingVariant.value<bool>();
@@ -40,6 +43,7 @@ Backend::Backend(SettingsManager* settings, QGuiApplication *app, QObject *paren
     m_pingUsersTimer.setInterval(SERVER_PING_USERS_TIMER_INTERVAL);
     connect(&m_pingUsersTimer, &QTimer::timeout,
             this, &Backend::sendPingToAllUsers);
+
 }
 
 void Backend::initMpris()
@@ -107,6 +111,7 @@ void Backend::initMpris()
 
 void Backend::closeMpris()
 {
+    qInfo() << "closing mpris..";
     QDBusConnection connection = QDBusConnection::sessionBus();
     if (connection.isConnected())
     {
@@ -1268,6 +1273,12 @@ void Backend::sendPingToAllUsers()
 
 }
 
+void Backend::init()
+{
+    QThread* t= QThread::currentThread();
+    qDebug() << "backend init on Thread:" << t;
+}
+
 QString Backend::netLocalName() const
 {
     return m_netLocalName;
@@ -1376,6 +1387,12 @@ void Backend::setMprisControl(bool newMprisControl)
 
     m_mprisControl = newMprisControl;
     emit mprisControlChanged();
+}
+
+void Backend::retryMprisConnection()
+{
+    closeMpris();
+    initMpris();
 }
 
 void Backend::setRootObject(QObject *newRootObject)

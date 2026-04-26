@@ -147,6 +147,14 @@ Item {
                     font.bold: true
                     font.pixelSize: 15
                 }
+                MyButton
+                {
+                    setButtonText: "retry"
+                    setWidth: 60
+                    setHeight: 50
+                    setVisible: !backend.IsDBusConnectionOk
+                    onButtonClicked:  backend.retryMprisConnection()
+                }
             }
 
 

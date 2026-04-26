@@ -248,6 +248,7 @@ public:
 
     bool mprisControl() const;
     void setMprisControl(bool newMprisControl);
+    Q_INVOKABLE void retryMprisConnection();
 
     bool IsDBusConnectionOk() const;
     void setIsDBusConnectionOk(bool newIsDBusConnectionOk);
@@ -332,6 +333,8 @@ public slots:
     void mprisPause();
     void mprisPlayPause();
 
+    void init();
+
 private:
     void initBluetoothServer();
     void initNetServer();
@@ -339,6 +342,8 @@ private:
                         CommandHandler::Command localCommand=CommandHandler::Command::DefaultCmd, QString thePayload="");
 
     void sendPingToAllUsers();
+
+
 
     QString getPlayerLatestStatus();
 

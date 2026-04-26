@@ -6,6 +6,7 @@ import QtQuick.Controls.Fusion
 import QtQuick.Layouts
 import QtMultimedia
 import Config
+import MyCommands 1.0
 
 Item {
     id: root
@@ -59,7 +60,7 @@ Item {
 
             Layout.fillWidth: true
 
-            onMoved: root.mediaPlayer.setPosition(value * root.mediaPlayer.duration)
+            onMoved: backend.processCommand(Command.ModifyPosition, (value * root.mediaPlayer.duration))
         }
 
         Label {

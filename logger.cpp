@@ -34,7 +34,7 @@ void Logger::messageHandler(QtMsgType type, const QMessageLogContext &ctx, const
     }
 
 
-    QString line = QString("[%1] [%2] (%3:%4):\n%5\n\n")
+    QString line = QString("[%1] [%2] (%3:%4): %5\n")
                        .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz"))
                        .arg(level)
                        .arg(ctx.file ? ctx.file : "")

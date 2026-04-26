@@ -135,7 +135,8 @@ ApplicationWindow {
             mediaCurrentFileLabel.text = FileNameProvider.getFileName(mediaPlayer.source)
 
             //pack metadata later..
-            backend.processCommand(Command.CurrentMediaMeta, mediaCurrentFileLabel.text)
+            var mdata = "`"+mediaCurrentFileLabel.text +"`"+mediaPlayer.duration
+            backend.processCommand(Command.CurrentMediaMeta, mdata)
 
 
 
@@ -2155,6 +2156,8 @@ ApplicationWindow {
                 //combined handle (both QML and C++)
                 case Command.ModifyRotation: videoOutput.rotation=Scripts.asInt(payload); break;
                 case Command.SNSToggle: snsCheckbox.changeStatus(Scripts.asBool(payload)); break;
+                case Command.ModifyPosition: mediaPlayer.position=payload; break;
+
                 //QML handled, C++ just watch :)
                 case Command.VolumeDown: volDown(); break;
                 case Command.VolumeUp: volUp(); break;

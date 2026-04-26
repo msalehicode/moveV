@@ -514,14 +514,24 @@ QString Backend::getPlayerLatestStatus()
 {
     QList<QVariant> dataToPack;
     // dataToPack << QString("subtitle1Status") << 45;
-
+    qInfo() << "getPlayerLatestStatus";
 
     for (const QString &key : CommandHandler::commandKeyMap.keys())
     {
         if(key.length()>1) //avoid get setting for not exists keys.
             dataToPack << m_settings->getSetting(key, "");
         else //for specific keys which doesnt exist on settings so m_settings(getSetting) won't be able find their value, set them manually
-            if(key=="1") dataToPack << m_currentMedia.name;
+            if(key=="1")
+            {
+                QList<QVariant> metadata;
+                qInfo() << "currentmedia " << m_currentMedia.name << " "<< m_currentMedia.length;
+                metadata.append(m_currentMedia.name);
+                metadata.append(m_currentMedia.length);
+                QString dd = m_commandHandler.packPayload(metadata);
+                qInfo() << "dd=" << dd;
+                dataToPack << dd;
+            }
+
     }
 
     QString payload = m_commandHandler.packPayload(dataToPack);
@@ -971,6 +981,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         case CommandHandler::Command::NextToggle:
         case CommandHandler::Command::ModifyBrightness:
         case CommandHandler::Command::ModifyPlayRate:
+        case CommandHandler::Command::ModifyPosition:
         case CommandHandler::Command::ModifyVolume:
         case CommandHandler::Command::VolumeDown:
         case CommandHandler::Command::VolumeUp:
@@ -1050,7 +1061,11 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         }break;
 
         case CommandHandler::Command::CurrentMediaMeta:
-            m_currentMedia.name=value;
+            m_currentMedia.name=value.split("`").at(1);
+            m_currentMedia.length=value.split("`").at(2).toInt();
+            // qDebug() << "name: " << value.split("`").at(1) << " duration:" << value.split("`").at(2);
+
+            // qDebug() << m_currentMedia.name << " " << m_currentMedia.length;
             m_unstoredMPdata.isPlaying=true;
             updateMprisAdaptor=true;
             break;
@@ -1725,3 +1740,4 @@ QList<QString> RemoteUsers::getAsStringList() const
     };
     return list;
 }
+

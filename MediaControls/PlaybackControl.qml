@@ -99,7 +99,7 @@ Item {
                     id: shuffleButton
                     icon.source: root.shuffleIcon
                     visible: Screen.primaryOrientation === Qt.LandscapeOrientation
-                    onClicked: root.isPlaylistShuffled = !root.isPlaylistShuffled
+                    onClicked: backend.processCommand(Command.ShuffleToggle,!root.isPlaylistShuffled)
                 }
 
                 CustomButton {

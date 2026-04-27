@@ -2174,7 +2174,9 @@ ApplicationWindow {
                 case Command.FullscreenToggle: mediaPlayer.doFullscreen(); break;
                 case Command.StartSpeeding: spedupByHold=true; break;
                 case Command.StopSpeeding: spedupByHold=false; break;
-                case Command.ShuffleToggle: playlistInfo.isShuffled=!playlistInfo.isShuffled; break;
+                case Command.ShuffleToggle: {
+                    playbackControl.isPlaylistShuffled= !playbackControl.isPlaylistShuffled
+                }break;
                 case Command.RepeatToggle: playbackControl.changeLoopMode(); break;
                 case Command.Play: mediaPlayer.play(); break;
                 case Command.Pause: mediaPlayer.pause(); break;

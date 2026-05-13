@@ -39,7 +39,7 @@
  *  5.0.0 (v500)
  */
 
-#define APP_VERSION_CODE 108 //1.0.8
+#define APP_VERSION_CODE 113 //1.1.3
 #define MINIMUM_ALLOWED_VERSION_CODE_REMOTE 108 //1.0.8
 
 #endif // CONFIG_H

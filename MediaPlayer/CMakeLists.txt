@@ -48,6 +48,15 @@ qt_add_qml_module(MediaPlayer
         "icons/apple.svg"
         "icons/windows.svg"
         "icons/android.svg"
+
+
+        # country flags
+        "icons/sa.png"
+        "icons/uk.png"
+        "icons/fr.png"
+        "icons/de.png"
+        "icons/tr.png"
+        "icons/es.png"
 )
 
 

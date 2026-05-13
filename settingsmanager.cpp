@@ -33,6 +33,7 @@ void SettingsManager::loadSettings()
     if(!m_settings.contains("App/hostPasswordStatus")) m_settings.setValue("App/hostPasswordStatus",false);
     if(!m_settings.contains("App/hostPassword")) m_settings.setValue("App/hostPassword","pass123");
     if(!m_settings.contains("App/showControlsWhenRemoteCommand")) m_settings.setValue("App/showControlsWhenRemoteCommand",true);
+    if(!m_settings.contains("App/wordTranslateLanguage")) m_settings.setValue("App/wordTranslateLanguage",true);
 
 
     //speedup and stop (SNS)
@@ -60,6 +61,7 @@ void SettingsManager::loadSettings()
 
     //subtitle 1
     if(!m_settings.contains("Subtitle1/status")) m_settings.setValue("Subtitle1/status",true);
+    if(!m_settings.contains("Subtitle1/translateWordByClick")) m_settings.setValue("Subtitle1/translateWordByClick",false);
     if(!m_settings.contains("Subtitle1/wordByWord")) m_settings.setValue("Subtitle1/wordByWord",false);
     if(!m_settings.contains("Subtitle1/wordByWordChunks")) m_settings.setValue("Subtitle1/wordByWordChunks",1);
     if(!m_settings.contains("Subtitle1/textColor")) m_settings.setValue("Subtitle1/textColor","yellow");
@@ -72,6 +74,7 @@ void SettingsManager::loadSettings()
 
     //subtitle 2
     if(!m_settings.contains("Subtitle2/status")) m_settings.setValue("Subtitle2/status",true);
+    if(!m_settings.contains("Subtitle2/translateWordByClick")) m_settings.setValue("Subtitle2/translateWordByClick",false);
     if(!m_settings.contains("Subtitle2/wordByWord")) m_settings.setValue("Subtitle2/wordByWord",false);
     if(!m_settings.contains("Subtitle2/wordByWordChunks")) m_settings.setValue("Subtitle2/wordByWordChunks",1);
     if(!m_settings.contains("Subtitle2/textColor")) m_settings.setValue("Subtitle2/textColor","yellow");
@@ -100,7 +103,7 @@ void SettingsManager::loadSettings()
     m_value["App/hostPasswordStatus"] = m_settings.value("App/hostPasswordStatus",false);
     m_value["App/hostPassword"] = m_settings.value("App/hostPassword","pass123");
     m_value["App/showControlsWhenRemoteCommand"] = m_settings.value("App/showControlsWhenRemoteCommand",true);
-
+    m_value["App/wordTranslateLanguage"] = m_settings.value("App/wordTranslateLanguage",true);
 
     //speedup and stop (SNS)
     m_value["SNS/secBeforeSpeedup"] = m_settings.value("SNS/secBeforeSpeedup",1);
@@ -125,6 +128,7 @@ void SettingsManager::loadSettings()
 
     //subtitle 1
     m_value["Subtitle1/status"] = m_settings.value("Subtitle1/status",true);
+    m_value["Subtitle1/translateWordByClick"] = m_settings.value("Subtitle1/translateWordByClick",false);
     m_value["Subtitle1/wordByWord"] = m_settings.value("Subtitle1/wordByWord",false);
     m_value["Subtitle1/wordByWordChunks"] = m_settings.value("Subtitle1/wordByWordChunks",1);
     m_value["Subtitle1/textColor"] = m_settings.value("Subtitle1/textColor","yellow");
@@ -137,6 +141,7 @@ void SettingsManager::loadSettings()
 
     //subtitle 2
     m_value["Subtitle2/status"] = m_settings.value("Subtitle2/status",true);
+    m_value["Subtitle2/translateWordByClick"] = m_settings.value("Subtitle2/translateWordByClick",false);
     m_value["Subtitle2/wordByWord"] = m_settings.value("Subtitle2/wordByWord",false);
     m_value["Subtitle2/wordByWordChunks"] = m_settings.value("Subtitle2/wordByWordChunks",1);
     m_value["Subtitle2/textColor"] = m_settings.value("Subtitle2/textColor","yellow");

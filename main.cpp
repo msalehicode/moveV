@@ -30,8 +30,10 @@
 #include <QDBusConnection>
 #include <QDBusError>
 
+#include <QThread>
 
 #include "logger.h"
+#include "getwordtranslate.h"
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -73,11 +75,12 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+    QThread::currentThread()->setObjectName("main thread");
 
     // Set the media role to "video"
     qputenv("PULSE_PROP", "media.role=video");
 
-    QCoreApplication::setApplicationName("MediaPlayer Example");
+    QCoreApplication::setApplicationName("moveV");
     QCoreApplication::setOrganizationName("QtProject");
     QCoreApplication::setApplicationVersion(QT_VERSION_STR);
     QCommandLineParser parser;
@@ -88,14 +91,12 @@ int main(int argc, char *argv[])
     parser.process(app);
 
 
-    //win: c/users/username/appdata/roaming/org/app/
-    //lin: ~/.local/share/org/app/
-    //mac: ~/library/application support/app/
+    //--------------------- logger ---------------------
     QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     QDir().mkpath(logDir);
     QString logPath = logDir + "/app.log";
     qInfo() << " logger filepath = " << logPath;
-    Logger::install(logPath);
+    // Logger::install(logPath);
 
 
 
@@ -106,10 +107,21 @@ int main(int argc, char *argv[])
 
 
 
+    // QThread* backendThread = new QThread;
+    // backendThread->setObjectName("backend thread");
+
     SettingsManager settings;
-    Backend backend(&settings,&app);
-    engine.rootContext()->setContextProperty("backend", &backend);
+
+    Backend* backend = new Backend(&settings,&app,&app);
+    // backend->moveToThread(backendThread);
+
+    // QObject::connect(backendThread, &QThread::started, backend, &Backend::init);
+
+    GetWordTranslate getWordTranslate;
+
+    engine.rootContext()->setContextProperty("backend", backend);
     engine.rootContext()->setContextProperty("settings", &settings);
+    engine.rootContext()->setContextProperty("translateWord", &getWordTranslate);
 
 
     qmlRegisterUncreatableType<CommandHandler>("MyCommands", 1, 0, "Command", "Enums only");
@@ -141,10 +153,10 @@ int main(int argc, char *argv[])
 
     //pass engine's root Object to backend because we need to call QML functions by c++
     //and mpris needs this rootObject
-    backend.setRootObject(rootObject);
+    backend->setRootObject(rootObject);
 
     //also handle mpris (bluetooth/keyboard media buttons/os media buttons,os notification dialog)
-    backend.initMpris();
+    backend->initMpris();
 
 
     return app.exec();

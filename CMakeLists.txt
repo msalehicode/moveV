@@ -6,7 +6,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CM_MPRIS_IDENTITY "MyMediaPlayer")
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus WebEngineQuick)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -28,6 +28,7 @@ qt_add_qml_module(MediaPlayerApp
     SOURCES settingsmanager.h settingsmanager.cpp
     SOURCES logger.h logger.cpp
     SOURCES config.h
+    SOURCES getwordtranslate.h getwordtranslate.cpp
 )
 
 qt_add_ios_ffmpeg_libraries(MediaPlayerApp)
@@ -54,6 +55,7 @@ target_link_libraries(MediaPlayerApp PRIVATE
     NetworkControl
     MediaPlayer #mediaPlayer library (subDirectory)
     CommandHandler
+    Qt6::WebEngineQuick
 )
 
 install(TARGETS MediaPlayerApp

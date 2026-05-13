@@ -17,6 +17,8 @@ Item {
     property string currentItemText:modelData[currentIndex].text
     property bool pathFromComponentDire:true
 
+    property int setIconWidth: 30
+    property int setIconHeight: 30
     property string setPositionPopup: "bottom"
 
 
@@ -51,8 +53,8 @@ Item {
         {
             id:iconItem
             color:"transparent"
-            width:30
-            height:30
+            width:setIconWidth
+            height:setIconHeight
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: 10
@@ -155,8 +157,9 @@ Item {
                     radius: setRadius
 
                     Row {
-                        anchors.fill: parent
+                        // anchors.fill: parent
                         spacing: 5
+                        anchors.verticalCenter: parent.verticalCenter
 
                         Rectangle
                         {
@@ -164,9 +167,9 @@ Item {
                             color:"transparent"
                             width:30
                             height:30
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.leftMargin: 5
+                            // anchors.verticalCenter: parent.verticalCenter
+                            // anchors.left: parent.left
+                            // anchors.leftMargin: 5
                             Image {
                                 source: pathFromComponentDire ? "../" +  modelData.icon :  modelData.icon
                                 anchors.fill: parent

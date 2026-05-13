@@ -219,6 +219,10 @@ void Backend::changeCursor(const QString &mode)
     {
         cc.setCursor(5);
     }
+    else if(mode=="horReposition")
+    {
+        cc.setCursor(6);
+    }
     else if(mode=="custom")
     {
         if(cc.isCustomSet())
@@ -1006,6 +1010,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
 
         //handled here. no need QML action
         case CommandHandler::Command::Subtitle1Status: m_settings->setSetting("Subtitle1/status",value); break;
+        case CommandHandler::Command::Subtitle1TranslateWordByClick: m_settings->setSetting("Subtitle1/translateWordByClick",value); break;
         case CommandHandler::Command::Subtitle1WordByWord: m_settings->setSetting("Subtitle1/wordByWord",value); break;
         case CommandHandler::Command::Subtitle1WordByWordChunks: m_settings->setSetting("Subtitle1/wordByWordChunks",value); break;
         case CommandHandler::Command::Subtitle1TextSize: m_settings->setSetting("Subtitle1/textSize",value); break;
@@ -1015,6 +1020,7 @@ void Backend::processCommand(RemoteUsers *user, QByteArray *data,
         case CommandHandler::Command::Subtitle1Opacity: m_settings->setSetting("Subtitle1/backOpacity",value); break;
         //sub2
         case CommandHandler::Command::Subtitle2Status: m_settings->setSetting("Subtitle2/status",value); break;
+        case CommandHandler::Command::Subtitle2TranslateWordByClick: m_settings->setSetting("Subtitle2/translateWordByClick",value); break;
         case CommandHandler::Command::Subtitle2WordByWord: m_settings->setSetting("Subtitle2/wordByWord",value); break;
         case CommandHandler::Command::Subtitle2WordByWordChunks: m_settings->setSetting("Subtitle2/wordByWordChunks",value); break;
         case CommandHandler::Command::Subtitle2TextSize: m_settings->setSetting("Subtitle2/textSize",value); break;

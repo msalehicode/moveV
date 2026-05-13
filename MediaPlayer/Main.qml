@@ -19,6 +19,8 @@ import "../MediaControls/MyComponents/"
 import QtQuick.Dialogs
 import MyCommands 1.0
 
+import QtWebEngine
+
 ApplicationWindow {
 
     id: root
@@ -49,7 +51,7 @@ ApplicationWindow {
     property bool spedupByHold: false //a flag to set when user hold mouse click to speedup
     property string currentSubtitle: "" //temp variable to hold subtitle
 
-
+    property bool translateViewIsOpen:false;
 
     //on load fill these from settings.value then on closing save them.
     property alias volume: playbackControl.volume
@@ -242,7 +244,9 @@ ApplicationWindow {
 
     VideoOutput {
         id: videoOutput
-        anchors.fill: parent
+        width: translateViewIsOpen ? parent.width-baseTranslate.width : parent.width
+        height: parent.height
+        anchors.right: parent.right
         visible: mediaPlayer.hasVideo
 
 
@@ -296,7 +300,7 @@ ApplicationWindow {
     Rectangle
     {
         id:brightnessOverlay
-        anchors.fill: parent
+        anchors.fill: videoOutput
         color:"black"
         opacity: root.brightness
         WheelHandler
@@ -482,6 +486,69 @@ ApplicationWindow {
     //subtitle list
     ListModel { id: subtitleModel }
 
+
+    ListModel { id:subtitleWordsData1}
+
+    ListModel { id:subtitleWordsData2}
+
+
+    // Function to parse subtitle text and populate the ListModel
+    function populateSubtitleModel(fullSubtitleText,targetListModel)
+    {
+        // Clear the existing model data first
+        targetListModel.clear();
+
+        if (!fullSubtitleText || fullSubtitleText.trim() === "") {
+            return; // Nothing to add if the text is empty
+        }
+
+        // Basic split:
+        var words = fullSubtitleText.split(/\s+/); // Splits by one or more whitespace characters
+
+        // console.log("words:",words)
+        // --- Populate ListModel ---
+        for (var i = 0; i < words.length; i++) {
+            var word = words[i];
+            if (word.trim() === "") continue; // Skip empty strings that might result from split
+
+            targetListModel.append({
+                wordText: word         // Role 1: The actual text of the word
+            });
+        }
+
+
+        // console.log("--- Contents of targetListModel ---");
+        // if (targetListModel.count === 0) {
+        //     console.log("ListModel is empty.");
+        // } else {
+        //     for (var i = 0; i < targetListModel.count; i++) {
+        //         // Access items by index. Each item is an object with roles.
+        //         // Use get() to access properties by their role name.
+        //         var itemText = targetListModel.get(i).wordText; // Accessing the 'wordText' role
+        //         var itemId = targetListModel.get(i).wordId;   // Accessing the 'wordId' role
+
+        //         // Log the properties of the current item
+        //         console.log("Item", i, ": wordText =", itemText, ", wordId =", itemId);
+        //     }
+        // }
+        // console.log("--- End of targetListModel ---");
+    }
+
+    function getCorrectedSubtitlePos(x,y, width,height, ph)
+    {
+        // Ensure rectangle stays inside parent bounds
+        if (y < 0)
+            y = 0
+        if (y + height > ph)
+            y = ph - height
+        // When saving, store the relative Y position as a percentage
+
+        var pos = y / ph; // //0.0-1 is like 0-100%
+        // console.log("pos=",pos)
+        return pos
+    }
+
+
     // Update subtitle every ..ms
     Timer {
         interval: settings.value["Media/subtitleTimerInterval"]
@@ -495,8 +562,10 @@ ApplicationWindow {
                 subtitle1Data.currentSubtitle=""
                 subtitle2Data.currentSubtitle=""
 
+
                 if (Scripts.asBool(settings.value["Subtitle1/status"]))
                 {
+
                     // console.debug("subtitle2Data.subtitle=",subtitle2Data.subtitle)
                     subtitle1Data.currentSubtitle = Sub.getSubtitleForTime(subtitle1Data.subtitle, mediaPlayer.position + settings.value["Subtitle1/offset"]*1000)
 
@@ -512,8 +581,14 @@ ApplicationWindow {
                                                                         mediaPlayer.position);
                     }
                     else
-                        subtitleText1.text =subtitle1Data.currentSubtitle
+                    {
+                        if(Scripts.asBool(settings.value["Subtitle1/translateWordByClick"]))
+                            populateSubtitleModel(subtitle1Data.currentSubtitle,subtitleWordsData1)
+                        else //old way show whole subtitle on a Label
+                            subtitleText1.text = subtitle1Data.currentSubtitle
+                    }
                 }
+
 
 
                 if (Scripts.asBool(settings.value["Subtitle2/status"]))
@@ -533,7 +608,12 @@ ApplicationWindow {
                                                                         mediaPlayer.position);
                     }
                     else
-                        subtitleText2.text =subtitle2Data.currentSubtitle
+                    {
+                        if(Scripts.asBool(settings.value["Subtitle2/translateWordByClick"]))
+                            populateSubtitleModel(subtitle2Data.currentSubtitle,subtitleWordsData2)
+                        else //old way show whole subtitle on a Label
+                            subtitleText2.text = subtitle2Data.currentSubtitle
+                    }
                 }
 
                 if(spedupByHold)//user held mouse click to spedup
@@ -546,7 +626,6 @@ ApplicationWindow {
                     //speed up when text is empty.
                     if(subtitle1Data.currentSubtitle==="" && subtitle2Data.currentSubtitle==="")
                     {
-
                         subtitle1Data.preSubtitle=""
                         subtitle2Data.preSubtitle=""
                         //read coming up subtitle for seconds before speedup
@@ -586,7 +665,6 @@ ApplicationWindow {
                         mediaPlayer.playbackRate=settings.value["Media/rate"]
                         showSpeeding("")
                     }
-
                 }
                 else // set playbackrate value
                 {
@@ -597,21 +675,31 @@ ApplicationWindow {
         }
     }
 
+
     // Subtitle boxes
-    Rectangle
-    {
-        id:subtitle1Box
-        width: subtitleText1.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText1.implicitWidth
-        height:subtitleText1.height
-        color:settings.value["Subtitle1/backColor"]
-        opacity: settings.value["Subtitle1/backOpacity"]-brightnessOverlay.opacity/2
+    Rectangle {
+        id: subtitle1Box
+        width: Scripts.asBool(settings.value["Subtitle1/wordByWord"])
+                || !Scripts.asBool(settings.value["Subtitle1/translateWordByClick"]) ? subtitleText1.implicitWidth : videoOutput.width/2
+
+        height: Scripts.asBool(settings.value["Subtitle1/wordByWord"])
+                || !Scripts.asBool(settings.value["Subtitle1/translateWordByClick"]) ? subtitleText1.implicitHeight :subtitleWord1Container.implicitHeight
+
+        color: "transparent"
         visible: Scripts.asBool(settings.value["Subtitle1/status"])
-        anchors.horizontalCenter: parent.horizontalCenter
-        // anchors.verticalCenter: parent.verticalCenter
-        Drag.source: parent
+        anchors.horizontalCenter: videoOutput.horizontalCenter
+        y: root.height * (settings.value["Subtitle1/posY"] !== undefined ? settings.value["Subtitle1/posY"] : 0.8)
 
 
-        y: root.height * (settings.value["Subtitle1/posY"] !== undefined ? settings.value["Subtitle1/posY"] : 0.8) // Default to 80% if not set
+
+        property bool modifyingPosY: false;
+
+        Rectangle {
+            id:backgroundSubtitle1Box
+            anchors.fill: parent
+            color: settings.value["Subtitle1/backColor"]
+            opacity: settings.value["Subtitle1/backOpacity"] - brightnessOverlay.opacity / 2
+        }
 
         MouseArea {
             id:mouseAreaSubtitle1
@@ -625,80 +713,245 @@ ApplicationWindow {
                 backend.processCommand(Command.Subtitle1PosY, getCorrectedSubtitlePos(subtitle1Box.x,subtitle1Box.y,subtitle1Box.width,subtitle1Box.height,root.height))
             }
         }
+
+
+
+
+        //to show WordByWord
         Label {
             id: subtitleText1
             width: parent.width
-            height: implicitHeight
+            text: ""
             wrapMode: Text.WordWrap
-            horizontalAlignment: "AlignHCenter"
-            // horizontalAlignment: Text.AlignHCenter
-            // horizontalAlignment: Text.AlignRight
-
-
+            horizontalAlignment: Text.AlignHCenter
             color: settings.value["Subtitle1/textColor"]
-            style: Text.Outline
-            // styleColor: subtitle1Data.subTextOfsetColor
             font.pixelSize: settings.value["Subtitle1/textSize"]
-        }
-    }
+            visible: Scripts.asBool(settings.value["Subtitle1/wordByWord"])
+                     || !Scripts.asBool(settings.value["Subtitle1/translateWordByClick"])
+            MouseArea {
+                anchors.fill: parent
 
+                onPressAndHold:
+                {
+                    // console.log("modify pos y mode on.")
+                    subtitle1Box.modifyingPosY = true
+                    backend.changeCursor("verReposition")
+                }
 
-    function getCorrectedSubtitlePos(x,y, width,height, ph)
-    {
-        // Ensure rectangle stays inside parent bounds
-        if (y < 0)
-            y = 0
-        if (y + height > ph)
-            y = ph - height
-        // When saving, store the relative Y position as a percentage
+                drag.target: subtitle1Box.modifyingPosY ? subtitle1Box : null
+                onReleased: {
+                    if(subtitle1Box.modifyingPosY)
+                    {
+                        backend.processCommand(Command.Subtitle1PosY, getCorrectedSubtitlePos(subtitle1Box.x,subtitle1Box.y,subtitle1Box.width,subtitle1Box.height,root.height))
+                        subtitle1Box.modifyingPosY=false
+                        backend.changeCursor()
+                    }
+                    else if(Scripts.asBool(settings.value["Subtitle1/translateWordByClick"]))
+                    {
+                        var theText = subtitleText1.text
 
-        var pos = y / ph; // //0.0-1 is like 0-100%
-        console.log("pos=",pos)
-        return pos
-    }
+                        //text clean (remove , . - ... from before/after of text
+                        theText = theText.replace(/^[\s"'`.,!?;:@()\[\]{}<>-]+|[\s"'`.,!?;:@()\[\]{}<>-]+$/g, "");
 
-    Rectangle
-    {
-        id:subtitle2Box
-        width: subtitleText2.implicitWidth>parent.width/1.5? parent.width/1.5 : subtitleText2.implicitWidth
-        height:subtitleText2.height
-        color:settings.value["Subtitle2/backColor"]
-        opacity: settings.value["Subtitle2/backOpacity"]-brightnessOverlay.opacity/2
-        visible: Scripts.asBool(settings.value["Subtitle2/status"])
-        anchors.horizontalCenter: parent.horizontalCenter
-        // anchors.verticalCenter: parent.verticalCenter
-        Drag.source: parent
-
-
-        y: root.height * (settings.value["Subtitle2/posY"] !== undefined ? settings.value["Subtitle2/posY"] : 0.8) // Default to 80% if not set
-
-
-        MouseArea
-        {
-            id:mouseAreaSubtitle2
-            anchors.fill: parent
-            drag.target: parent
-            onEntered: backend.changeCursor("verReposition")
-            onExited: backend.changeCursor()
-            onReleased: {
-               backend.processCommand(Command.Subtitle2PosY, getCorrectedSubtitlePos(subtitle2Box.x,subtitle2Box.y,subtitle2Box.width,subtitle2Box.height,root.height))
+                        //request
+                        translateWord.getTranslate(theText,
+                                                   selectLanguageDictionary.modelData[settings.value["App/wordTranslateLanguage"]].text)
+                    }
+                }
             }
         }
+
+
+        Flow {
+            id: subtitleWord1Container
+            width: parent.width
+            spacing: 6
+            visible: Scripts.asBool(settings.value["Subtitle1/translateWordByClick"])
+                     && !Scripts.asBool(settings.value["Subtitle1/wordByWord"])
+
+            Repeater {
+                model: subtitleWordsData1
+
+                delegate: Rectangle {
+                    width: wordTextLabel1.implicitWidth
+                    height: wordTextLabel1.implicitHeight
+                    color: "transparent"
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: settings.value["Subtitle1/backColor"]
+                        opacity: (Scripts.asFloat(settings.value["Subtitle1/backOpacity"])+0.1) - brightnessOverlay.opacity / 2
+                    }
+
+                    Text {
+                        id: wordTextLabel1
+                        text: model.wordText
+                        color: settings.value["Subtitle1/textColor"]
+                        font.pixelSize: settings.value["Subtitle1/textSize"]
+                        wrapMode: Text.NoWrap
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked:
+                        {
+                            if(Scripts.asBool(settings.value["Subtitle1/translateWordByClick"]))
+                            {
+                                var theText = model.wordText
+
+                                //text clean (remove , . - ... from before/after of text
+                                theText = theText.replace(/^[\s"'`.,!?;:@()\[\]{}<>-]+|[\s"'`.,!?;:@()\[\]{}<>-]+$/g, "");
+
+                                //request
+                                translateWord.getTranslate(theText,
+                                                           selectLanguageDictionary.modelData[settings.value["App/wordTranslateLanguage"]].text)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+    }
+
+
+
+    Rectangle {
+        id: subtitle2Box
+        width: Scripts.asBool(settings.value["Subtitle2/wordByWord"])
+                || !Scripts.asBool(settings.value["Subtitle2/translateWordByClick"]) ? subtitleText2.implicitWidth : videoOutput.width/2
+
+        height: Scripts.asBool(settings.value["Subtitle2/wordByWord"])
+                || !Scripts.asBool(settings.value["Subtitle2/translateWordByClick"]) ? subtitleText2.implicitHeight :subtitleWord2Container.implicitHeight
+        color: "transparent"
+        visible: Scripts.asBool(settings.value["Subtitle2/status"])
+        anchors.horizontalCenter: videoOutput.horizontalCenter
+        y: root.height * (settings.value["Subtitle2/posY"] !== undefined ? settings.value["Subtitle2/posY"] : 0.8)
+
+
+
+        property bool modifyingPosY: false;
+
+        Rectangle {
+            id:backgroundSubtitle2Box
+            anchors.fill: parent
+            color: settings.value["Subtitle2/backColor"]
+            opacity: settings.value["Subtitle2/backOpacity"] - brightnessOverlay.opacity / 2
+        }
+
+        MouseArea {
+            id:mouseAreaSubtitle2
+
+            onEntered: backend.changeCursor("verReposition")
+            onExited: backend.changeCursor()
+
+            anchors.fill: parent
+            drag.target: parent
+            onReleased: {
+                backend.processCommand(Command.Subtitle2PosY, getCorrectedSubtitlePos(subtitle2Box.x,subtitle2Box.y,subtitle2Box.width,subtitle2Box.height,root.height))
+            }
+        }
+
+
+
+
+        //to show WordByWord
         Label {
             id: subtitleText2
-            // width: implicitWidth>parent.width/2? parent.width/2 : implicitWidth
             width: parent.width
-            height: implicitHeight
+            text: ""
             wrapMode: Text.WordWrap
-            horizontalAlignment: "AlignHCenter"
-            // horizontalAlignment: Text.AlignHCenter
-            // horizontalAlignment: Text.AlignRight
-
+            horizontalAlignment: Text.AlignHCenter
             color: settings.value["Subtitle2/textColor"]
-            style: Text.Outline
-            // styleColor: subtitle2Data.subTextOfsetColor
             font.pixelSize: settings.value["Subtitle2/textSize"]
+            visible: Scripts.asBool(settings.value["Subtitle2/wordByWord"])
+                     || !Scripts.asBool(settings.value["Subtitle2/translateWordByClick"])
+            MouseArea {
+                anchors.fill: parent
+
+                onPressAndHold:
+                {
+                    // console.log("modify pos y mode on.")
+                    subtitle2Box.modifyingPosY = true
+                    backend.changeCursor("verReposition")
+                }
+
+                drag.target: subtitle2Box.modifyingPosY ? subtitle2Box : null
+                onReleased: {
+                    if(subtitle2Box.modifyingPosY)
+                    {
+                        backend.processCommand(Command.Subtitle2PosY, getCorrectedSubtitlePos(subtitle2Box.x,subtitle2Box.y,subtitle2Box.width,subtitle2Box.height,root.height))
+                        subtitle2Box.modifyingPosY=false
+                        backend.changeCursor()
+                    }
+                    else if(Scripts.asBool(settings.value["Subtitle2/translateWordByClick"]))
+                    {
+                        var theText = subtitleText2.text
+
+                        //text clean (remove , . - ... from before/after of text
+                        theText = theText.replace(/^[\s"'`.,!?;:@()\[\]{}<>-]+|[\s"'`.,!?;:@()\[\]{}<>-]+$/g, "");
+
+                        //request
+                        translateWord.getTranslate(theText,
+                                                   selectLanguageDictionary.modelData[settings.value["App/wordTranslateLanguage"]].text)
+                    }
+                }
+            }
         }
+
+
+        Flow {
+            id: subtitleWord2Container
+            width: parent.width
+            spacing: 6
+            visible: Scripts.asBool(settings.value["Subtitle2/translateWordByClick"])
+                     && !Scripts.asBool(settings.value["Subtitle2/wordByWord"])
+
+            Repeater {
+                model: subtitleWordsData2
+
+                delegate: Rectangle {
+                    width: wordTextLabel2.implicitWidth
+                    height: wordTextLabel2.implicitHeight
+                    color: "transparent"
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: settings.value["Subtitle2/backColor"]
+                        opacity: (Scripts.asFloat(settings.value["Subtitle2/backOpacity"])+0.1) - brightnessOverlay.opacity / 2
+                    }
+
+                    Text {
+                        id: wordTextLabel2
+                        text: model.wordText
+                        color: settings.value["Subtitle2/textColor"]
+                        font.pixelSize: settings.value["Subtitle2/textSize"]
+                        wrapMode: Text.NoWrap
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked:
+                        {
+                            if(Scripts.asBool(settings.value["Subtitle2/translateWordByClick"]))
+                            {
+                                var theText = model.wordText
+
+                                //text clean (remove , . - ... from before/after of text
+                                theText = theText.replace(/^[\s"'`.,!?;:@()\[\]{}<>-]+|[\s"'`.,!?;:@()\[\]{}<>-]+$/g, "");
+
+                                //request
+                                translateWord.getTranslate(theText,
+                                                           selectLanguageDictionary.modelData[settings.value["App/wordTranslateLanguage"]].text)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
     }
 
 
@@ -788,7 +1041,7 @@ ApplicationWindow {
         id: volumeIndicator
         width: 40
         height: 200
-        anchors.right: parent.right
+        anchors.right: videoOutput.right
         anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
         color: "#888"
@@ -809,7 +1062,7 @@ ApplicationWindow {
         id: brightnessIndicator
         width: 40
         height: 200
-        anchors.left: parent.left
+        anchors.left: videoOutput.left
         anchors.leftMargin: 10
         anchors.verticalCenter: parent.verticalCenter
         color: "#888"
@@ -829,7 +1082,7 @@ ApplicationWindow {
         text: qsTr("Click <font color=\"#41CD52\">here</font> to open media file.")
         font.pixelSize: 24
         color: Config.secondaryColor
-        anchors.centerIn: parent
+        anchors.centerIn: videoOutput
         visible: !errorPopup.visible && !videoOutput.visible && !defaultCoverArt.visible
 
         TapHandler {
@@ -848,8 +1101,8 @@ ApplicationWindow {
         height: implicitHeight
         anchors
         {
-            verticalCenter: parent.verticalCenter
-            left:parent.left
+            verticalCenter: videoOutput.verticalCenter
+            left:videoOutput.left
             leftMargin:50
         }
 
@@ -966,9 +1219,9 @@ ApplicationWindow {
 
     PlaybackControl {
         id: playbackControl
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.bottom: videoOutput.bottom
+        anchors.left: videoOutput.left
+        anchors.right: videoOutput.right
 
         mediaPlayer: mediaPlayer
         isPlaylistVisible: playlistInfo.visible
@@ -984,7 +1237,8 @@ ApplicationWindow {
     Rectangle
     {
         id:topControls
-        width: parent.width
+        width: videoOutput.width
+        anchors.left: videoOutput.left
         height:120
         color:"transparent"
         property bool isMouseOnControl: false;
@@ -1664,7 +1918,7 @@ ApplicationWindow {
         {
             if(!playbackControl.isMouseOnControl && !settingsInfo.visible && !playlistInfo.visible
                     && !seeker.isMouseOnControl && !topControls.isMouseOnControl && !menuBar.isMenuOpened
-                    && !hostingBox.isMouseOnControl)
+                    && !hostingBox.isMouseOnControl && !translateViewIsOpen)
             {
                 hideControls.start()
             }
@@ -1892,7 +2146,7 @@ ApplicationWindow {
     Rectangle
     {
         id:popupOverlay
-        anchors.fill: parent
+        anchors.fill: videoOutput
         color:"black"
         opacity: 0.7
         visible: playlistInfo.visible || settingsInfo.visible
@@ -1907,7 +2161,7 @@ ApplicationWindow {
     PlaylistInfo {
         id: playlistInfo
 
-        anchors.right: parent.right
+        anchors.right: videoOutput.right
         anchors.top: topControls.bottom
         anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
         anchors.topMargin: 10
@@ -1944,7 +2198,7 @@ ApplicationWindow {
     SettingsInfo {
         id: settingsInfo
 
-        anchors.right: parent.right
+        anchors.right: videoOutput.right
         anchors.top: topControls.bottom
         anchors.bottom: seeker.opacity ? seeker.top : playbackControl.top
         anchors.topMargin: 10
@@ -1964,7 +2218,7 @@ ApplicationWindow {
     //handle drop files/media files
     DropArea {
         id:dropHandler
-        anchors.fill: parent
+        anchors.fill: videoOutput
         property string subPath;
         function openDialog()
         {
@@ -2130,6 +2384,190 @@ ApplicationWindow {
     }
 
 
+    Rectangle
+    {
+        id:baseTranslate
+        color:"black"
+        width:250
+        height: parent.height
+        visible: false
+
+        HoverHandler {
+            acceptedDevices: PointerDevice.Mouse
+            onHoveredChanged: {
+                if(hovered)
+                    backend.changeCursor("arrow")
+            }
+        }
+
+        function open()
+        {
+            baseTranslate.visible=true
+            translateViewIsOpen=true
+        }
+
+        function close()
+        {
+            baseTranslate.visible=false
+            translateViewIsOpen=false
+        }
+
+
+        Column
+        {
+            anchors.fill: parent
+            Rectangle
+            {
+                id:topBarTranslate
+                color:"grey"
+                width: parent.width
+                height:50
+                MyButtonWithIcon
+                {
+                    id:closeBaseTranslate
+                    setButtonText: ""
+                    setIconSource: "../MediaControls/icons/back.png"
+                    setIconWidth: 25
+                    setIconHeight: 25
+                    setWidth: 35
+                    setHeight: setWidth
+                    setRadius: setWidth
+                    setButtonBackColor: "transparent"
+                    setButtonBorderColor: "transparent"
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    onButtonClicked:
+                    {
+                        baseTranslate.close()
+                    }
+                }
+
+                MyComboboxWithIcon
+                {
+                    id:selectLanguageDictionary
+                    pathFromComponentDire: true
+                    setIconWidth: 15
+                    setIconHeight: 15
+                    currentIndex: settings.value["App/wordTranslateLanguage"]
+                    setIconArrow: "../MediaControls/icons/back.png"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    modelData:
+                        [
+                        { text: "en", icon: "../MediaPlayer/icons/uk.png" },
+                        { text: "de", icon: "../MediaPlayer/icons/de.png" },
+                        { text: "fr", icon: "../MediaPlayer/icons/fr.png" },
+                        { text: "es", icon: "../MediaPlayer/icons/es.png" },
+                        { text: "tr", icon: "../MediaPlayer/icons/tr.png" },
+                        { text: "ar", icon: "../MediaPlayer/icons/sa.png" }
+                    ]
+                    onActivated: function(index)
+                    {
+                        currentIndex = index
+                        settings.setSetting("App/wordTranslateLanguage",index)
+                    }
+                }
+
+
+            }
+
+            WebEngineView {
+                 id: webView
+                 width: parent.width
+                 height: parent.height-topBarTranslate.height
+            }
+        }
+
+        Label
+        {
+            id:labelFailedLoadTranslate
+            visible: false
+            text: "failed to load/text not found."
+            anchors.centerIn: parent
+            wrapMode: "WordWrap"
+            width: parent.width/2
+            color:"yellow"
+            font.pixelSize: 40
+        }
+
+
+        // Right-edge handle
+        Rectangle
+        {
+            id: handle
+            width: 15
+            height: parent.height
+            x: parent.width - width+10
+            y: 0
+            color: "grey"
+
+            HoverHandler
+            {
+                acceptedDevices: PointerDevice.Mouse
+                onHoveredChanged: {
+                    if(hovered)
+                        backend.changeCursor("horReposition")
+                    else
+                        backend.changeCursor()
+                }
+            }
+
+            MouseArea
+            {
+                anchors.fill: parent
+                cursorShape: Qt.SizeHorCursor
+                property real startX: 0
+                property real startWidth: 0
+
+                onPressed: function(mouse)
+                {
+                    startX = mouse.x
+                    startWidth = baseTranslate.width
+                }
+
+                onPositionChanged: function(mouse)
+                {
+                    if (pressed)
+                    {
+                        let dx = mouse.x - startX
+                        let pos = Math.max(50, startWidth + dx);
+                        if(pos <250) //minimum with is 250
+                            pos=250
+                        else if(pos>800) //max width is 800
+                            pos=800
+
+                        baseTranslate.width = pos
+                    }
+                }
+            }
+
+            Rectangle
+            {
+                color:"black"
+                width:parent.width
+                height:width*4
+                anchors.centerIn: parent
+                Image {
+                    source: "../MediaControls/icons/back.png"
+                    width: parent.width
+                    height: width
+                    anchors.centerIn: parent
+                }
+                MouseArea
+                {
+                    anchors.fill: parent
+                    onClicked:
+                    {
+                        baseTranslate.close();
+                    }
+                }
+            }
+        }
+
+
+    }
+
+
 
     ErrorPopup {
         id: errorPopup
@@ -2232,6 +2670,28 @@ ApplicationWindow {
     }
 
 
+    Connections
+    {
+        target: translateWord
+        onTranslateResult: function(status, data)
+        {
+            if(status)
+            {
+                baseTranslate.open()
+                webView.visible=true
+                labelFailedLoadTranslate.visible=false
+                webView.loadHtml(data,"https://dic.b-amooz.com/")
+            }
+            else
+            {
+                baseTranslate.open()
+                webView.visible=false
+                labelFailedLoadTranslate.visible=true
+            }
+
+        }
+    }
+
 
     Component.onCompleted: {
         if (source.toString().length > 0)
@@ -2259,6 +2719,7 @@ ApplicationWindow {
 
         if(Scripts.asBool(settings.value["App/networkHostStatus"]))
             backend.netServer(true)
+
     }
 }
 

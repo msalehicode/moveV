@@ -373,6 +373,16 @@ Item {
                     anchors.fill: parent
 
                     Label {
+                        text: "sub1 translate word by click:"
+                        font.pixelSize: 12
+                    }
+                    MySwitch
+                    {
+                        switchStatus:  Scripts.asBool(settings.value["Subtitle1/translateWordByClick"])
+                        onSwitchClicked: backend.processCommand(Command.Subtitle1TranslateWordByClick, switchStatus)
+                    }
+
+                    Label {
                         text: "sub1 wordByWord:"
                         font.pixelSize: 12
                         visible: subtitle1Status.switchStatus
@@ -618,6 +628,16 @@ Item {
 
                 Column {
                     anchors.fill: parent
+
+                    Label {
+                        text: "sub2 translate word by click:"
+                        font.pixelSize: 12
+                    }
+                    MySwitch
+                    {
+                        switchStatus:  Scripts.asBool(settings.value["Subtitle2/translateWordByClick"])
+                        onSwitchClicked: backend.processCommand(Command.Subtitle2TranslateWordByClick, switchStatus)
+                    }
 
                     Label {
                         text: "sub2 wordByWord:"

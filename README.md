@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/8f535441-e6b3-46e1-8cf5-d48432a16f3f
 - SNS (speedup and stop when there is no subtitle) also can set speeup pace and seconds before subtitle e.g: 1s before subtitle make video speed to normal (for those subtitles don't match with actor voice)  
 - can active filters for subtitle
     - ignore domains and IDs (advertisements)
-    - remote HTML tags
+    - remove HTML tags (color, ...)
     - clear subtitle positioning from subtitle data.
 - hold to speedup (hold mouse Left Click to speedup)
 - change volume and brightness via mouse wheel (brightness is on the left side, volume is on the right side)

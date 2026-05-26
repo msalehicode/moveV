@@ -55,13 +55,14 @@ https://github.com/user-attachments/assets/8f535441-e6b3-46e1-8cf5-d48432a16f3f
 - at initial remote connection host checks versions compatability if version is outdated or invalid would refuse conenction.
 
 # bugs
-- on broken media app crashes
+- on broken media files, app suicide :)
 - sometimes app's volume on system settings goes down
-- when media has high quality it takes too much to load..
+- when media file has high quality it takes too much time to load..
 
 # upcoming
 - auto brightness manager (preserve flash bangs at night..)
 - auto audio balancing (to balance loud SFX/Musics with actor's speech)
 - upgrade ui/ux
+- server version to run on VPS (host for long distance connections without port forwarding on Home Network)
 - run on android (extract subtitle via FFMPEG)
 - 

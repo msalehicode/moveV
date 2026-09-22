@@ -5,16 +5,20 @@ project(MediaPlayerApp LANGUAGES CXX)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CM_MPRIS_IDENTITY "MyMediaPlayer")
+set(APP_TitleName "MOVEV")
+set(APP_CURRENT_VERSION "0.0.1")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus WebEngineQuick)
 
-#ffmpeg to extract subtitle
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFMPEG REQUIRED
-    libavformat
-    libavcodec
-    libavutil
-)
+# ffmpeg FOR LINUX if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(FFMPEG REQUIRED
+        libavformat
+        libavcodec
+        libavutil
+    )
+endif()
 
 
 qt_standard_project_setup(REQUIRES 6.5)
@@ -76,17 +80,88 @@ install(TARGETS MediaPlayerApp
 )
 
 # ffmpeg
+if(UNIX AND NOT APPLE)
 target_include_directories(MediaPlayerApp PRIVATE
     ${FFMPEG_INCLUDE_DIRS}
 )
 target_link_directories(MediaPlayerApp PRIVATE
     ${FFMPEG_LIBRARY_DIRS}
 )
+elseif(WIN32)
+    target_include_directories(MediaPlayerApp PRIVATE C:/Libraries/ffmpeg/include)
+    target_link_directories(MediaPlayerApp PRIVATE C:/Libraries/ffmpeg/lib)
+    target_link_libraries(MediaPlayerApp PRIVATE
+        avcodec
+        avformat
+        avutil
+        # swresample
+        # swscale
+    )
+endif()
+
+
 
 # announce cmake variables to Cpp side
 target_compile_definitions(MediaPlayerApp PRIVATE
     MPRIS_IDENTITY="${CM_MPRIS_IDENTITY}"
 )
+
+
+
+include(GNUInstallDirs)
+install(TARGETS MediaPlayerApp
+    BUNDLE DESTINATION .
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+
+
+
+# ==========================================================
+# Windows deployment
+# ==========================================================
+if(WIN32)
+    get_target_property(WINDEPLOYQT_EXECUTABLE Qt6::windeployqt IMPORTED_LOCATION)
+
+    set(DEPLOY_DIR "${CMAKE_BINARY_DIR}/deploy/${APP_TitleName}-${APP_CURRENT_VERSION}-Windows")
+
+    add_custom_command(TARGET MediaPlayerApp POST_BUILD
+
+        # recreate deployment directory
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${DEPLOY_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}"
+
+        # copy executable
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "$<TARGET_FILE:MediaPlayerApp>"
+            "${DEPLOY_DIR}"
+
+        # deploy Qt
+        COMMAND
+            "${WINDEPLOYQT_EXECUTABLE}"
+            --release
+             --qmldir "${CMAKE_SOURCE_DIR}/ui"
+            "${DEPLOY_DIR}/$<TARGET_FILE_NAME:MediaPlayerApp>"
+
+
+        # ffmpeg
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "C:/Libraries/ffmpeg/bin/avcodec-62.dll"
+            "${DEPLOY_DIR}"
+
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "C:/Libraries/ffmpeg/bin/avformat-62.dll"
+            "${DEPLOY_DIR}"
+
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "C:/Libraries/ffmpeg/bin/avutil-60.dll"
+            "${DEPLOY_DIR}"
+
+        COMMENT "Deploying MoveV..."
+    )
+
+endif()
 
 
 qt_generate_deploy_qml_app_script(

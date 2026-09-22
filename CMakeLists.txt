@@ -8,6 +8,15 @@ set(CM_MPRIS_IDENTITY "MyMediaPlayer")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2 Svg Multimedia Bluetooth DBus WebEngineQuick)
 
+#ffmpeg to extract subtitle
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFMPEG REQUIRED
+    libavformat
+    libavcodec
+    libavutil
+)
+
+
 qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(MediaPlayerApp
@@ -56,12 +65,22 @@ target_link_libraries(MediaPlayerApp PRIVATE
     MediaPlayer #mediaPlayer library (subDirectory)
     CommandHandler
     Qt6::WebEngineQuick
+
+    ${FFMPEG_LIBRARIES} #ffmpeg for extract subtitle from movie
 )
 
 install(TARGETS MediaPlayerApp
     BUNDLE  DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# ffmpeg
+target_include_directories(MediaPlayerApp PRIVATE
+    ${FFMPEG_INCLUDE_DIRS}
+)
+target_link_directories(MediaPlayerApp PRIVATE
+    ${FFMPEG_LIBRARY_DIRS}
 )
 
 # announce cmake variables to Cpp side
